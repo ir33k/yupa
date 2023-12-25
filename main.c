@@ -1,16 +1,22 @@
 /* Yupa v0.1 by irek@gabr.pl */
 
 #include <assert.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #include "arg.h"
 #include "uri.h"
 #include "gph.c"
+
+/* BUFSIZ is used as default buffer size in many places and it has to
+ * be big enough to hold an single URI string. */
+_Static_assert(BUFSIZ > URI_SIZ, "BUFSIZ is too small");
 
 enum cmd {
 	CMD_NUL = 0,
@@ -20,6 +26,14 @@ enum cmd {
 	CMD_QUIT
 };
 
+struct tab {
+	enum uri_protocol protocol;
+	char    uri[URI_SIZ];
+	char    body[FILENAME_MAX];
+	char    pager[BUFSIZ];
+};
+
+static struct tab s_tab = {0};
 char *argv0;                    /* First program arg, for arg.h */
 
 /* Print FMT (printf(3)) message to stderr and exit with code 1.
@@ -122,7 +136,9 @@ onuri(char *uri)
 	enum uri_protocol protocol;
 	int sfd, port;
 	char buf[BUFSIZ], *host, *path, item;
+	FILE *fp;
 	ssize_t ssiz;
+	assert(strlen(uri) <= URI_SIZ);
 	protocol = uri_protocol(uri);
 	host = uri_host(uri);
 	port = uri_port(uri);
@@ -153,10 +169,16 @@ onuri(char *uri)
 		die("onuri send():");
 		break;
 	}
+	if (!(fp = fopen(s_tab.body, "w"))) {
+		die("onuri fopen(%s):", s_tab.body);
+	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
-		if (fwrite(buf, 1, ssiz, stdout) != (size_t)ssiz) {
+		if (fwrite(buf, 1, ssiz, fp) != (size_t)ssiz) {
 			die("onuri fwrite:");
 		}
+	}
+	if (fclose(fp) == EOF) {
+		die("onuri fclose(%s):", s_tab.body);
 	}
 	if (ssiz < 0) {
 		die("recv:");
@@ -164,6 +186,9 @@ onuri(char *uri)
 	if (close(sfd)) {
 		die("close(%d):", sfd);
 	}
+	s_tab.protocol = protocol;
+	strcpy(s_tab.uri, uri);
+	system(s_tab.pager);
 }
 
 static enum cmd
@@ -203,10 +228,9 @@ run(void)
 			printf(">>> LINK %d\n", atoi(buf));
 			break;
 		case CMD_RELOAD:
-			printf(">>> RELOAD\n");
+			onuri(s_tab.uri);
 			break;
 		case CMD_QUIT:
-			printf(">>> QUIT\n");
 			exit(0);
 			break;
 		case CMD_NUL:
@@ -216,15 +240,51 @@ run(void)
 	}
 }
 
+static char *
+strrand(int len)
+{
+	static int seed = 0;
+	static const char *allow =
+		"ABCDEFGHIJKLMNOPRSTUWXYZ"
+		"abcdefghijklmnoprstuwxyz"
+		"0123456789";
+	size_t limit = strlen(allow);
+	static char str[32];
+	assert(len < 32);
+	srand(time(0) + seed++);
+	str[len] = 0;
+	while (len--) {
+		str[len] = allow[rand() % limit];
+	}
+	return str;
+}
+
+static void
+tmpf(char *dst)
+{
+	static const char *prefix = "/tmp/yupa";
+	int fd;
+	do {
+		sprintf(dst, "%s%s", prefix, strrand(6));
+	} while (!access(dst, F_OK));
+	if ((fd = open(dst, O_RDWR | O_CREAT | O_EXCL)) == -1) {
+		die("tmpf open(%s)", dst);
+	}
+	if (close(fd)) {
+		die("tmpf close(%s)", dst);
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
-	_Static_assert(BUFSIZ > URI_SIZ, "BUFSIZ is too small");
 	ARGBEGIN {
 	case 'h':
 	default:
 		usage();
 	} ARGEND
+	tmpf(s_tab.body);
+	sprintf(s_tab.pager, "cat %s", s_tab.body);
 	if (argc) {
 		onuri(argv[0]);
 	}
