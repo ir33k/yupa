@@ -1,14 +1,24 @@
 /* Yupa v0.1 by irek@gabr.pl */
 
+#include <assert.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include "arg.h"
 #include "uri.h"
 #include "gph.c"
+
+enum cmd {
+	CMD_NUL = 0,
+	CMD_URI,
+	CMD_LINK,
+	CMD_RELOAD,
+	CMD_QUIT
+};
 
 char *argv0;                    /* First program arg, for arg.h */
 
@@ -42,6 +52,18 @@ usage(void)
 	    "\n", argv0);
 }
 
+/* Return non 0 value when STR contains only digits. */
+static int
+isnum(char *str)
+{
+	for (; *str; str++) {
+		if (*str < '0' || *str > '9') {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 /* Establish AF_INET internet SOCK_STREAM stream connection to HOST of
  * PORT.  Return socket file descriptor.  Negative value on error. */
 static int
@@ -70,6 +92,7 @@ tcp(char *host, int port)
 	return -3;
 }
 
+/* TODO(irek): I dislike this function.  Merging it with onuri? */
 /* Open connection to server under HOST with PORT and optional PATH.
  * Return socket file descriptor on success that is ready to read
  * server response.  Return negative value on error. */
@@ -143,9 +166,60 @@ onuri(char *uri)
 	}
 }
 
+static enum cmd
+cmd(char *buf, size_t siz)
+{
+	if (isnum(buf))         return CMD_LINK;
+#define CMD_IS(_str) strlen(_str) == siz && !strcasecmp(_str, buf)
+	if (CMD_IS("q"))        return CMD_QUIT;
+	if (CMD_IS("quit"))     return CMD_QUIT;
+	if (CMD_IS("exit"))     return CMD_QUIT;
+	if (CMD_IS("0"))        return CMD_RELOAD;
+	if (CMD_IS("r"))        return CMD_RELOAD;
+	if (CMD_IS("reload"))   return CMD_RELOAD;
+	if (CMD_IS("refresh"))  return CMD_RELOAD;
+	return CMD_URI;
+}
+
+static void
+run(void)
+{
+	char buf[BUFSIZ];
+	size_t len;
+	while (1) {
+		if (fputs("yupa> ", stdout) == EOF) {
+			die("run fputs:");
+		}
+		if (!fgets(buf, sizeof(buf), stdin)) {
+			continue;
+		}
+		len = strlen(buf) - 1;
+		buf[len] = 0;
+		switch (cmd(buf, len)) {
+		case CMD_URI:
+			onuri(buf);
+			break;
+		case CMD_LINK:
+			printf(">>> LINK %d\n", atoi(buf));
+			break;
+		case CMD_RELOAD:
+			printf(">>> RELOAD\n");
+			break;
+		case CMD_QUIT:
+			printf(">>> QUIT\n");
+			exit(0);
+			break;
+		case CMD_NUL:
+		default:
+			break;
+		}
+	}
+}
+
 int
 main(int argc, char *argv[])
 {
+	_Static_assert(BUFSIZ > URI_SIZ, "BUFSIZ is too small");
 	ARGBEGIN {
 	case 'h':
 	default:
@@ -154,5 +228,6 @@ main(int argc, char *argv[])
 	if (argc) {
 		onuri(argv[0]);
 	}
+	run();
 	return 0;
 }
