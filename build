@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+set -ex # Stop on first error and log all commands
+
+CC="cc"
+CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99"
+
+# Build libs
+$CC $CFLAGS -c uri.c
+
+# Build and run tests
+$CC $CFLAGS -o uri.t uri.t.c uri.o && ./uri.t
+
+# Build main program
+$CC $CFLAGS -o yupa main.c uri.o
