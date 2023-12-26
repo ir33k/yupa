@@ -50,9 +50,9 @@ struct tab {
 	struct tab *prev, *next;        /* Double linked list */
 };
 
-static struct tab *s_tab = 0;   /* Pointer to current tab */
-static char *s_pager = "cat";   /* Pager default command */
-char *argv0;                    /* First program arg, for arg.h */
+static struct tab *s_tab = 0;           /* Pointer to current tab */
+static char *s_pager = "less -XI";      /* Pager default command */
+char *argv0;                            /* First program arg, for arg.h */
 
 /* Print usage help message and die. */
 static void
@@ -498,7 +498,11 @@ run(void)
 int
 main(int argc, char *argv[])
 {
+	char *env;
 	int i;
+	if ((env = getenv("PAGER"))) {
+		s_pager = env;
+	}
 	ARGBEGIN {
 	case 'h':
 	default:
