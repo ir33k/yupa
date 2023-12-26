@@ -18,22 +18,23 @@
 #include "log.h"
 
 /* BUFSIZ is used as default buffer size in many places and it has to
- * be big enough to hold an single URI string. */
-_Static_assert(BUFSIZ > URI_SIZ, "BUFSIZ is too small");
+ * be big enough to hold an single URI string and file path. */
+_Static_assert(BUFSIZ > URI_SIZ,      "BUFSIZ is too small");
+_Static_assert(BUFSIZ > FILENAME_MAX, "BUFSIZ is too small");
 
-enum cmd {
-	CMD_NUL = 0,
-	CMD_URI,
-	CMD_LINK,
-	CMD_RELOAD,
-	CMD_QUIT
+enum cmd {                      /* Commands possible to input in prompt */
+	CMD_NUL = 0,            /* Empty command */
+	CMD_URI,                /* Absolute URI string */
+	CMD_LINK,               /* Index to link on current page */
+	CMD_RELOAD,             /* Reload current page */
+	CMD_QUIT                /* Exit program */
 };
 
 struct tab {
-	enum uri_protocol protocol;
-	char    uri[URI_SIZ];
-	char    body[FILENAME_MAX];
-	char    pager[BUFSIZ];
+	enum uri_protocol protocol;     /* Current page URI protocol */
+	char    uri[URI_SIZ];           /* Current page URI */
+	char    body[FILENAME_MAX];     /* Path to file with response body */
+	char    pager[BUFSIZ];          /* CMD run on formatter response body */
 };
 
 static struct tab s_tab = {0};
@@ -54,6 +55,9 @@ usage(void)
 static int
 isnum(char *str)
 {
+	if (*str == 0) {
+		return 0;
+	}
 	for (; *str; str++) {
 		if (*str < '0' || *str > '9') {
 			return 0;
@@ -121,11 +125,12 @@ req(char *host, int port, char *path)
 	return sfd;
 }
 
+/**/
 static void
 onuri(char *uri)
 {
 	enum uri_protocol protocol;
-	int sfd, port;
+	int sfd, port, format = 0;
 	char buf[BUFSIZ], *host, *path, item;
 	FILE *fp;
 	ssize_t ssiz;
@@ -146,9 +151,9 @@ onuri(char *uri)
 	}
 	if (path && path[1]) {
 		item = path[1];
-		(void)item;
 		path += 2;
 	}
+	format = !path || item == GPH_ITEM_GPH;
 	if ((sfd = req(host, port, path)) == 0) {
 		printf("Invalid URI %s\n", uri);
 		return;
@@ -172,24 +177,29 @@ onuri(char *uri)
 	}
 	s_tab.protocol = protocol;
 	strcpy(s_tab.uri, uri);
-	system(s_tab.pager);
+	if (format) {
+		system(s_tab.pager);
+	}
 }
 
+/**/
 static enum cmd
 cmd(char *buf, size_t siz)
 {
-#define CMD_IS(_str) strlen(_str) == siz && !strcasecmp(_str, buf)
-	if (CMD_IS("q"))        return CMD_QUIT;
-	if (CMD_IS("quit"))     return CMD_QUIT;
-	if (CMD_IS("exit"))     return CMD_QUIT;
-	if (CMD_IS("0"))        return CMD_RELOAD;
-	if (CMD_IS("r"))        return CMD_RELOAD;
-	if (CMD_IS("reload"))   return CMD_RELOAD;
-	if (CMD_IS("refresh"))  return CMD_RELOAD;
+	if (siz == 0)           return CMD_NUL;
+#define _CMD_IS(_str) strlen(_str) == siz && !strncasecmp(_str, buf, siz)
+	if (_CMD_IS("q"))       return CMD_QUIT;
+	if (_CMD_IS("quit"))    return CMD_QUIT;
+	if (_CMD_IS("exit"))    return CMD_QUIT;
+	if (_CMD_IS("0"))       return CMD_RELOAD;
+	if (_CMD_IS("r"))       return CMD_RELOAD;
+	if (_CMD_IS("reload"))  return CMD_RELOAD;
+	if (_CMD_IS("refresh")) return CMD_RELOAD;
 	if (isnum(buf))         return CMD_LINK;
 	return CMD_URI;
 }
 
+/**/
 static void
 run(void)
 {
@@ -210,6 +220,7 @@ run(void)
 			break;
 		case CMD_LINK:
 			DEV("LINK %d", atoi(buf));
+			INFO("Link navigation is not implemented yet");
 			break;
 		case CMD_RELOAD:
 			onuri(s_tab.uri);
@@ -219,11 +230,13 @@ run(void)
 			break;
 		case CMD_NUL:
 		default:
+			DEV("TODO Print list of commands.");
 			break;
 		}
 	}
 }
 
+/**/
 static char *
 strrand(int len)
 {
@@ -243,6 +256,7 @@ strrand(int len)
 	return str;
 }
 
+/**/
 static void
 tmpf(char *dst)
 {
@@ -269,6 +283,7 @@ main(int argc, char *argv[])
 	} ARGEND
 	tmpf(s_tab.body);
 	sprintf(s_tab.pager, "cat %s", s_tab.body);
+	DEV("pager %s", s_tab.pager);
 	if (argc) {
 		onuri(argv[0]);
 	}

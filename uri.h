@@ -6,11 +6,11 @@
 #include <string.h>
 #include <strings.h>
 
-#define URI_SIZ	1024	/* Max size of URI */
+#define URI_SIZ	1024            /* Max size of URI */
 
 enum uri_protocol {
-	URI_PROTOCOL_NONE = -1,	/* Protocol defined but none of those below */
-	URI_PROTOCOL_NUL = 0,	/* For empty, not defined protocol */
+	URI_PROTOCOL_NONE = -1, /* Protocol defined but none of those below */
+	URI_PROTOCOL_NUL  =  0, /* For empty, not defined protocol */
 	URI_PROTOCOL_GOPHER,
 	URI_PROTOCOL_GEMINI,
 	URI_PROTOCOL_HTTPS,

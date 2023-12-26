@@ -1,26 +1,112 @@
 /* Gopher protocol. */
 
-#define GPH_PORT	70	/* Defaul port */
+#define GPH_PORT        70      /* Defaul port */
+
+enum gph_item {
+	/* Canonical types */
+	GPH_ITEM_TXT    = '0',  /* Text file */
+	GPH_ITEM_GPH    = '1',  /* Gopher submenu */
+	GPH_ITEM_CCSO   = '2',  /* CCSO Nameserver */
+	GPH_ITEM_ERR    = '3',  /* Error code returned by server */
+	GPH_ITEM_BIN16  = '4',  /* BinHex-encoded file (for Macintosh) */
+	GPH_ITEM_DOS    = '5',  /* DOS file */
+	GPH_ITEM_UUEN   = '6',  /* uuencoded file */
+	GPH_ITEM_QUERY  = '7',  /* Gopher full-text search, query */
+	GPH_ITEM_TNET   = '8',  /* Telnet */
+	GPH_ITEM_BIN    = '9',  /* Binary file */
+	GPH_ITEM_MIRR   = '+',  /* Mirror or alternate server */
+	GPH_ITEM_GIF    = 'g',  /* GIF file */
+	GPH_ITEM_IMG    = 'I',  /* Image file */
+	GPH_ITEM_T3270  = 'T',  /* Telnet 3270 */
+	/* Gopher+ types */
+	GPH_ITEM_BMP    = ':',  /* Bitmap image */
+	GPH_ITEM_VIDEO  = ';',  /* Movie/video file */
+	GPH_ITEM_AUDIO  = '<',  /* Sound file */
+	/* Non-canonical types */
+	GPH_ITEM_DOC    = 'd',  /* Doc. Seen used alongside PDF's and .DOC's */
+	GPH_ITEM_HTML   = 'h',  /* HTML file */
+	GPH_ITEM_PNG    = 'p',  /* Image file "(especially the png format)" */
+	GPH_ITEM_RTF    = 'r',  /* Document rtf file ("rich text format") */
+	GPH_ITEM_WAV    = 's',  /* Sound file (especially the WAV format) */
+	GPH_ITEM_PDF    = 'P',  /* document pdf file */
+	GPH_ITEM_XML    = 'X',  /* document xml file */
+	GPH_ITEM_INFO   = 'i'   /* Informational message, widely used */
+};
+
+/**/
+static char *
+gph_label(enum gph_item item)
+{
+	switch(item) {
+	case GPH_ITEM_TXT:      return "TXT";
+	case GPH_ITEM_GPH:      return "GPH";
+	case GPH_ITEM_CCSO:     return "CCSO";
+	case GPH_ITEM_ERR:      return "ERR";
+	case GPH_ITEM_BIN16:    return "BIN16";
+	case GPH_ITEM_DOS:      return "DOS";
+	case GPH_ITEM_UUEN:     return "UUEN";
+	case GPH_ITEM_QUERY:    return "QUERY";
+	case GPH_ITEM_TNET:     return "TNET";
+	case GPH_ITEM_BIN:      return "BIN";
+	case GPH_ITEM_MIRR:     return "MIRR";
+	case GPH_ITEM_GIF:      return "GIF";
+	case GPH_ITEM_IMG:      return "IMG";
+	case GPH_ITEM_T3270:    return "T3270";
+	case GPH_ITEM_BMP:      return "BMP";
+	case GPH_ITEM_VIDEO:    return "VIDEO";
+	case GPH_ITEM_AUDIO:    return "AUDIO";
+	case GPH_ITEM_DOC:      return "DOC";
+	case GPH_ITEM_HTML:     return "HTML";
+	case GPH_ITEM_PNG:      return "PNG";
+	case GPH_ITEM_RTF:      return "RTF";
+	case GPH_ITEM_WAV:      return "WAV";
+	case GPH_ITEM_PDF:      return "PDF";
+	case GPH_ITEM_XML:      return "XML";
+	case GPH_ITEM_INFO:     return 0;
+	}
+	/* I'm assuming that there are no more item types but you never
+	   know so here is a guard. */
+	assert(0 && "Unhandled item type"); /* Should never happen */
+}
+
+/* Make it so storing links is done outside of this function and there
+ * is no need for introductin TABs in this file. */
+static int
+gph_format(FILE *raw, FILE *fmt)
+{
+	int n;                  /* Link item index */
+	char buf[BUFSIZ], *label;
+	assert(raw);
+	rewind(raw);
+	n = 1;
+	while (fgets(buf, BUFSIZ, raw)) {
+		if (buf[0] == '.') {    /* Single dot means end of file */
+			break;
+		}
+		buf[strcspn(buf, "\t")] = 0;    /* End string at first tab */
+		if ((label = gph_label(buf[0]))) {
+			fprintf(fmt, "[%d]\t<%s> ", n++, label);
+		}
+		fprintf(fmt, "%s\n", &buf[1]);
+	}
+	return 0;
+}
 
 #if 0
 /**/
 static char *
-gph_uri(char *file, int index)
+gph_uri(FILE *raw, int index)
 {
-	FILE *fp;
 	static char uri[BUFSIZ];
 	char c, buf[BUFSIZ], path[BUFSIZ], host[BUFSIZ];
 	int port;
-	assert(file);
+	assert(raw);
 	assert(index > 0);
-	if (!(fp = fopen(file, "r"))) {
-		return 0;
-	}
-	while (fgets(buf, BUFSIZ, fp)) {
+	while (fgets(buf, BUFSIZ, raw)) {
 		if (buf[0] == '.') {
 			break;
 		}
-		if (buf[0] == 'i') {
+		if (!gph_label(buf[0])) {
 			continue;
 		}
 		if (--index) {
@@ -35,7 +121,6 @@ gph_uri(char *file, int index)
 			host, port, c, path);
 		return uri;
 	}
-	fclose(fp);
 	return 0;
 }
 #endif

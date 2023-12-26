@@ -1,4 +1,4 @@
-/* Logger v1.9 by irek@gabr.pl                                  (-_- )
+/* Logger v1.9 by irek@gabr.pl updated 2023.12.26 Tue 10:30 UTC
  *
  * Print formatted logger messages to target file with optional log
  * level label, trace path to source file, line number and function
