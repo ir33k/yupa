@@ -10,9 +10,13 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
+
 #include "arg.h"
 #include "uri.h"
 #include "gph.c"
+
+#define LOG_IMPLEMENTATION
+#include "log.h"
 
 /* BUFSIZ is used as default buffer size in many places and it has to
  * be big enough to hold an single URI string. */
@@ -36,30 +40,11 @@ struct tab {
 static struct tab s_tab = {0};
 char *argv0;                    /* First program arg, for arg.h */
 
-/* Print FMT (printf(3)) message to stderr and exit with code 1.
- * If FMT ends with ':' then append errno error. */
-static void
-die(const char *fmt, ...)
-{
-	va_list ap;
-	assert(fmt);
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	if (fmt[0] && fmt[strlen(fmt)-1] == ':') {
-		fputc(' ', stderr);
-		perror(0);
-	} else {
-		fputc('\n', stderr);
-	}
-	exit(1);
-}
-
 /* Print usage help message and die. */
 static void
 usage(void)
 {
-	die("$ %s [-h] [uri]\n"
+	DIE("$ %s [-h] [uri]\n"
 	    "\n"
 	    "	-h	Print help message.\n"
 	    "	[uri]	URI to open.\n"
@@ -79,7 +64,7 @@ isnum(char *str)
 }
 
 /* Establish AF_INET internet SOCK_STREAM stream connection to HOST of
- * PORT.  Return socket file descriptor.  Negative value on error. */
+ * PORT.  Return socket file descriptor or 0 on error. */
 static int
 tcp(char *host, int port)
 {
@@ -91,25 +76,30 @@ tcp(char *host, int port)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
 	if ((sfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-		return -1;
+		WARN("socket %s %d:", host, port);
+		return 0;
 	}
 	if ((he = gethostbyname(host)) == 0) {
-		return -2;
+		WARN("gethostbyname %s %d:", host, port);
+		return 0;
 	}
-	for (i=0; he->h_addr_list[i]; i++) {
+	for (i = 0; he->h_addr_list[i]; i++) {
 		memcpy(&addr.sin_addr.s_addr, he->h_addr_list[i], sizeof(in_addr_t));
 		if (connect(sfd, (struct sockaddr*)&addr, sizeof(addr))) {
 			continue;
 		}
 		return sfd;	/* Success */
 	}
-	return -3;
+	WARN("failed to connect with %s %d:", host, port);
+	return 0;
 }
 
-/* TODO(irek): I dislike this function.  Merging it with onuri? */
+/*
+ * TODO(irek): I dislike this function.  Merging it with onuri?
+ */
 /* Open connection to server under HOST with PORT and optional PATH.
  * Return socket file descriptor on success that is ready to read
- * server response.  Return negative value on error. */
+ * server response.  Return 0 on error. */
 static int
 req(char *host, int port, char *path)
 {
@@ -117,15 +107,18 @@ req(char *host, int port, char *path)
 	assert(host);
 	assert(port > 0);
 	if ((sfd = tcp(host, port)) < 0) {
-		return -1;
+		WARN("tcp %s %d:", host, port);
+		return 0;
 	}
 	if (path) {
 		if (send(sfd, path, strlen(path), 0) == -1) {
-			return -2;
+			WARN("send %s %d %s:", host, port, path);
+			return 0;
 		}
 	}
 	if (send(sfd, "\r\n", 2, 0) == -1) {
-		return -3;
+		WARN("send %s %d %s:", host, port, path);
+		return 0;
 	}
 	return sfd;
 }
@@ -150,7 +143,8 @@ onuri(char *uri)
 		protocol = URI_PROTOCOL_GOPHER;
 	}
 	if (protocol != URI_PROTOCOL_GOPHER) {
-		die("Only 'gopher://' protocol is supported and assumed by default");
+		WARN("Only 'gopher://' protocol is supported and assumed by default");
+		return;
 	}
 	if (path && path[1]) {
 		item = path[1];
@@ -158,33 +152,26 @@ onuri(char *uri)
 		path += 2;
 	}
 	/* TODO(irek): Figure out error handling. */
-	switch ((sfd = req(host, port, path))) {
-	case -1:
-		die("onuri tcp(%s, %d): Fail to connect", host, port);
-		break;
-	case -2:
-		die("onuri send(path):");
-		break;
-	case -3:
-		die("onuri send():");
-		break;
+	if ((sfd = req(host, port, path)) == 0) {
+		WARN("");
+		return;
 	}
 	if (!(fp = fopen(s_tab.body, "w"))) {
-		die("onuri fopen(%s):", s_tab.body);
+		ERR("fopen(%s):", s_tab.body);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, fp) != (size_t)ssiz) {
-			die("onuri fwrite:");
+			ERR("fwrite:");
 		}
 	}
-	if (fclose(fp) == EOF) {
-		die("onuri fclose(%s):", s_tab.body);
-	}
 	if (ssiz < 0) {
-		die("recv:");
+		ERR("recv:");
+	}
+	if (fclose(fp) == EOF) {
+		ERR("fclose(%s):", s_tab.body);
 	}
 	if (close(sfd)) {
-		die("close(%d):", sfd);
+		ERR("close(%d):", sfd);
 	}
 	s_tab.protocol = protocol;
 	strcpy(s_tab.uri, uri);
@@ -213,7 +200,7 @@ run(void)
 	size_t len;
 	while (1) {
 		if (fputs("yupa> ", stdout) == EOF) {
-			die("run fputs:");
+			ERR("fputs:");
 		}
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
@@ -225,7 +212,7 @@ run(void)
 			onuri(buf);
 			break;
 		case CMD_LINK:
-			printf(">>> LINK %d\n", atoi(buf));
+			INFO("LINK %d", atoi(buf));
 			break;
 		case CMD_RELOAD:
 			onuri(s_tab.uri);
@@ -268,10 +255,10 @@ tmpf(char *dst)
 		sprintf(dst, "%s%s", prefix, strrand(6));
 	} while (!access(dst, F_OK));
 	if ((fd = open(dst, O_RDWR | O_CREAT | O_EXCL)) == -1) {
-		die("tmpf open(%s)", dst);
+		ERR("open(%s):", dst);
 	}
 	if (close(fd)) {
-		die("tmpf close(%s)", dst);
+		ERR("close(%s):", dst);
 	}
 }
 
