@@ -148,6 +148,8 @@ tab_close(void)
 	} else if (tab->prev) {
 		tab->prev->next = 0;
 		s_tab = tab->prev;
+	} else {
+		s_tab = 0;
 	}
 }
 
@@ -350,13 +352,9 @@ onraw(void)
 static void
 onquit(void)
 {
-	while (s_tab->prev) {
-		s_tab = s_tab->prev;
-	}
-	while (s_tab->next) {
+	while (s_tab) {
 		tab_close();
 	}
-	tab_close();
 	exit(0);
 }
 
