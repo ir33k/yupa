@@ -32,6 +32,8 @@ enum cmd {                      /* Commands possible to input in prompt */
 	CMD_TAB_NEW,            /* Create new tab */
 	CMD_TAB_PREV,           /* Switch to previous tab */
 	CMD_TAB_NEXT,           /* Switch to next tab */
+	CMD_TAB_DUPLICATE,      /* Duplicate current tab */
+	CMD_TAB_CLOSE,          /* Close current tab */
 	CMD_HISTORY_PREV,       /* Goto previous browsing history page */
 	CMD_HISTORY_NEXT,       /* Goto next browsing history page */
 	CMD_RAW,                /* Show raw response */
@@ -63,7 +65,8 @@ usage(void)
 	    "\n", argv0);
 }
 
-/**/
+/* Return pointer to static string with random alphanumeric characters
+ * of LEN length. */
 static char *
 strrand(int len)
 {
@@ -83,7 +86,9 @@ strrand(int len)
 	return str;
 }
 
-/**/
+/* Create temporary file in /tmp dir with PREFIX file name prefix.
+ * DST string should point to buffer of FILENAME_MAX size where path
+ * to create file will be stored. */
 static void
 tmpf(char *prefix, char *dst)
 {
@@ -99,7 +104,7 @@ tmpf(char *prefix, char *dst)
 	}
 }
 
-/**/
+/* Create new empty tab and set it as current tab. */
 static void
 tab_new(void)
 {
@@ -125,6 +130,29 @@ tab_new(void)
 
 /**/
 static void
+tab_close(void)
+{
+	struct tab *tab = s_tab;
+	if (unlink(tab->raw) == -1) {
+		WARN("unlink:");
+	}
+	if (unlink(tab->fmt) == -1) {
+		WARN("unlink:");
+	}
+	if (tab->next) {
+		tab->next->prev = tab->prev;
+		if (tab->prev) {
+			tab->prev->next = tab->next;
+		}
+		s_tab = tab->next;
+	} else if (tab->prev) {
+		tab->prev->next = 0;
+		s_tab = tab->prev;
+	}
+}
+
+/* Add new URI to current tab history. */
+static void
 history_add(char *uri)
 {
 	if (s_tab->history[s_tab->hi % HSIZ][0]) {
@@ -136,7 +164,7 @@ history_add(char *uri)
 	s_tab->history[(s_tab->hi + 1) % HSIZ][0] = 0;
 }
 
-/**/
+/* Get current tab history item shifting history index by SHIFT. */
 static char *
 history_get(int shift)
 {
@@ -289,6 +317,7 @@ onuri(char *uri)
 	return 1;
 }
 
+/**/
 static char *
 link_get(int index)
 {
@@ -309,12 +338,26 @@ link_get(int index)
 	return uri;
 }
 
+/* Use pager to print content of tab raw request response body. */
 static void
 onraw(void)
 {
 	char buf[BSIZ];
 	sprintf(buf, "%s %s", s_pager, s_tab->raw);
 	system(buf);
+}
+
+static void
+onquit(void)
+{
+	while (s_tab->prev) {
+		s_tab = s_tab->prev;
+	}
+	while (s_tab->next) {
+		tab_close();
+	}
+	tab_close();
+	exit(0);
 }
 
 /* Return non 0 value when STR contains only digits. */
@@ -357,6 +400,11 @@ cmd(char *buf, size_t siz)
 	if (_CMD_IS("N"))       return CMD_TAB_NEXT;
 	if (_CMD_IS("tn"))      return CMD_TAB_NEXT;
 	if (_CMD_IS("tnext"))   return CMD_TAB_NEXT;
+	if (_CMD_IS("D"))       return CMD_TAB_DUPLICATE;
+	if (_CMD_IS("tdup"))    return CMD_TAB_DUPLICATE;
+	if (_CMD_IS("X"))       return CMD_TAB_CLOSE;
+	if (_CMD_IS("C"))       return CMD_TAB_CLOSE;
+	if (_CMD_IS("tclose"))  return CMD_TAB_CLOSE;
 	if (_CMD_IS("p"))       return CMD_HISTORY_PREV;
 	if (_CMD_IS("prev"))    return CMD_HISTORY_PREV;
 	if (_CMD_IS("n"))       return CMD_HISTORY_NEXT;
@@ -404,6 +452,9 @@ run(void)
 				break;
 			}
 			s_tab = s_tab->prev;
+			/* TOOD(irek): I could fetching the same
+			 * content again as previous page is still in
+			 * tmp files. */
 			onuri(history_get(0));
 			break;
 		case CMD_TAB_NEXT:
@@ -413,6 +464,20 @@ run(void)
 			s_tab = s_tab->next;
 			onuri(history_get(0));
 			break;
+		case CMD_TAB_DUPLICATE:
+			uri = history_get(0);
+			tab_new();
+			if (onuri(uri)) {
+				history_add(uri);
+			}
+			break;
+		case CMD_TAB_CLOSE:
+			if (!s_tab->prev && !s_tab->next) {
+				printf("Can't close last tab\n");
+				break;
+			}
+			tab_close();
+			break;
 		case CMD_HISTORY_PREV:
 			onuri(history_get(-1));
 			break;
@@ -420,7 +485,7 @@ run(void)
 			onuri(history_get(+1));
 			break;
 		case CMD_QUIT:
-			exit(0);
+			onquit();
 			break;
 		case CMD_NUL:
 		default:
@@ -439,8 +504,8 @@ main(int argc, char *argv[])
 		usage();
 	} ARGEND
 	tab_new();
-	if (argc) {
-		onuri(argv[0]);
+	if (argc && onuri(argv[0])) {
+		history_add(argv[0]);
 	}
 	run();
 	return 0;
