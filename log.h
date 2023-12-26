@@ -4,9 +4,9 @@
  * level label, trace path to source file, line number and function
  * name then exit program if needed.
  *
- * This is a single header library.  When included then acts like
- * regular header file.  To compile function definitions you have to
- * predefine LOG_IMPLEMENTATION in on of your source files.
+ * This is a single header library.  When included acts like regular
+ * header file.  To compile function definitions you have to predefine
+ * LOG_IMPLEMENTATION in one of your source files.
  *
  *	// main.c
  *	#define LOG_IMPLEMENTATION
