@@ -70,6 +70,7 @@
 #ifndef _LOG_H
 #define _LOG_H
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,15 +127,14 @@ _log(const char *filename, int line, const char *function, int trace,
      const char *fmt, ...);
 
 #endif /* _LOG_H */
-
 #ifdef LOG_IMPLEMENTATION
+
 static void
 _log(const char *filename, int line, const char *function, int trace,
      int die, FILE *fp, const char *label,
      const char *fmt, ...)
 {
 	va_list ap;
-	assert(fp);
 	assert(fmt);
 	if (trace) {
 		fprintf(fp, "%s:%d:\t", filename, line);
