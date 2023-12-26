@@ -4,10 +4,10 @@
  * level label, trace path to source file line and exit program if
  * needed.
  *
- * Each log macro takes 2 arguments: FMT formatted message (printf(3))
- * and ARGS optional varying number of arguments for FMT string.  If
- * FMT string ends with ':' character then value of perror(0) will be
- * appended.  Log ends with new line.
+ * Each log macro take FMT formatted message (printf(3)) as first
+ * argument and optional varying number of arguments for FMT string.
+ * If FMT string ends with ':' character then value of perror(0) will
+ * be appended.  New line is always appended.
  *
  * Predefine LOG_LEVEL value to disable logs with smaller level.  Note
  * that you can't disable ERR and DIE as those logs kills program and
@@ -16,25 +16,25 @@
  *
  * Properties:
  *
- *	macro   level   trace   exit    label
- *	------  ------  ------  ------  ------
- *	LOG     0       no        
- *	INFO    1       no              INFO
- *	WARN    2       yes             WARN
- *	ERR             yes     1       ERR
- *	DIE             no      2
+ *	macro   level   file    trace   exit    label
+ *	------  ------  ------  ------  ------  ------
+ *	LOG     0       stdout  no        
+ *	INFO    1       stderr  no              INFO
+ *	WARN    2       stderr  yes             WARN
+ *	ERR             stderr  yes     1       ERR
+ *	DIE             stderr  no      2
  *
  * Examples:
  *
  *	LOG("Simple message");
- *	INFO("Function arguments: %s %d", name, age);
- *	WARN("fopen %s:", file_path);
+ *	INFO("Print formatted message: %s %d", name, age);
+ *	WARN("append perror, fopen %s:", file_path);
  *	ERR("print error and die");
  *	DIE("just die");
  *
  *	// Simple message
- *	// INFO	Function arguments: Adam 30
- *	// main.c:12	WARN	fopen file.txt: can't open
+ *	// INFO	Print formatted message: Adam 30
+ *	// main.c:12	WARN	append perror, fopen file.txt: can't open
  *	// main.c:13	ERR	print error and die
  *	// just die
  *

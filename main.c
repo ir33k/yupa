@@ -1,4 +1,4 @@
-/* Yupa v0.1 by irek@gabr.pl */
+/* Yupa v0.2 by irek@gabr.pl */
 
 #include <assert.h>
 #include <fcntl.h>
