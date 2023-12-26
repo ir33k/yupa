@@ -268,7 +268,9 @@ isnum(char *str)
 	return 1;
 }
 
-/* TODO(irek): I would like to have it as data instead of as logic. */
+/* TODO(irek): I would like to have it as data instead of as logic.
+ * Also at the moment commands don't take arguments.  Something to
+ * think about later. */
 /**/
 static enum cmd
 cmd(char *buf, size_t siz)
