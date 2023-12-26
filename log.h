@@ -1,4 +1,4 @@
-/* Logger v1.5 by irek@gabr.pl                                  (-_- )
+/* Logger v1.6 by irek@gabr.pl                                  (-_- )
  *
  * Print formatted logger messages to target file with optional log
  * level label, trace path to source file line and exit program if
@@ -65,6 +65,10 @@
  */
 #ifndef _LOG_H
 #define _LOG_H
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define DEV(...)  _LOG(1, 0, stderr, ">>>>", __VA_ARGS__)
 #define LOG(...)  _LOG(0, 0, stdout, 0,      __VA_ARGS__)
