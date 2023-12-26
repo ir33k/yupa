@@ -16,7 +16,7 @@
 #include "gph.c"
 
 #define LOG_IMPLEMENTATION
-#define LOG_LEVEL 0
+#define LOG_LEVEL -1
 #include "log.h"
 
 /* BUFSIZ is used as default buffer size in many places and it has to
@@ -180,7 +180,6 @@ onuri(char *uri)
 static enum cmd
 cmd(char *buf, size_t siz)
 {
-	if (isnum(buf))         return CMD_LINK;
 #define CMD_IS(_str) strlen(_str) == siz && !strcasecmp(_str, buf)
 	if (CMD_IS("q"))        return CMD_QUIT;
 	if (CMD_IS("quit"))     return CMD_QUIT;
@@ -189,6 +188,7 @@ cmd(char *buf, size_t siz)
 	if (CMD_IS("r"))        return CMD_RELOAD;
 	if (CMD_IS("reload"))   return CMD_RELOAD;
 	if (CMD_IS("refresh"))  return CMD_RELOAD;
+	if (isnum(buf))         return CMD_LINK;
 	return CMD_URI;
 }
 
@@ -211,7 +211,7 @@ run(void)
 			onuri(buf);
 			break;
 		case CMD_LINK:
-			INFO("LINK %d", atoi(buf));
+			DEV("LINK %d", atoi(buf));
 			break;
 		case CMD_RELOAD:
 			onuri(s_tab.uri);
