@@ -4,6 +4,8 @@
  * level label, trace path to source file line and exit program if
  * needed.
  *
+ * This is a single header library.  
+ *
  * Each log macro take FMT formatted message (printf(3)) as first
  * argument and optional varying number of arguments for FMT string.
  * If FMT string ends with ':' character then value of perror(0) will
@@ -26,7 +28,10 @@
  *	ERR             stderr  yes     1       ERR
  *	DIE             stderr  no      2
  *
- * Examples:
+ * Usage:
+ *
+ *	#define LOG_IMPLEMENTATION      // Define in one source file
+ *	#include "log.h"
  *
  *	DEV("For development");
  *	LOG("Simple message");
@@ -44,6 +49,7 @@
  *
  * Log level:
  *
+ *	#define LOG_IMPLEMENTATION
  *	// Ignore DEV, LOG and INFO logs but keep WARN.
  *	#define LOG_LEVEL 2
  *	#include "log.h"
@@ -82,7 +88,6 @@
 #define WARN(...)
 #endif
 
-/* Wrap _log() by providing FILENAME and LINE values. */
 #define _LOG(...) _log(__FILE__, __LINE__, __VA_ARGS__)
 
 /* Print FMT formatted string with ... varying number of arguments to
