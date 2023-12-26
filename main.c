@@ -8,34 +8,41 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
+#include "arg.h"
+#include "uri.h"
 
 #define LOG_IMPLEMENTATION
 #define LOG_LEVEL -1
 #include "log.h"
 
-#include "arg.h"
-#include "uri.h"
-#include "gph.c"
+#define HSIZ    64              /* Size of tab browsing history */
+#define BSIZ    BUFSIZ          /* Size of generic buffer */
+#define FMAX    FILENAME_MAX    /* Max size of buffer for file path */
 
-/* BUFSIZ is used as default buffer size in many places and it has to
- * be big enough to hold an single URI string and file path. */
-_Static_assert(BUFSIZ > URI_SIZ,      "BUFSIZ too small for URI_SIZ");
-_Static_assert(BUFSIZ > FILENAME_MAX, "BUFSIZ too small for FILENAME_MAX");
+_Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
+_Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
+
+#include "gph.c"
 
 enum cmd {                      /* Commands possible to input in prompt */
 	CMD_NUL = 0,            /* Empty command */
 	CMD_URI,                /* Absolute URI string */
 	CMD_LINK,               /* Index to link on current page */
 	CMD_RELOAD,             /* Reload current page */
+	CMD_HISTORY_PREV,       /* Goto previous browsing history page */
+	CMD_HISTORY_NEXT,       /* Goto next browsing history page */
+	CMD_RAW,                /* Show raw response */
 	CMD_QUIT                /* Exit program */
 };
 
 struct tab {
-	enum uri_protocol protocol;     /* Current page URI protocol */
-	char    uri[URI_SIZ];           /* Current page URI */
-	char    raw[FILENAME_MAX];      /* File path for raw response body */
-	char    fmt[FILENAME_MAX];      /* File path for formatted raw body */
-	char   *pager;                  /* CMD run on formatter response body */
+	enum uri_protocol protocol; /* Current page URI protocol */
+	char    uri[URI_SIZ];   /* Current page URI */
+	char    raw[FMAX];      /* File path for raw response body */
+	char    fmt[FMAX];      /* File path for formatted raw body */
+	char   *pager;          /* CMD run on formatter response body */
+	char    history[HSIZ][URI_SIZ]; /* Browsing history */
+	size_t  hi;             /* Index to current history item */
 };
 
 static struct tab s_tab = {0};
@@ -52,19 +59,29 @@ usage(void)
 	    "\n", argv0);
 }
 
-/* Return non 0 value when STR contains only digits. */
-static int
-isnum(char *str)
+static char *
+history_goto(struct tab *tab, int shift)
 {
-	if (*str == 0) {
+	if (shift > 0 && !tab->history[(tab->hi + 1) % HSIZ][0]) {
 		return 0;
 	}
-	for (; *str; str++) {
-		if (*str < '0' || *str > '9') {
-			return 0;
-		}
+	if (shift < 0 && !tab->hi) {
+		return 0;
 	}
-	return 1;
+	tab->hi += shift;
+	return tab->history[tab->hi % HSIZ];
+}
+
+static void
+history_add(struct tab *tab, char *uri)
+{
+	if (tab->history[tab->hi % HSIZ][0]) {
+		tab->hi++;
+	}
+	strncpy(tab->history[tab->hi % HSIZ], uri, URI_SIZ);
+	/* Make next history item empty to cut off old forward history
+	 * every time the new item is being added. */
+	tab->history[(tab->hi + 1) % HSIZ][0] = 0;
 }
 
 /* Establish AF_INET internet SOCK_STREAM stream connection to HOST of
@@ -127,14 +144,18 @@ req(char *host, int port, char *path)
 }
 
 /**/
-static void
+static int
 onuri(char *uri)
 {
 	enum uri_protocol protocol;
 	int sfd, port;
-	char buf[BUFSIZ], *host, *path, item = GPH_ITEM_GPH;
+	char buf[BSIZ], *host, *path, item = GPH_ITEM_GPH;
 	FILE *raw, *fmt;
 	ssize_t ssiz;
+	DEV("%s", uri);
+	if (!uri || !uri[0]) {
+		return 0;
+	}
 	assert(strlen(uri) <= URI_SIZ);
 	protocol = uri_protocol(uri);
 	host = uri_host(uri);
@@ -146,11 +167,9 @@ onuri(char *uri)
 	if (!protocol) {
 		protocol = URI_PROTOCOL_GOPHER;
 	}
-	s_tab.protocol = protocol;
-	strcpy(s_tab.uri, uri);
 	if (protocol != URI_PROTOCOL_GOPHER) {
 		WARN("Only gopher protocol is supported");
-		return;
+		return 0;
 	}
 	if (path && path[1]) {
 		item = path[1];
@@ -158,7 +177,7 @@ onuri(char *uri)
 	}
 	if ((sfd = req(host, port, path)) == 0) {
 		printf("Invalid URI %s\n", uri);
-		return;
+		return 0;
 	}
 	if (!(raw = fopen(s_tab.raw, "w+"))) {
 		ERR("fopen %s %s:", uri, s_tab.raw);
@@ -174,6 +193,8 @@ onuri(char *uri)
 	if (close(sfd)) {
 		ERR("close %s %d:", uri, sfd);
 	}
+	s_tab.protocol = protocol;
+	strcpy(s_tab.uri, uri);
 	if (item != GPH_ITEM_GPH &&
 	    item != GPH_ITEM_TXT) {
 		/* TODO(irek): Flow of closing this file is ugly.
@@ -183,7 +204,7 @@ onuri(char *uri)
 			ERR("fclose %s %s:", uri, s_tab.raw);
 		}
 		INFO("Not a Gopher submenu and anot a text file");
-		return;
+		return 0;
 	}
 	if (item == GPH_ITEM_GPH) {
 		if (!(fmt = fopen(s_tab.fmt, "w"))) {
@@ -200,17 +221,18 @@ onuri(char *uri)
 	sprintf(buf, "%s %s", s_tab.pager,
 		item == GPH_ITEM_GPH ? s_tab.fmt: s_tab.raw);
 	system(buf);
+	return 1;
 }
 
-static void
-onlink(int index)
+static char *
+link_get(int index)
 {
 	char *uri;
 	FILE *raw;
 	assert(index > 0);
 	if (s_tab.protocol != URI_PROTOCOL_GOPHER) {
 		WARN("Only gopher protocol is supported");
-		return;
+		return 0;
 	}
 	if (!(raw = fopen(s_tab.raw, "r"))) {
 		ERR("fopen %s:", s_tab.raw);
@@ -219,9 +241,34 @@ onlink(int index)
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s:", s_tab.raw);
 	}
-	onuri(uri);
+	return uri;
 }
 
+static void
+onraw(void)
+{
+	char buf[BSIZ];
+	DEV("%s %s", s_tab.uri, s_tab.raw);
+	sprintf(buf, "%s %s", s_tab.pager, s_tab.raw);
+	system(buf);
+}
+
+/* Return non 0 value when STR contains only digits. */
+static int
+isnum(char *str)
+{
+	if (*str == 0) {
+		return 0;
+	}
+	for (; *str; str++) {
+		if (*str < '0' || *str > '9') {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+/* TODO(irek): I would like to have it as data instead of as logic. */
 /**/
 static enum cmd
 cmd(char *buf, size_t siz)
@@ -235,6 +282,15 @@ cmd(char *buf, size_t siz)
 	if (_CMD_IS("r"))       return CMD_RELOAD;
 	if (_CMD_IS("reload"))  return CMD_RELOAD;
 	if (_CMD_IS("refresh")) return CMD_RELOAD;
+	if (_CMD_IS("raw"))     return CMD_RAW;
+	if (_CMD_IS("b"))       return CMD_HISTORY_PREV;
+	if (_CMD_IS("back"))    return CMD_HISTORY_PREV;
+	if (_CMD_IS("p"))       return CMD_HISTORY_PREV;
+	if (_CMD_IS("prev"))    return CMD_HISTORY_PREV;
+	if (_CMD_IS("f"))       return CMD_HISTORY_NEXT;
+	if (_CMD_IS("forward")) return CMD_HISTORY_NEXT;
+	if (_CMD_IS("n"))       return CMD_HISTORY_NEXT;
+	if (_CMD_IS("next"))    return CMD_HISTORY_NEXT;
 	if (isnum(buf))         return CMD_LINK;
 	return CMD_URI;
 }
@@ -243,7 +299,7 @@ cmd(char *buf, size_t siz)
 static void
 run(void)
 {
-	char buf[BUFSIZ];
+	char buf[BSIZ], *uri;
 	size_t len;
 	while (1) {
 		if (fputs("yupa> ", stdout) == EOF) {
@@ -256,13 +312,27 @@ run(void)
 		buf[len] = 0;
 		switch (cmd(buf, len)) {
 		case CMD_URI:
-			onuri(buf);
+			if (onuri(buf)) {
+				history_add(&s_tab, buf);
+			}
 			break;
 		case CMD_LINK:
-			onlink(atoi(buf));
+			uri = link_get(atoi(buf));
+			if (onuri(uri)) {
+				history_add(&s_tab, uri);
+			}
 			break;
 		case CMD_RELOAD:
 			onuri(s_tab.uri);
+			break;
+		case CMD_RAW:
+			onraw();
+			break;
+		case CMD_HISTORY_PREV:
+			onuri(history_goto(&s_tab, -1));
+			break;
+		case CMD_HISTORY_NEXT:
+			onuri(history_goto(&s_tab, +1));
 			break;
 		case CMD_QUIT:
 			exit(0);
@@ -297,12 +367,11 @@ strrand(int len)
 
 /**/
 static void
-tmpf(char *dst)
+tmpf(char *prefix, char *dst)
 {
-	static const char *prefix = "/tmp/yupa";
 	int fd;
 	do {
-		sprintf(dst, "%s%s", prefix, strrand(6));
+		sprintf(dst, "%s%s-%s", "/tmp/", prefix, strrand(6));
 	} while (!access(dst, F_OK));
 	if ((fd = open(dst, O_RDWR | O_CREAT)) == -1) {
 		ERR("open %s:", dst);
@@ -320,8 +389,8 @@ main(int argc, char *argv[])
 	default:
 		usage();
 	} ARGEND
-	tmpf(s_tab.raw);
-	tmpf(s_tab.fmt);
+        tmpf("yupa.raw", s_tab.raw);
+	tmpf("yupa.fmt", s_tab.fmt);
 	s_tab.pager = "cat ";
 	if (argc) {
 		onuri(argv[0]);

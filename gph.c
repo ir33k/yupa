@@ -76,7 +76,7 @@ static void
 gph_format(FILE *raw, FILE *fmt)
 {
 	int n;                  /* Link item index */
-	char buf[BUFSIZ], *label;
+	char buf[BSIZ], *label;
 	assert(raw);
 	assert(fmt);
 	rewind(raw);
@@ -101,16 +101,16 @@ gph_format(FILE *raw, FILE *fmt)
 static char *
 gph_uri(FILE *raw, int index)
 {
-	static char uri[BUFSIZ];
-	char c, buf[BUFSIZ], path[BUFSIZ], host[BUFSIZ];
+	static char uri[BSIZ];
+	char c, buf[BSIZ], path[BSIZ], host[BSIZ];
 	int port;
 	assert(raw);
 	assert(index > 0);
-	while (fgets(buf, BUFSIZ, raw)) {
+	while (fgets(buf, BSIZ, raw)) {
 		if (buf[0] == '.') {
 			break;
 		}
-		if (!gph_label(buf[0])) {
+		if (buf[0] == GPH_ITEM_INFO) {
 			continue;
 		}
 		if (--index) {
