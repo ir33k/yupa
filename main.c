@@ -45,7 +45,7 @@ struct tab {
 	size_t  hi;             /* Index to current history item */
 };
 
-static struct tab s_tab = {0};
+static struct tab s_tab = {0};  /* TODO(irek): One tab for now. */
 char *argv0;                    /* First program arg, for arg.h */
 
 /* Print usage help message and die. */
@@ -60,7 +60,7 @@ usage(void)
 }
 
 static char *
-history_goto(struct tab *tab, int shift)
+history_get(struct tab *tab, int shift)
 {
 	if (shift > 0 && !tab->history[(tab->hi + 1) % HSIZ][0]) {
 		return 0;
@@ -145,7 +145,7 @@ req(char *host, int port, char *path)
 
 /**/
 static int
-onuri(char *uri)
+onuri(struct tab *tab, char *uri)
 {
 	enum uri_protocol protocol;
 	int sfd, port;
@@ -179,8 +179,8 @@ onuri(char *uri)
 		printf("Invalid URI %s\n", uri);
 		return 0;
 	}
-	if (!(raw = fopen(s_tab.raw, "w+"))) {
-		ERR("fopen %s %s:", uri, s_tab.raw);
+	if (!(raw = fopen(tab->raw, "w+"))) {
+		ERR("fopen %s %s:", uri, tab->raw);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
@@ -193,63 +193,63 @@ onuri(char *uri)
 	if (close(sfd)) {
 		ERR("close %s %d:", uri, sfd);
 	}
-	s_tab.protocol = protocol;
-	strcpy(s_tab.uri, uri);
+	tab->protocol = protocol;
+	strcpy(tab->uri, uri);
 	if (item != GPH_ITEM_GPH &&
 	    item != GPH_ITEM_TXT) {
 		/* TODO(irek): Flow of closing this file is ugly.
 		 * This probably could be refactored with some good
 		 * old goto. */
 		if (fclose(raw) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab.raw);
+			ERR("fclose %s %s:", uri, tab->raw);
 		}
 		INFO("Not a Gopher submenu and anot a text file");
 		return 0;
 	}
 	if (item == GPH_ITEM_GPH) {
-		if (!(fmt = fopen(s_tab.fmt, "w"))) {
-			ERR("fopen %s %s:", uri, s_tab.fmt);
+		if (!(fmt = fopen(tab->fmt, "w"))) {
+			ERR("fopen %s %s:", uri, tab->fmt);
 		}
 		gph_format(raw, fmt);
 		if (fclose(fmt) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab.fmt);
+			ERR("fclose %s %s:", uri, tab->fmt);
 		}
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab.raw);
+		ERR("fclose %s %s:", uri, tab->raw);
 	}
-	sprintf(buf, "%s %s", s_tab.pager,
-		item == GPH_ITEM_GPH ? s_tab.fmt: s_tab.raw);
+	sprintf(buf, "%s %s", tab->pager,
+		item == GPH_ITEM_GPH ? tab->fmt: tab->raw);
 	system(buf);
 	return 1;
 }
 
 static char *
-link_get(int index)
+link_get(struct tab *tab, int index)
 {
 	char *uri;
 	FILE *raw;
 	assert(index > 0);
-	if (s_tab.protocol != URI_PROTOCOL_GOPHER) {
+	if (tab->protocol != URI_PROTOCOL_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
-	if (!(raw = fopen(s_tab.raw, "r"))) {
-		ERR("fopen %s:", s_tab.raw);
+	if (!(raw = fopen(tab->raw, "r"))) {
+		ERR("fopen %s:", tab->raw);
 	}
 	uri = gph_uri(raw, index);
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s:", s_tab.raw);
+		ERR("fclose %s:", tab->raw);
 	}
 	return uri;
 }
 
 static void
-onraw(void)
+onraw(struct tab *tab)
 {
 	char buf[BSIZ];
-	DEV("%s %s", s_tab.uri, s_tab.raw);
-	sprintf(buf, "%s %s", s_tab.pager, s_tab.raw);
+	DEV("%s %s", tab->uri, tab->raw);
+	sprintf(buf, "%s %s", tab->pager, tab->raw);
 	system(buf);
 }
 
@@ -314,27 +314,27 @@ run(void)
 		buf[len] = 0;
 		switch (cmd(buf, len)) {
 		case CMD_URI:
-			if (onuri(buf)) {
+			if (onuri(&s_tab, buf)) {
 				history_add(&s_tab, buf);
 			}
 			break;
 		case CMD_LINK:
-			uri = link_get(atoi(buf));
-			if (onuri(uri)) {
+			uri = link_get(&s_tab, atoi(buf));
+			if (onuri(&s_tab, uri)) {
 				history_add(&s_tab, uri);
 			}
 			break;
 		case CMD_RELOAD:
-			onuri(s_tab.uri);
+			onuri(&s_tab, s_tab.uri);
 			break;
 		case CMD_RAW:
-			onraw();
+			onraw(&s_tab);
 			break;
 		case CMD_HISTORY_PREV:
-			onuri(history_goto(&s_tab, -1));
+			onuri(&s_tab, history_get(&s_tab, -1));
 			break;
 		case CMD_HISTORY_NEXT:
-			onuri(history_goto(&s_tab, +1));
+			onuri(&s_tab, history_get(&s_tab, +1));
 			break;
 		case CMD_QUIT:
 			exit(0);
@@ -395,7 +395,7 @@ main(int argc, char *argv[])
 	tmpf("yupa.fmt", s_tab.fmt);
 	s_tab.pager = "cat ";
 	if (argc) {
-		onuri(argv[0]);
+		onuri(&s_tab, argv[0]);
 	}
 	run();
 	return 0;
