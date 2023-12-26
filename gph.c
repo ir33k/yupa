@@ -1,5 +1,7 @@
 /* Gopher protocol. */
 
+#include <errno.h>              /* TODO(irek): Delete. */
+
 #define GPH_PORT        70      /* Defaul port */
 
 enum gph_item {
@@ -69,17 +71,18 @@ gph_label(enum gph_item item)
 	assert(0 && "Unhandled item type"); /* Should never happen */
 }
 
-/* Make it so storing links is done outside of this function and there
- * is no need for introductin TABs in this file. */
-static int
+/**/
+static void
 gph_format(FILE *raw, FILE *fmt)
 {
 	int n;                  /* Link item index */
 	char buf[BUFSIZ], *label;
 	assert(raw);
+	assert(fmt);
 	rewind(raw);
 	n = 1;
-	while (fgets(buf, BUFSIZ, raw)) {
+	errno = 0;
+	while (fgets(buf, sizeof(buf), raw)) {
 		if (buf[0] == '.') {    /* Single dot means end of file */
 			break;
 		}
@@ -89,7 +92,9 @@ gph_format(FILE *raw, FILE *fmt)
 		}
 		fprintf(fmt, "%s\n", &buf[1]);
 	}
-	return 0;
+	if (errno) {
+		ERR("fgets:");
+	}
 }
 
 #if 0

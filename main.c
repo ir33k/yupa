@@ -9,18 +9,18 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "arg.h"
-#include "uri.h"
-#include "gph.c"
-
 #define LOG_IMPLEMENTATION
 #define LOG_LEVEL -1
 #include "log.h"
 
+#include "arg.h"
+#include "uri.h"
+#include "gph.c"
+
 /* BUFSIZ is used as default buffer size in many places and it has to
  * be big enough to hold an single URI string and file path. */
-_Static_assert(BUFSIZ > URI_SIZ,      "BUFSIZ is too small");
-_Static_assert(BUFSIZ > FILENAME_MAX, "BUFSIZ is too small");
+_Static_assert(BUFSIZ > URI_SIZ,      "BUFSIZ too small for URI_SIZ");
+_Static_assert(BUFSIZ > FILENAME_MAX, "BUFSIZ too small for FILENAME_MAX");
 
 enum cmd {                      /* Commands possible to input in prompt */
 	CMD_NUL = 0,            /* Empty command */
@@ -33,7 +33,8 @@ enum cmd {                      /* Commands possible to input in prompt */
 struct tab {
 	enum uri_protocol protocol;     /* Current page URI protocol */
 	char    uri[URI_SIZ];           /* Current page URI */
-	char    body[FILENAME_MAX];     /* Path to file with response body */
+	char    raw[FILENAME_MAX];      /* File path for raw response body */
+	char    fmt[FILENAME_MAX];      /* File path for formatted raw body */
 	char    pager[BUFSIZ];          /* CMD run on formatter response body */
 };
 
@@ -130,9 +131,9 @@ static void
 onuri(char *uri)
 {
 	enum uri_protocol protocol;
-	int sfd, port, format = 0;
-	char buf[BUFSIZ], *host, *path, item;
-	FILE *fp;
+	int sfd, port;
+	char buf[BUFSIZ], *host, *path, item = GPH_ITEM_GPH;
+	FILE *raw, *fmt;
 	ssize_t ssiz;
 	assert(strlen(uri) <= URI_SIZ);
 	protocol = uri_protocol(uri);
@@ -145,41 +146,56 @@ onuri(char *uri)
 	if (!protocol) {
 		protocol = URI_PROTOCOL_GOPHER;
 	}
+	s_tab.protocol = protocol;
+	strcpy(s_tab.uri, uri);
 	if (protocol != URI_PROTOCOL_GOPHER) {
-		WARN("Only 'gopher://' protocol is supported and assumed by default");
+		WARN("Only gopher protocol is supported");
 		return;
 	}
 	if (path && path[1]) {
 		item = path[1];
 		path += 2;
 	}
-	format = !path || item == GPH_ITEM_GPH;
 	if ((sfd = req(host, port, path)) == 0) {
 		printf("Invalid URI %s\n", uri);
 		return;
 	}
-	if (!(fp = fopen(s_tab.body, "w"))) {
-		ERR("fopen %s %s:", uri, s_tab.body);
+	if (!(raw = fopen(s_tab.raw, "w+"))) {
+		ERR("fopen %s %s:", uri, s_tab.raw);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
-		if (fwrite(buf, 1, ssiz, fp) != (size_t)ssiz) {
+		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
 			ERR("fwrite %s:", uri);
 		}
 	}
 	if (ssiz < 0) {
 		ERR("recv %s:", uri);
 	}
-	if (fclose(fp) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab.body);
-	}
 	if (close(sfd)) {
 		ERR("close %s %d:", uri, sfd);
 	}
-	s_tab.protocol = protocol;
-	strcpy(s_tab.uri, uri);
-	if (format) {
-		system(s_tab.pager);
+	if (item != GPH_ITEM_GPH &&
+	    item != GPH_ITEM_TXT) {
+		/* TODO(irek): Flow of closing this file is ugly.
+		 * This probably could be refactored with some good
+		 * old goto. */
+		if (fclose(raw) == EOF) {
+			ERR("fclose %s %s:", uri, s_tab.raw);
+		}
+		INFO("Not a Gopher submenu and anot a text file");
+		return;
 	}
+	if (!(fmt = fopen(s_tab.fmt, "w"))) {
+		ERR("fopen %s %s:", uri, s_tab.fmt);
+	}
+	gph_format(raw, fmt);
+	if (fclose(raw) == EOF) {
+		ERR("fclose %s %s:", uri, s_tab.raw);
+	}
+	if (fclose(fmt) == EOF) {
+		ERR("fclose %s %s:", uri, s_tab.fmt);
+	}
+	system(s_tab.pager);
 }
 
 /**/
@@ -265,7 +281,7 @@ tmpf(char *dst)
 	do {
 		sprintf(dst, "%s%s", prefix, strrand(6));
 	} while (!access(dst, F_OK));
-	if ((fd = open(dst, O_RDWR | O_CREAT | O_EXCL)) == -1) {
+	if ((fd = open(dst, O_RDWR | O_CREAT)) == -1) {
 		ERR("open %s:", dst);
 	}
 	if (close(fd)) {
@@ -281,9 +297,9 @@ main(int argc, char *argv[])
 	default:
 		usage();
 	} ARGEND
-	tmpf(s_tab.body);
-	sprintf(s_tab.pager, "cat %s", s_tab.body);
-	DEV("pager %s", s_tab.pager);
+	tmpf(s_tab.raw);
+	tmpf(s_tab.fmt);
+	sprintf(s_tab.pager, "cat %s", s_tab.fmt);
 	if (argc) {
 		onuri(argv[0]);
 	}
