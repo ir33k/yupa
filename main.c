@@ -15,8 +15,8 @@
 #define LOG_LEVEL -1
 #include "log.h"
 
-#define HSIZ    64              /* Size of tab browsing history */
 #define BSIZ    BUFSIZ          /* Size of generic buffer */
+#define HSIZ    64              /* Size of tab browsing history */
 #define FMAX    FILENAME_MAX    /* Max size of buffer for file path */
 
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
@@ -29,6 +29,9 @@ enum cmd {                      /* Commands possible to input in prompt */
 	CMD_URI,                /* Absolute URI string */
 	CMD_LINK,               /* Index to link on current page */
 	CMD_RELOAD,             /* Reload current page */
+	CMD_TAB_NEW,            /* Create new tab */
+	CMD_TAB_PREV,           /* Switch to previous tab */
+	CMD_TAB_NEXT,           /* Switch to next tab */
 	CMD_HISTORY_PREV,       /* Goto previous browsing history page */
 	CMD_HISTORY_NEXT,       /* Goto next browsing history page */
 	CMD_RAW,                /* Show raw response */
@@ -36,16 +39,17 @@ enum cmd {                      /* Commands possible to input in prompt */
 };
 
 struct tab {
+	int     index;          /* Tab index */
 	enum uri_protocol protocol; /* Current page URI protocol */
-	char    uri[URI_SIZ];   /* Current page URI */
 	char    raw[FMAX];      /* File path for raw response body */
 	char    fmt[FMAX];      /* File path for formatted raw body */
-	char   *pager;          /* CMD run on formatter response body */
 	char    history[HSIZ][URI_SIZ]; /* Browsing history */
 	size_t  hi;             /* Index to current history item */
+	struct tab *prev, *next; /* Double linked list */
 };
 
-static struct tab s_tab = {0};  /* TODO(irek): One tab for now. */
+static struct tab *s_tab = 0;   /* Pointer to current tab */
+static char *s_pager = "cat";
 char *argv0;                    /* First program arg, for arg.h */
 
 /* Print usage help message and die. */
@@ -59,29 +63,91 @@ usage(void)
 	    "\n", argv0);
 }
 
+/**/
 static char *
-history_get(struct tab *tab, int shift)
+strrand(int len)
 {
-	if (shift > 0 && !tab->history[(tab->hi + 1) % HSIZ][0]) {
-		return 0;
+	static int seed = 0;
+	static const char *allow =
+		"ABCDEFGHIJKLMNOPRSTUWXYZ"
+		"abcdefghijklmnoprstuwxyz"
+		"0123456789";
+	size_t limit = strlen(allow);
+	static char str[32];
+	assert(len < 32);
+	srand(time(0) + seed++);
+	str[len] = 0;
+	while (len--) {
+		str[len] = allow[rand() % limit];
 	}
-	if (shift < 0 && !tab->hi) {
-		return 0;
-	}
-	tab->hi += shift;
-	return tab->history[tab->hi % HSIZ];
+	return str;
 }
 
+/**/
 static void
-history_add(struct tab *tab, char *uri)
+tmpf(char *prefix, char *dst)
 {
-	if (tab->history[tab->hi % HSIZ][0]) {
-		tab->hi++;
+	int fd;
+	do {
+		sprintf(dst, "%s%s-%s", "/tmp/", prefix, strrand(6));
+	} while (!access(dst, F_OK));
+	if ((fd = open(dst, O_RDWR | O_CREAT)) == -1) {
+		ERR("open %s:", dst);
 	}
-	strncpy(tab->history[tab->hi % HSIZ], uri, URI_SIZ);
+	if (close(fd)) {
+		ERR("close %s:", dst);
+	}
+}
+
+/**/
+static void
+tab_new(void)
+{
+	static int index = 0;
+	struct tab *tab;
+	if (!(tab = malloc(sizeof(*tab)))) {
+		ERR("malloc:");
+	}
+	memset(tab, 0, sizeof(*tab));
+	tab->index = index++;
+	tmpf("yupa.raw", tab->raw);
+	tmpf("yupa.fmt", tab->fmt);
+	tab->prev = s_tab;
+	if (s_tab) {
+		tab->next = s_tab->next;
+		if (s_tab->next) {
+			s_tab->next->prev = tab;
+		}
+		s_tab->next = tab;
+	}
+	s_tab = tab;
+}
+
+/**/
+static void
+history_add(char *uri)
+{
+	if (s_tab->history[s_tab->hi % HSIZ][0]) {
+		s_tab->hi++;
+	}
+	strncpy(s_tab->history[s_tab->hi % HSIZ], uri, URI_SIZ);
 	/* Make next history item empty to cut off old forward history
 	 * every time the new item is being added. */
-	tab->history[(tab->hi + 1) % HSIZ][0] = 0;
+	s_tab->history[(s_tab->hi + 1) % HSIZ][0] = 0;
+}
+
+/**/
+static char *
+history_get(int shift)
+{
+	if (shift > 0 && !s_tab->history[(s_tab->hi + 1) % HSIZ][0]) {
+		return 0;
+	}
+	if (shift < 0 && !s_tab->hi) {
+		return 0;
+	}
+	s_tab->hi += shift;
+	return s_tab->history[s_tab->hi % HSIZ];
 }
 
 /* Establish AF_INET internet SOCK_STREAM stream connection to HOST of
@@ -145,7 +211,7 @@ req(char *host, int port, char *path)
 
 /**/
 static int
-onuri(struct tab *tab, char *uri)
+onuri(char *uri)
 {
 	enum uri_protocol protocol;
 	int sfd, port;
@@ -179,8 +245,8 @@ onuri(struct tab *tab, char *uri)
 		printf("Invalid URI %s\n", uri);
 		return 0;
 	}
-	if (!(raw = fopen(tab->raw, "w+"))) {
-		ERR("fopen %s %s:", uri, tab->raw);
+	if (!(raw = fopen(s_tab->raw, "w+"))) {
+		ERR("fopen %s %s:", uri, s_tab->raw);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
@@ -193,63 +259,61 @@ onuri(struct tab *tab, char *uri)
 	if (close(sfd)) {
 		ERR("close %s %d:", uri, sfd);
 	}
-	tab->protocol = protocol;
-	strcpy(tab->uri, uri);
+	s_tab->protocol = protocol;
 	if (item != GPH_ITEM_GPH &&
 	    item != GPH_ITEM_TXT) {
 		/* TODO(irek): Flow of closing this file is ugly.
 		 * This probably could be refactored with some good
 		 * old goto. */
 		if (fclose(raw) == EOF) {
-			ERR("fclose %s %s:", uri, tab->raw);
+			ERR("fclose %s %s:", uri, s_tab->raw);
 		}
 		INFO("Not a Gopher submenu and anot a text file");
 		return 0;
 	}
 	if (item == GPH_ITEM_GPH) {
-		if (!(fmt = fopen(tab->fmt, "w"))) {
-			ERR("fopen %s %s:", uri, tab->fmt);
+		if (!(fmt = fopen(s_tab->fmt, "w"))) {
+			ERR("fopen %s %s:", uri, s_tab->fmt);
 		}
 		gph_format(raw, fmt);
 		if (fclose(fmt) == EOF) {
-			ERR("fclose %s %s:", uri, tab->fmt);
+			ERR("fclose %s %s:", uri, s_tab->fmt);
 		}
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s %s:", uri, tab->raw);
+		ERR("fclose %s %s:", uri, s_tab->raw);
 	}
-	sprintf(buf, "%s %s", tab->pager,
-		item == GPH_ITEM_GPH ? tab->fmt: tab->raw);
+	sprintf(buf, "%s %s", s_pager,
+		item == GPH_ITEM_GPH ? s_tab->fmt: s_tab->raw);
 	system(buf);
 	return 1;
 }
 
 static char *
-link_get(struct tab *tab, int index)
+link_get(int index)
 {
 	char *uri;
 	FILE *raw;
 	assert(index > 0);
-	if (tab->protocol != URI_PROTOCOL_GOPHER) {
+	if (s_tab->protocol != URI_PROTOCOL_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
-	if (!(raw = fopen(tab->raw, "r"))) {
-		ERR("fopen %s:", tab->raw);
+	if (!(raw = fopen(s_tab->raw, "r"))) {
+		ERR("fopen %s:", s_tab->raw);
 	}
 	uri = gph_uri(raw, index);
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s:", tab->raw);
+		ERR("fclose %s:", s_tab->raw);
 	}
 	return uri;
 }
 
 static void
-onraw(struct tab *tab)
+onraw(void)
 {
 	char buf[BSIZ];
-	DEV("%s %s", tab->uri, tab->raw);
-	sprintf(buf, "%s %s", tab->pager, tab->raw);
+	sprintf(buf, "%s %s", s_pager, s_tab->raw);
 	system(buf);
 }
 
@@ -276,7 +340,7 @@ static enum cmd
 cmd(char *buf, size_t siz)
 {
 	if (siz == 0)           return CMD_NUL;
-#define _CMD_IS(_str) strlen(_str) == siz && !strncasecmp(_str, buf, siz)
+#define _CMD_IS(_str) strlen(_str) == siz && !strncmp(_str, buf, siz)
 	if (_CMD_IS("q"))       return CMD_QUIT;
 	if (_CMD_IS("quit"))    return CMD_QUIT;
 	if (_CMD_IS("exit"))    return CMD_QUIT;
@@ -285,12 +349,16 @@ cmd(char *buf, size_t siz)
 	if (_CMD_IS("reload"))  return CMD_RELOAD;
 	if (_CMD_IS("refresh")) return CMD_RELOAD;
 	if (_CMD_IS("raw"))     return CMD_RAW;
-	if (_CMD_IS("b"))       return CMD_HISTORY_PREV;
-	if (_CMD_IS("back"))    return CMD_HISTORY_PREV;
+	if (_CMD_IS("T"))       return CMD_TAB_NEW;
+	if (_CMD_IS("tab"))     return CMD_TAB_NEW;
+	if (_CMD_IS("P"))       return CMD_TAB_PREV;
+	if (_CMD_IS("tp"))      return CMD_TAB_PREV;
+	if (_CMD_IS("tprev"))   return CMD_TAB_PREV;
+	if (_CMD_IS("N"))       return CMD_TAB_NEXT;
+	if (_CMD_IS("tn"))      return CMD_TAB_NEXT;
+	if (_CMD_IS("tnext"))   return CMD_TAB_NEXT;
 	if (_CMD_IS("p"))       return CMD_HISTORY_PREV;
 	if (_CMD_IS("prev"))    return CMD_HISTORY_PREV;
-	if (_CMD_IS("f"))       return CMD_HISTORY_NEXT;
-	if (_CMD_IS("forward")) return CMD_HISTORY_NEXT;
 	if (_CMD_IS("n"))       return CMD_HISTORY_NEXT;
 	if (_CMD_IS("next"))    return CMD_HISTORY_NEXT;
 	if (isnum(buf))         return CMD_LINK;
@@ -304,9 +372,7 @@ run(void)
 	char buf[BSIZ], *uri;
 	size_t len;
 	while (1) {
-		if (fputs("yupa> ", stdout) == EOF) {
-			ERR("fputs:");
-		}
+		fprintf(stderr, "yupa(%d)> ", s_tab->index);
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
 		}
@@ -314,27 +380,44 @@ run(void)
 		buf[len] = 0;
 		switch (cmd(buf, len)) {
 		case CMD_URI:
-			if (onuri(&s_tab, buf)) {
-				history_add(&s_tab, buf);
+			if (onuri(buf)) {
+				history_add(buf);
 			}
 			break;
 		case CMD_LINK:
-			uri = link_get(&s_tab, atoi(buf));
-			if (onuri(&s_tab, uri)) {
-				history_add(&s_tab, uri);
+			uri = link_get(atoi(buf));
+			if (onuri(uri)) {
+				history_add(uri);
 			}
 			break;
 		case CMD_RELOAD:
-			onuri(&s_tab, s_tab.uri);
+			onuri(history_get(0));
 			break;
 		case CMD_RAW:
-			onraw(&s_tab);
+			onraw();
+			break;
+		case CMD_TAB_NEW:
+			tab_new();
+			break;
+		case CMD_TAB_PREV:
+			if (!s_tab->prev) {
+				break;
+			}
+			s_tab = s_tab->prev;
+			onuri(history_get(0));
+			break;
+		case CMD_TAB_NEXT:
+			if (!s_tab->next) {
+				break;
+			}
+			s_tab = s_tab->next;
+			onuri(history_get(0));
 			break;
 		case CMD_HISTORY_PREV:
-			onuri(&s_tab, history_get(&s_tab, -1));
+			onuri(history_get(-1));
 			break;
 		case CMD_HISTORY_NEXT:
-			onuri(&s_tab, history_get(&s_tab, +1));
+			onuri(history_get(+1));
 			break;
 		case CMD_QUIT:
 			exit(0);
@@ -347,42 +430,6 @@ run(void)
 	}
 }
 
-/**/
-static char *
-strrand(int len)
-{
-	static int seed = 0;
-	static const char *allow =
-		"ABCDEFGHIJKLMNOPRSTUWXYZ"
-		"abcdefghijklmnoprstuwxyz"
-		"0123456789";
-	size_t limit = strlen(allow);
-	static char str[32];
-	assert(len < 32);
-	srand(time(0) + seed++);
-	str[len] = 0;
-	while (len--) {
-		str[len] = allow[rand() % limit];
-	}
-	return str;
-}
-
-/**/
-static void
-tmpf(char *prefix, char *dst)
-{
-	int fd;
-	do {
-		sprintf(dst, "%s%s-%s", "/tmp/", prefix, strrand(6));
-	} while (!access(dst, F_OK));
-	if ((fd = open(dst, O_RDWR | O_CREAT)) == -1) {
-		ERR("open %s:", dst);
-	}
-	if (close(fd)) {
-		ERR("close %s:", dst);
-	}
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -391,11 +438,9 @@ main(int argc, char *argv[])
 	default:
 		usage();
 	} ARGEND
-        tmpf("yupa.raw", s_tab.raw);
-	tmpf("yupa.fmt", s_tab.fmt);
-	s_tab.pager = "cat ";
+	tab_new();
 	if (argc) {
-		onuri(&s_tab, argv[0]);
+		onuri(argv[0]);
 	}
 	run();
 	return 0;
