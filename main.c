@@ -35,7 +35,7 @@ struct tab {
 	char    uri[URI_SIZ];           /* Current page URI */
 	char    raw[FILENAME_MAX];      /* File path for raw response body */
 	char    fmt[FILENAME_MAX];      /* File path for formatted raw body */
-	char    pager[BUFSIZ];          /* CMD run on formatter response body */
+	char   *pager;                  /* CMD run on formatter response body */
 };
 
 static struct tab s_tab = {0};
@@ -185,17 +185,41 @@ onuri(char *uri)
 		INFO("Not a Gopher submenu and anot a text file");
 		return;
 	}
-	if (!(fmt = fopen(s_tab.fmt, "w"))) {
-		ERR("fopen %s %s:", uri, s_tab.fmt);
+	if (item == GPH_ITEM_GPH) {
+		if (!(fmt = fopen(s_tab.fmt, "w"))) {
+			ERR("fopen %s %s:", uri, s_tab.fmt);
+		}
+		gph_format(raw, fmt);
+		if (fclose(fmt) == EOF) {
+			ERR("fclose %s %s:", uri, s_tab.fmt);
+		}
 	}
-	gph_format(raw, fmt);
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s %s:", uri, s_tab.raw);
 	}
-	if (fclose(fmt) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab.fmt);
+	sprintf(buf, "%s %s", s_tab.pager,
+		item == GPH_ITEM_GPH ? s_tab.fmt: s_tab.raw);
+	system(buf);
+}
+
+static void
+onlink(int index)
+{
+	char *uri;
+	FILE *raw;
+	assert(index > 0);
+	if (s_tab.protocol != URI_PROTOCOL_GOPHER) {
+		WARN("Only gopher protocol is supported");
+		return;
 	}
-	system(s_tab.pager);
+	if (!(raw = fopen(s_tab.raw, "r"))) {
+		ERR("fopen %s:", s_tab.raw);
+	}
+	uri = gph_uri(raw, index);
+	if (fclose(raw) == EOF) {
+		ERR("fclose %s:", s_tab.raw);
+	}
+	onuri(uri);
 }
 
 /**/
@@ -235,8 +259,7 @@ run(void)
 			onuri(buf);
 			break;
 		case CMD_LINK:
-			DEV("LINK %d", atoi(buf));
-			INFO("Link navigation is not implemented yet");
+			onlink(atoi(buf));
 			break;
 		case CMD_RELOAD:
 			onuri(s_tab.uri);
@@ -299,7 +322,7 @@ main(int argc, char *argv[])
 	} ARGEND
 	tmpf(s_tab.raw);
 	tmpf(s_tab.fmt);
-	sprintf(s_tab.pager, "cat %s", s_tab.fmt);
+	s_tab.pager = "cat ";
 	if (argc) {
 		onuri(argv[0]);
 	}

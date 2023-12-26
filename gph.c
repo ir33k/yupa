@@ -97,7 +97,6 @@ gph_format(FILE *raw, FILE *fmt)
 	}
 }
 
-#if 0
 /**/
 static char *
 gph_uri(FILE *raw, int index)
@@ -128,4 +127,3 @@ gph_uri(FILE *raw, int index)
 	}
 	return 0;
 }
-#endif
