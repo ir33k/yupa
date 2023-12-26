@@ -1,10 +1,19 @@
-/* Logger v1.4 by irek@gabr.pl                                  (-_- )
+/* Logger v1.5 by irek@gabr.pl                                  (-_- )
  *
  * Print formatted logger messages to target file with optional log
  * level label, trace path to source file line and exit program if
  * needed.
  *
- * This is a single header library.  
+ * This is a single header library.  When included then acts like
+ * regular header file.  To compile function definitions you have to
+ * predefine LOG_IMPLEMENTATION in on of your source files.
+ *
+ *	// main.c
+ *	#define LOG_IMPLEMENTATION
+ *	#include "log.h"
+ *
+ *	// other_file.c
+ *	#include "log.h"
  *
  * Each log macro take FMT formatted message (printf(3)) as first
  * argument and optional varying number of arguments for FMT string.
