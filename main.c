@@ -1,4 +1,4 @@
-/* Yupa v0.2 by irek@gabr.pl */
+/* Yupa v0.5 by irek@gabr.pl */
 
 #include <assert.h>
 #include <fcntl.h>
@@ -41,27 +41,27 @@ enum cmd {                      /* Commands possible to input in prompt */
 };
 
 struct tab {
-	int     index;          /* Tab index */
-	enum uri_protocol protocol; /* Current page URI protocol */
-	char    raw[FMAX];      /* File path for raw response body */
-	char    fmt[FMAX];      /* File path for formatted raw body */
+	int     index;                  /* Tab index */
+	enum uri_protocol protocol;     /* Current page URI protocol */
+	char    raw[FMAX];              /* File path to raw response body */
+	char    fmt[FMAX];              /* File path to formatted raw body */
 	char    history[HSIZ][URI_SIZ]; /* Browsing history */
-	size_t  hi;             /* Index to current history item */
-	struct tab *prev, *next; /* Double linked list */
+	size_t  hi;                     /* Index to current history item */
+	struct tab *prev, *next;        /* Double linked list */
 };
 
 static struct tab *s_tab = 0;   /* Pointer to current tab */
-static char *s_pager = "cat";
+static char *s_pager = "cat";   /* Pager default command */
 char *argv0;                    /* First program arg, for arg.h */
 
 /* Print usage help message and die. */
 static void
 usage(void)
 {
-	DIE("$ %s [-h] [uri]\n"
+	DIE("$ %s [-h] [uri..]\n"
 	    "\n"
 	    "	-h	Print help message.\n"
-	    "	[uri]	URI to open.\n"
+	    "	[uri..]	List of URIs to open.\n"
 	    "\n", argv0);
 }
 
@@ -498,14 +498,20 @@ run(void)
 int
 main(int argc, char *argv[])
 {
+	int i;
 	ARGBEGIN {
 	case 'h':
 	default:
 		usage();
 	} ARGEND
-	tab_new();
-	if (argc && onuri(argv[0])) {
-		history_add(argv[0]);
+	for (i = 0; i < argc; i++) {
+		tab_new();
+		if (onuri(argv[i])) {
+			history_add(argv[0]);
+		}
+	}
+	if (!s_tab) {
+		tab_new();
 	}
 	run();
 	return 0;
