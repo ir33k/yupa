@@ -16,6 +16,7 @@
 #include "gph.c"
 
 #define LOG_IMPLEMENTATION
+#define LOG_LEVEL 0
 #include "log.h"
 
 /* BUFSIZ is used as default buffer size in many places and it has to
@@ -107,7 +108,6 @@ req(char *host, int port, char *path)
 	assert(host);
 	assert(port > 0);
 	if ((sfd = tcp(host, port)) < 0) {
-		WARN("tcp %s %d:", host, port);
 		return 0;
 	}
 	if (path) {
@@ -151,27 +151,26 @@ onuri(char *uri)
 		(void)item;
 		path += 2;
 	}
-	/* TODO(irek): Figure out error handling. */
 	if ((sfd = req(host, port, path)) == 0) {
-		WARN("");
+		printf("Invalid URI %s\n", uri);
 		return;
 	}
 	if (!(fp = fopen(s_tab.body, "w"))) {
-		ERR("fopen(%s):", s_tab.body);
+		ERR("fopen %s %s:", uri, s_tab.body);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, fp) != (size_t)ssiz) {
-			ERR("fwrite:");
+			ERR("fwrite %s:", uri);
 		}
 	}
 	if (ssiz < 0) {
-		ERR("recv:");
+		ERR("recv %s:", uri);
 	}
 	if (fclose(fp) == EOF) {
-		ERR("fclose(%s):", s_tab.body);
+		ERR("fclose %s %s:", uri, s_tab.body);
 	}
 	if (close(sfd)) {
-		ERR("close(%d):", sfd);
+		ERR("close %s %d:", uri, sfd);
 	}
 	s_tab.protocol = protocol;
 	strcpy(s_tab.uri, uri);
@@ -255,10 +254,10 @@ tmpf(char *dst)
 		sprintf(dst, "%s%s", prefix, strrand(6));
 	} while (!access(dst, F_OK));
 	if ((fd = open(dst, O_RDWR | O_CREAT | O_EXCL)) == -1) {
-		ERR("open(%s):", dst);
+		ERR("open %s:", dst);
 	}
 	if (close(fd)) {
-		ERR("close(%s):", dst);
+		ERR("close %s:", dst);
 	}
 }
 

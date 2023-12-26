@@ -1,4 +1,4 @@
-/* Logger v1.0 by irek@gabr.pl                                  (-_- )
+/* Logger v1.4 by irek@gabr.pl                                  (-_- )
  *
  * Print formatted logger messages to target file with optional log
  * level label, trace path to source file line and exit program if
@@ -9,29 +9,33 @@
  * If FMT string ends with ':' character then value of perror(0) will
  * be appended.  New line is always appended.
  *
- * Predefine LOG_LEVEL value to disable logs with smaller level.  Note
- * that you can't disable ERR and DIE as those logs kills program and
- * by that contribute to program flow.  Ignoring them could lead to
- * executing code that should be unreachable.
+ * Predefine LOG_LEVEL with number (0 by default) to disable logs with
+ * smaller level.  You can't disable ERR and DIE as those exit program
+ * and by that contribute to logic flow.  Disabling them could lead to
+ * executing code that should be unreachable.  Also DEV log macro has
+ * negative level to be disabled by default.
  *
  * Properties:
  *
  *	macro   level   file    trace   exit    label
  *	------  ------  ------  ------  ------  ------
- *	LOG     0       stdout  no        
- *	INFO    1       stderr  no              INFO
- *	WARN    2       stderr  yes             WARN
+ *	DEV     -1      stderr  yes             >>>>
+ *	LOG      0      stdout  no
+ *	INFO     1      stderr  no              INFO
+ *	WARN     2      stderr  yes             WARN
  *	ERR             stderr  yes     1       ERR
  *	DIE             stderr  no      2
  *
  * Examples:
  *
+ *	DEV("For development");
  *	LOG("Simple message");
  *	INFO("Print formatted message: %s %d", name, age);
  *	WARN("append perror, fopen %s:", file_path);
  *	ERR("print error and die");
  *	DIE("just die");
  *
+ *	// main.c:9	DEV	For development
  *	// Simple message
  *	// INFO	Print formatted message: Adam 30
  *	// main.c:12	WARN	append perror, fopen file.txt: can't open
@@ -40,13 +44,14 @@
  *
  * Log level:
  *
- *	// Ignore LOG and INFO logs but keep WARN.
+ *	// Ignore DEV, LOG and INFO logs but keep WARN.
  *	#define LOG_LEVEL 2
  *	#include "log.h"
  */
 #ifndef _LOG_H
 #define _LOG_H
 
+#define DEV(...)  _LOG(1, 0, stderr, ">>>>", __VA_ARGS__)
 #define LOG(...)  _LOG(0, 0, stdout, 0,      __VA_ARGS__)
 #define INFO(...) _LOG(0, 0, stderr, "INFO", __VA_ARGS__)
 #define WARN(...) _LOG(1, 0, stderr, "WARN", __VA_ARGS__)
@@ -55,6 +60,11 @@
 
 #ifndef LOG_LEVEL
 #define LOG_LEVEL 0
+#endif
+
+#if LOG_LEVEL > -1
+#undef DEV
+#define DEV(...)
 #endif
 
 #if LOG_LEVEL > 0
