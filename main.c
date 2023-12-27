@@ -8,21 +8,20 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
-#include "arg.h"
-#include "uri.h"
-
-#define LOG_IMPLEMENTATION
-#define LOG_LEVEL -1
-#include "log.h"
 
 #define BSIZ    BUFSIZ          /* Size of generic buffer */
 #define HSIZ    64              /* Size of tab browsing history */
 #define FMAX    FILENAME_MAX    /* Max size of buffer for file path */
+#define LOG_LEVEL -1            /* Range from -1 (all) to 2 (only errors) */
+
+#define LOG_IMPLEMENTATION
+#include "log.h"
+#include "arg.h"
+#include "uri.h"
+#include "gph.c"
 
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
 _Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
-
-#include "gph.c"
 
 enum cmd {                      /* Commands possible to input in prompt */
 	CMD_NUL = 0,            /* Empty command */
@@ -54,17 +53,17 @@ static struct tab *s_tab = 0;           /* Pointer to current tab */
 static char *s_pager = "less -XI";      /* Pager default command */
 char *argv0;                            /* First program arg, for arg.h */
 
-/* Print usage help message and exit with 1. */
+/* Print usage help message. */
 static void
 usage(void)
 {
 	fprintf(stderr,
-		"$ %s [-h] [uri..]\n"
+		"usage: %s [-h] [uri..]\n"
 		"\n"
-		"	-h	Print help message.\n"
-		"	[uri..]	List of URIs to open.\n"
-		"\n", argv0);
-	exit(1);
+		"	-h	Print this help message.\n"
+		"	[uri..]	List of URIs to open on startup.\n"
+		"env	PAGER	Pager cmd (less -XI).\n"
+		, argv0);
 }
 
 /* Return pointer to static string with random alphanumeric characters
@@ -391,6 +390,7 @@ cmd(char *buf, size_t siz)
 	if (_CMD_IS("r"))       return CMD_RELOAD;
 	if (_CMD_IS("reload"))  return CMD_RELOAD;
 	if (_CMD_IS("refresh")) return CMD_RELOAD;
+	if (_CMD_IS("R"))       return CMD_RAW;
 	if (_CMD_IS("raw"))     return CMD_RAW;
 	if (_CMD_IS("T"))       return CMD_TAB_NEW;
 	if (_CMD_IS("tab"))     return CMD_TAB_NEW;
@@ -405,6 +405,8 @@ cmd(char *buf, size_t siz)
 	if (_CMD_IS("X"))       return CMD_TAB_CLOSE;
 	if (_CMD_IS("C"))       return CMD_TAB_CLOSE;
 	if (_CMD_IS("tclose"))  return CMD_TAB_CLOSE;
+	if (_CMD_IS("b"))       return CMD_HISTORY_PREV;
+	if (_CMD_IS("back"))    return CMD_HISTORY_PREV;
 	if (_CMD_IS("p"))       return CMD_HISTORY_PREV;
 	if (_CMD_IS("prev"))    return CMD_HISTORY_PREV;
 	if (_CMD_IS("n"))       return CMD_HISTORY_NEXT;
@@ -505,8 +507,11 @@ main(int argc, char *argv[])
 	}
 	ARGBEGIN {
 	case 'h':
+		usage();
+		return 0;
 	default:
 		usage();
+		return 1;
 	} ARGEND
 	for (i = 0; i < argc; i++) {
 		tab_new();
