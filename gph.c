@@ -1,6 +1,6 @@
 /* Gopher protocol. */
 
-#include <errno.h>              /* TODO(irek): Delete. */
+#include <errno.h>
 
 #define GPH_PORT        70      /* Defaul port */
 
@@ -71,7 +71,8 @@ gph_label(enum gph_item item)
 	assert(0 && "Unhandled item type"); /* Should never happen */
 }
 
-/**/
+/* Assuming that RAW is a file with Gopher submenu, write prettier
+ * formatted version to FMT file. */
 static void
 gph_format(FILE *raw, FILE *fmt)
 {
@@ -88,16 +89,17 @@ gph_format(FILE *raw, FILE *fmt)
 		}
 		buf[strcspn(buf, "\t")] = 0;    /* End string at first tab */
 		if ((label = gph_label(buf[0]))) {
-			fprintf(fmt, "[%d]\t<%s> ", n++, label);
+			fprintf(fmt, "(%d)\t<%s> ", n++, label);
 		}
 		fprintf(fmt, "%s\n", &buf[1]);
 	}
 	if (errno) {
-		ERR("fgets:");
+		WARN("fgets:");
 	}
 }
 
-/**/
+/* Search in RAW file for the link under INDEX (1 == first link).
+ * Return pointer to static string with normalized URI. */
 static char *
 gph_uri(FILE *raw, int index)
 {
@@ -116,11 +118,13 @@ gph_uri(FILE *raw, int index)
 		if (--index) {
 			continue;
 		}
-		/* TODO(irek): Here I need to add special case
-		 * for non Gopher links. */
 		/* Found */
 		sscanf(buf, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d",
 		       &c, path, host, &port);
+		if (c == GPH_ITEM_HTML) {
+			strcpy(uri, path);
+			return uri + 4;
+		}
 		sprintf(uri, "gopher://%.1024s:%d/%c%.1024s",
 			host, port, c, path);
 		return uri;
