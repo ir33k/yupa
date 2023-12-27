@@ -1,5 +1,7 @@
 /* Logger v1.0 by irek@gabr.pl
 
+TODO(irek): Give this lib an unique name.
+
 Print formatted log messages like LOG, WARNING, ERROR to stdout or
 stderr with trace path to source file, line number, function name and
 optional standard errno string then exit program if needed.
@@ -94,7 +96,7 @@ Properties:
 
 Change log:
 
-	2023.12.27 Wed 18:32	v1.0 Initial motivation
+	2023.12.26 Tue 18:32	v1.0 Initial motivation
 
 	I was tired of writing printf by hand with context information
 	like function name.  Usually I was killing my programs as soon
@@ -159,9 +161,9 @@ Change log:
 #define WARN(...)
 #endif
 
-/* Print FMT formatted string with varying number of arguments.
- * Prepend string with FILENAME, LINE number and FUNCTION name.
- * Prepend LABEL.  Kill program with DIE exit code if non 0. */
+/* Print FMT formatted message with varying number of args.  Prepend
+ * string with FILENAME, LINE number, FUNCTION name and LABEL.  Kill
+ * program with DIE exit code if non 0. */
 static void
 _log(const char *filename, int line, const char *function,
      const char *label, int die, const char *fmt, ...);
