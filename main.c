@@ -54,15 +54,17 @@ static struct tab *s_tab = 0;           /* Pointer to current tab */
 static char *s_pager = "less -XI";      /* Pager default command */
 char *argv0;                            /* First program arg, for arg.h */
 
-/* Print usage help message and die. */
+/* Print usage help message and exit with 1. */
 static void
 usage(void)
 {
-	DIE("$ %s [-h] [uri..]\n"
-	    "\n"
-	    "	-h	Print help message.\n"
-	    "	[uri..]	List of URIs to open.\n"
-	    "\n", argv0);
+	fprintf(stderr,
+		"$ %s [-h] [uri..]\n"
+		"\n"
+		"	-h	Print help message.\n"
+		"	[uri..]	List of URIs to open.\n"
+		"\n", argv0);
+	exit(1);
 }
 
 /* Return pointer to static string with random alphanumeric characters
@@ -298,7 +300,7 @@ onuri(char *uri)
 		if (fclose(raw) == EOF) {
 			ERR("fclose %s %s:", uri, s_tab->raw);
 		}
-		INFO("Not a Gopher submenu and anot a text file");
+		printf("Not a Gopher submenu and not a text file\n");
 		return 0;
 	}
 	if (item == GPH_ITEM_GPH) {
