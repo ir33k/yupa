@@ -1,4 +1,4 @@
-/* Yupa v0.5 by irek@gabr.pl */
+/* Yupa v0.6 by irek@gabr.pl */
 
 #include <assert.h>
 #include <fcntl.h>
@@ -14,8 +14,7 @@
 #define FMAX    FILENAME_MAX    /* Max size of buffer for file path */
 #define LOG_LEVEL -1            /* Range from -1 (all) to 2 (only errors) */
 
-#define LOG_IMPLEMENTATION
-#include "log.h"
+#include "le.h"
 #include "arg.h"
 #include "uri.h"
 #include "gph.c"
@@ -64,7 +63,7 @@ char *argv0;                    /* First program arg, for arg.h */
 static void
 usage(void)
 {
-	fprintf(stderr,
+	fprintf(stdout,
 		"usage: %s [-h] [uri..]\n"
 		"\n"
 		"	-h	Print this help message.\n"
@@ -265,7 +264,7 @@ onuri(char *uri)
 	char buf[BSIZ], *host, *path, item = GPH_ITEM_GPH;
 	FILE *raw, *fmt;
 	ssize_t ssiz;
-	DEV("%s", uri);
+	LOG("%s", uri);
 	if (!uri || !uri[0]) {
 		return 0;
 	}
@@ -317,8 +316,8 @@ onuri(char *uri)
 	default:
 		s_tab->show = -1;
 	}
-	DEV("item %c", item);
-	DEV("show %d", s_tab->show);
+	LOG("item %c", item);
+	LOG("show %d", s_tab->show);
 	if (s_tab->show == -1) {
 		/* TODO(irek): Flow of closing this file is ugly.
 		 * This probably could be refactored with some good
@@ -438,7 +437,7 @@ run(void)
 	char buf[BSIZ], *uri;
 	size_t len;
 	while (1) {
-		fprintf(stderr, "yupa(%d%s)> ",
+		fprintf(stdout, "yupa(%d%s)> ",
 			s_tabi,
 			s_tab->next ? "+" : "");
 		if (!fgets(buf, sizeof(buf), stdin)) {
@@ -508,7 +507,7 @@ run(void)
 			break;
 		case CMD_NUL:
 		default:
-			DEV("TODO Print list of commands.");
+			LOG("TODO Print list of commands.");
 			break;
 		}
 	}
