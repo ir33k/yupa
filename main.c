@@ -39,11 +39,17 @@ enum cmd {                      /* Commands possible to input in prompt */
 	CMD_QUIT                /* Exit program */
 };
 
+enum filename {                 /* File names used by tab */
+	FN_RAW = 0,             /* Raw response body */
+	FN_FMT,                 /* Formatted raw content */
+	_FN_SIZ                 /* For array size */
+};
+
 struct tab {
 	int     index;                  /* Tab index */
 	enum uri_protocol protocol;     /* Current page URI protocol */
-	char    raw[FMAX];              /* File path to raw response body */
-	char    fmt[FMAX];              /* File path to formatted raw body */
+	char    fn[_FN_SIZ][FMAX];      /* File paths */
+	int     show;                   /* FN index of file to show, -1=none */
 	char    history[HSIZ][URI_SIZ]; /* Browsing history */
 	size_t  hi;                     /* Index to current history item */
 	struct tab *prev, *next;        /* Double linked list */
@@ -116,8 +122,8 @@ tab_new(void)
 	}
 	memset(tab, 0, sizeof(*tab));
 	tab->index = index++;
-	tmpf("yupa.raw", tab->raw);
-	tmpf("yupa.fmt", tab->fmt);
+	tmpf("yupa.raw", tab->fn[FN_RAW]);
+	tmpf("yupa.fmt", tab->fn[FN_FMT]);
 	tab->prev = s_tab;
 	if (s_tab) {
 		tab->next = s_tab->next;
@@ -134,10 +140,10 @@ static void
 tab_close(void)
 {
 	struct tab *tab = s_tab;
-	if (unlink(tab->raw) == -1) {
+	if (unlink(tab->fn[FN_RAW]) == -1) {
 		WARN("unlink:");
 	}
-	if (unlink(tab->fmt) == -1) {
+	if (unlink(tab->fn[FN_FMT]) == -1) {
 		WARN("unlink:");
 	}
 	if (tab->next) {
@@ -179,6 +185,15 @@ history_get(int shift)
 	}
 	s_tab->hi += shift;
 	return s_tab->history[s_tab->hi % HSIZ];
+}
+
+/* Use pager to print content of FILENAME. */
+static void
+show(char *filename)
+{
+	char buf[BSIZ];
+	sprintf(buf, "%s %s", s_pager, filename);
+	system(buf);
 }
 
 /* Establish AF_INET internet SOCK_STREAM stream connection to HOST of
@@ -276,8 +291,8 @@ onuri(char *uri)
 		printf("Invalid URI %s\n", uri);
 		return 0;
 	}
-	if (!(raw = fopen(s_tab->raw, "w+"))) {
-		ERR("fopen %s %s:", uri, s_tab->raw);
+	if (!(raw = fopen(s_tab->fn[FN_RAW], "w+"))) {
+		ERR("fopen %s %s:", uri, s_tab->fn[FN_RAW]);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
@@ -291,32 +306,41 @@ onuri(char *uri)
 		ERR("close %s %d:", uri, sfd);
 	}
 	s_tab->protocol = protocol;
-	if (item != GPH_ITEM_GPH &&
-	    item != GPH_ITEM_TXT) {
+	switch (item) {
+	case GPH_ITEM_TXT:
+		s_tab->show = FN_RAW;
+		break;
+	case GPH_ITEM_GPH:
+		s_tab->show = FN_FMT;
+		break;
+	default:
+		s_tab->show = -1;
+	}
+	DEV("item %c", item);
+	DEV("show %d", s_tab->show);
+	if (s_tab->show == -1) {
 		/* TODO(irek): Flow of closing this file is ugly.
 		 * This probably could be refactored with some good
 		 * old goto. */
 		if (fclose(raw) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->raw);
+			ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
 		}
 		printf("Not a Gopher submenu and not a text file\n");
 		return 0;
 	}
-	if (item == GPH_ITEM_GPH) {
-		if (!(fmt = fopen(s_tab->fmt, "w"))) {
-			ERR("fopen %s %s:", uri, s_tab->fmt);
+	if (s_tab->show == FN_FMT) {
+		if (!(fmt = fopen(s_tab->fn[FN_FMT], "w"))) {
+			ERR("fopen %s %s:", uri, s_tab->fn[FN_FMT]);
 		}
 		gph_format(raw, fmt);
 		if (fclose(fmt) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->fmt);
+			ERR("fclose %s %s:", uri, s_tab->fn[FN_FMT]);
 		}
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab->raw);
+		ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
 	}
-	sprintf(buf, "%s %s", s_pager,
-		item == GPH_ITEM_GPH ? s_tab->fmt: s_tab->raw);
-	system(buf);
+	show(s_tab->fn[s_tab->show]);
 	return 1;
 }
 
@@ -331,23 +355,14 @@ link_get(int index)
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
-	if (!(raw = fopen(s_tab->raw, "r"))) {
-		ERR("fopen %s:", s_tab->raw);
+	if (!(raw = fopen(s_tab->fn[FN_RAW], "r"))) {
+		ERR("fopen %s:", s_tab->fn[FN_RAW]);
 	}
 	uri = gph_uri(raw, index);
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s:", s_tab->raw);
+		ERR("fclose %s:", s_tab->fn[FN_RAW]);
 	}
 	return uri;
-}
-
-/* Use pager to print content of tab raw request response body. */
-static void
-onraw(void)
-{
-	char buf[BSIZ];
-	sprintf(buf, "%s %s", s_pager, s_tab->raw);
-	system(buf);
 }
 
 static void
@@ -444,7 +459,7 @@ run(void)
 			onuri(history_get(0));
 			break;
 		case CMD_RAW:
-			onraw();
+			show(s_tab->fn[FN_RAW]);
 			break;
 		case CMD_TAB_NEW:
 			tab_new();
@@ -454,17 +469,14 @@ run(void)
 				break;
 			}
 			s_tab = s_tab->prev;
-			/* TOOD(irek): I could fetching the same
-			 * content again as previous page is still in
-			 * tmp files. */
-			onuri(history_get(0));
+			show(s_tab->fn[s_tab->show]);
 			break;
 		case CMD_TAB_NEXT:
 			if (!s_tab->next) {
 				break;
 			}
 			s_tab = s_tab->next;
-			onuri(history_get(0));
+			show(s_tab->fn[s_tab->show]);
 			break;
 		case CMD_TAB_DUPLICATE:
 			uri = history_get(0);
