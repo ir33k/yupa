@@ -115,24 +115,28 @@ tmpf(char *prefix, char *dst)
 static void
 tab_new(void)
 {
-	static int index = 0;
-	struct tab *tab;
-	if (!(tab = malloc(sizeof(*tab)))) {
+	int index;
+	struct tab *tab, *new;
+	if (!(new = malloc(sizeof(*new)))) {
 		ERR("malloc:");
 	}
-	memset(tab, 0, sizeof(*tab));
-	tab->index = index++;
-	tmpf("yupa.raw", tab->fn[FN_RAW]);
-	tmpf("yupa.fmt", tab->fn[FN_FMT]);
-	tab->prev = s_tab;
+	memset(new, 0, sizeof(*new));
+	tmpf("yupa.raw", new->fn[FN_RAW]);
+	tmpf("yupa.fmt", new->fn[FN_FMT]);
+	new->prev = s_tab;
 	if (s_tab) {
-		tab->next = s_tab->next;
+		index = s_tab->index;
+		new->index = ++index;
+		new->next = s_tab->next;
 		if (s_tab->next) {
-			s_tab->next->prev = tab;
+			s_tab->next->prev = new;
 		}
-		s_tab->next = tab;
+		s_tab->next = new;
+		for (tab = new->next; tab; tab = tab->next) {
+			tab->index = ++index;
+		}
 	}
-	s_tab = tab;
+	s_tab = new;
 }
 
 /**/
@@ -437,7 +441,9 @@ run(void)
 	char buf[BSIZ], *uri;
 	size_t len;
 	while (1) {
-		fprintf(stderr, "yupa(%d)> ", s_tab->index);
+		fprintf(stderr, "yupa(%d%s)> ",
+			s_tab->index,
+			s_tab->next ? "+" : "");
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
 		}
