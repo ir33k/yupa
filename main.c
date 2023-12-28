@@ -16,27 +16,12 @@
 
 #include "le.h"
 #include "arg.h"
+#include "cmd.h"
 #include "uri.h"
 #include "gph.c"
 
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
 _Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
-
-enum cmd {                      /* Commands possible to input in prompt */
-	CMD_NUL = 0,            /* Empty command */
-	CMD_URI,                /* Absolute URI string */
-	CMD_LINK,               /* Index to link on current page */
-	CMD_RELOAD,             /* Reload current page */
-	CMD_TAB_NEW,            /* Create new tab */
-	CMD_TAB_PREV,           /* Switch to previous tab */
-	CMD_TAB_NEXT,           /* Switch to next tab */
-	CMD_TAB_DUPLICATE,      /* Duplicate current tab */
-	CMD_TAB_CLOSE,          /* Close current tab */
-	CMD_HISTORY_PREV,       /* Goto previous browsing history page */
-	CMD_HISTORY_NEXT,       /* Goto next browsing history page */
-	CMD_RAW,                /* Show raw response */
-	CMD_QUIT                /* Exit program */
-};
 
 enum filename {                 /* File names used by tab */
 	FN_RAW = 0,             /* Raw response body */
@@ -393,41 +378,20 @@ isnum(char *str)
  * Also at the moment commands don't take arguments.  Something to
  * think about later. */
 /**/
-static enum cmd
-cmd(char *buf, size_t siz)
+static enum action
+action(char *buf)
 {
-	if (siz == 0)           return CMD_NUL;
-#define _CMD_IS(_str) strlen(_str) == siz && !strncmp(_str, buf, siz)
-	if (_CMD_IS("q"))       return CMD_QUIT;
-	if (_CMD_IS("quit"))    return CMD_QUIT;
-	if (_CMD_IS("exit"))    return CMD_QUIT;
-	if (_CMD_IS("0"))       return CMD_RELOAD;
-	if (_CMD_IS("r"))       return CMD_RELOAD;
-	if (_CMD_IS("reload"))  return CMD_RELOAD;
-	if (_CMD_IS("refresh")) return CMD_RELOAD;
-	if (_CMD_IS("R"))       return CMD_RAW;
-	if (_CMD_IS("raw"))     return CMD_RAW;
-	if (_CMD_IS("T"))       return CMD_TAB_NEW;
-	if (_CMD_IS("tab"))     return CMD_TAB_NEW;
-	if (_CMD_IS("P"))       return CMD_TAB_PREV;
-	if (_CMD_IS("tp"))      return CMD_TAB_PREV;
-	if (_CMD_IS("tprev"))   return CMD_TAB_PREV;
-	if (_CMD_IS("N"))       return CMD_TAB_NEXT;
-	if (_CMD_IS("tn"))      return CMD_TAB_NEXT;
-	if (_CMD_IS("tnext"))   return CMD_TAB_NEXT;
-	if (_CMD_IS("D"))       return CMD_TAB_DUPLICATE;
-	if (_CMD_IS("tdup"))    return CMD_TAB_DUPLICATE;
-	if (_CMD_IS("X"))       return CMD_TAB_CLOSE;
-	if (_CMD_IS("C"))       return CMD_TAB_CLOSE;
-	if (_CMD_IS("tclose"))  return CMD_TAB_CLOSE;
-	if (_CMD_IS("b"))       return CMD_HISTORY_PREV;
-	if (_CMD_IS("back"))    return CMD_HISTORY_PREV;
-	if (_CMD_IS("p"))       return CMD_HISTORY_PREV;
-	if (_CMD_IS("prev"))    return CMD_HISTORY_PREV;
-	if (_CMD_IS("n"))       return CMD_HISTORY_NEXT;
-	if (_CMD_IS("next"))    return CMD_HISTORY_NEXT;
-	if (isnum(buf))         return CMD_LINK;
-	return CMD_URI;
+	enum action action;
+	if (!buf[0]) {
+		LOG("TODO use last action");
+	}
+	if (isnum(buf)) {
+		return A_LINK;
+	}
+	if ((int)(action = cmd_action(buf)) != -1) {
+		return action;
+	}
+	return A_URI;
 }
 
 /**/
@@ -435,7 +399,7 @@ static void
 run(void)
 {
 	char buf[BSIZ], *uri;
-	size_t len;
+
 	while (1) {
 		fprintf(stdout, "yupa(%d%s)> ",
 			s_tabi,
@@ -443,30 +407,29 @@ run(void)
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
 		}
-		len = strlen(buf) - 1;
-		buf[len] = 0;
-		switch (cmd(buf, len)) {
-		case CMD_URI:
+		buf[strlen(buf)-1] = 0;
+		switch (action(buf)) {
+		case A_URI:
 			if (onuri(buf)) {
 				history_add(buf);
 			}
 			break;
-		case CMD_LINK:
+		case A_LINK:
 			uri = link_get(atoi(buf));
 			if (onuri(uri)) {
 				history_add(uri);
 			}
 			break;
-		case CMD_RELOAD:
+		case A_PAGE_RELOAD:
 			onuri(history_get(0));
 			break;
-		case CMD_RAW:
+		case A_PAGE_RAW:
 			show(s_tab->fn[FN_RAW]);
 			break;
-		case CMD_TAB_NEW:
+		case A_TAB_NEW:
 			tab_new();
 			break;
-		case CMD_TAB_PREV:
+		case A_TAB_PREV:
 			if (!s_tab->prev) {
 				break;
 			}
@@ -474,7 +437,7 @@ run(void)
 			s_tabi--;
 			show(s_tab->fn[s_tab->show]);
 			break;
-		case CMD_TAB_NEXT:
+		case A_TAB_NEXT:
 			if (!s_tab->next) {
 				break;
 			}
@@ -482,32 +445,31 @@ run(void)
 			s_tabi++;
 			show(s_tab->fn[s_tab->show]);
 			break;
-		case CMD_TAB_DUPLICATE:
+		case A_TAB_DUPLICATE:
 			uri = history_get(0);
 			tab_new();
 			if (onuri(uri)) {
 				history_add(uri);
 			}
 			break;
-		case CMD_TAB_CLOSE:
+		case A_TAB_CLOSE:
 			if (!s_tab->prev && !s_tab->next) {
 				printf("Can't close last tab\n");
 				break;
 			}
 			tab_close();
 			break;
-		case CMD_HISTORY_PREV:
+		case A_HISTORY_PREV:
 			onuri(history_get(-1));
 			break;
-		case CMD_HISTORY_NEXT:
+		case A_HISTORY_NEXT:
 			onuri(history_get(+1));
 			break;
-		case CMD_QUIT:
+		case A_QUIT:
 			onquit();
 			break;
-		case CMD_NUL:
+		case A_NUL:
 		default:
-			LOG("TODO Print list of commands.");
 			break;
 		}
 	}
@@ -536,6 +498,7 @@ main(int argc, char *argv[])
 	if (!s_tab) {
 		tab_new();
 	}
+	cmd_action(0);
 	run();
 	return 0;
 }
