@@ -45,19 +45,20 @@ enum filename {                 /* File names used by tab */
 	_FN_SIZ                 /* For array size */
 };
 
-struct tab {
-	int     index;                  /* Tab index */
+struct tab {                            /* Tab node in double liked list */
+	struct tab *prev, *next;        /* Previous and next nodes */
 	enum uri_protocol protocol;     /* Current page URI protocol */
 	char    fn[_FN_SIZ][FMAX];      /* File paths */
 	int     show;                   /* FN index of file to show, -1=none */
 	char    history[HSIZ][URI_SIZ]; /* Browsing history */
 	size_t  hi;                     /* Index to current history item */
-	struct tab *prev, *next;        /* Double linked list */
 };
 
-static struct tab *s_tab = 0;           /* Pointer to current tab */
-static char *s_pager = "less -XI";      /* Pager default command */
-char *argv0;                            /* First program arg, for arg.h */
+static struct tab *s_tab  = 0;          /* Pointer to current tab */
+static int         s_tabi = 0;          /* Index of current tab */
+static char       *s_pager;             /* Pager default command */
+
+char *argv0;                    /* First program arg, for arg.h */
 
 /* Print usage help message. */
 static void
@@ -115,28 +116,23 @@ tmpf(char *prefix, char *dst)
 static void
 tab_new(void)
 {
-	int index;
-	struct tab *tab, *new;
-	if (!(new = malloc(sizeof(*new)))) {
+	struct tab *tab;
+	if (!(tab = malloc(sizeof(*tab)))) {
 		ERR("malloc:");
 	}
-	memset(new, 0, sizeof(*new));
-	tmpf("yupa.raw", new->fn[FN_RAW]);
-	tmpf("yupa.fmt", new->fn[FN_FMT]);
-	new->prev = s_tab;
+	memset(tab, 0, sizeof(*tab));
+	tmpf("yupa.raw", tab->fn[FN_RAW]);
+	tmpf("yupa.fmt", tab->fn[FN_FMT]);
+	tab->prev = s_tab;
 	if (s_tab) {
-		index = s_tab->index;
-		new->index = ++index;
-		new->next = s_tab->next;
+		tab->next = s_tab->next;
 		if (s_tab->next) {
-			s_tab->next->prev = new;
+			s_tab->next->prev = tab;
 		}
-		s_tab->next = new;
-		for (tab = new->next; tab; tab = tab->next) {
-			tab->index = ++index;
-		}
+		s_tab->next = tab;
+		s_tabi++;
 	}
-	s_tab = new;
+	s_tab = tab;
 }
 
 /**/
@@ -159,6 +155,7 @@ tab_close(void)
 	} else if (tab->prev) {
 		tab->prev->next = 0;
 		s_tab = tab->prev;
+		s_tabi--;
 	} else {
 		s_tab = 0;
 	}
@@ -442,7 +439,7 @@ run(void)
 	size_t len;
 	while (1) {
 		fprintf(stderr, "yupa(%d%s)> ",
-			s_tab->index,
+			s_tabi,
 			s_tab->next ? "+" : "");
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
@@ -475,6 +472,7 @@ run(void)
 				break;
 			}
 			s_tab = s_tab->prev;
+			s_tabi--;
 			show(s_tab->fn[s_tab->show]);
 			break;
 		case CMD_TAB_NEXT:
@@ -482,6 +480,7 @@ run(void)
 				break;
 			}
 			s_tab = s_tab->next;
+			s_tabi++;
 			show(s_tab->fn[s_tab->show]);
 			break;
 		case CMD_TAB_DUPLICATE:
@@ -520,9 +519,7 @@ main(int argc, char *argv[])
 {
 	char *env;
 	int i;
-	if ((env = getenv("PAGER"))) {
-		s_pager = env;
-	}
+	s_pager = (env = getenv("PAGER")) ? env : "less -XI";
 	ARGBEGIN {
 	case 'h':
 		usage();
