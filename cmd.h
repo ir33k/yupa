@@ -60,9 +60,10 @@ static struct cmd cmd_root[] = {
 };
 
 static void
-cmd_print(struct cmd *cmd)
+cmd_print(struct cmd *cmd, char *path, int len)
 {
 	size_t i;
+	printf("%.*s\n", len, path);
 	for (i = 0; cmd[i].c; i++) {
 		printf("\t%c: %s\n", cmd[i].c, cmd[i].str);
 	}
@@ -71,25 +72,25 @@ cmd_print(struct cmd *cmd)
 static enum action
 cmd_action(char *path)
 {
-	size_t i;
+	int i, j;
 	struct cmd *cmd = cmd_root;
 	if (!path || !path[0]) {
-		cmd_print(cmd);
+		cmd_print(cmd, path, 0);
 		return 0;
 	}
-	for (; *path; path++) {
-		for (i = 0; cmd[i].c && cmd[i].c != *path; i++);
-		if (cmd[i].c != *path) {
+	for (i = 0; path[i]; i++) {
+		for (j = 0; cmd[j].c && cmd[j].c != path[i]; j++);
+		if (cmd[j].c != path[i]) {
 			return -1;
 		}
-		if (cmd[i].str[0] == '+') {
-			cmd = cmd[i].v.child;
+		if (cmd[j].str[0] == '+') {
+			cmd = cmd[j].v.child;
 			continue;
 		}
-		if (!path[1]) {
-			return cmd[i].v.action;
+		if (!path[i+1]) {
+			return cmd[j].v.action;
 		}
 	}
-	cmd_print(cmd);
+	cmd_print(cmd, path, i);
 	return 0;
 }
