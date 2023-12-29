@@ -1,6 +1,6 @@
 /* Prompt commands. */
 
-enum action {                   /* Possible actions to input in prompt */
+enum action {                   /* Possible action to input in prompt */
 	A_NUL = 0,              /* Empty action */
 	/* Default actions */
 	A_URI,                  /* Absolute URI string */
@@ -21,73 +21,63 @@ enum action {                   /* Possible actions to input in prompt */
 struct cmd {
 	char c, *str;
 	/* Convention is that when STR starts with '+' char then NEXT
-	 * points to child cmd array, else it is an action int. */
-	void *next;
+	 * is an index to child command group in cmd_tree, else it is
+	 * an action. */
+	int next;
 };
 
-static struct cmd cmd_page[] = {
-	{ 'r', "reload",    (void *)A_PAGE_RELOAD },
-	{ 'R', "raw",       (void *)A_PAGE_RAW },
+static struct cmd cmd_tree[] = {
+	{ 'p', "+page",     100 },
+	{ 't', "+tab",      200 },
+	{ 'h', "+history",  300 },
+	{ 'q', "quit",      A_QUIT },
+	{0},
+[100] =	{ 'r', "reload",    A_PAGE_RELOAD },
+	{ 'R', "raw",       A_PAGE_RAW },
+	{0},
+[200] =	{ 'N', "new",       A_TAB_NEW },
+	{ 'p', "previous",  A_TAB_PREV },
+	{ 'n', "next",      A_TAB_NEXT },
+	{ 'd', "duplicate", A_TAB_DUPLICATE },
+	{ 'c', "close",     A_TAB_CLOSE },
+	{0},
+[300] =	{ 'p', "previous",  A_HISTORY_PREV },
+	{ 'n', "next",      A_HISTORY_NEXT },
 	{0}
 };
 
-static struct cmd cmd_tab[] = {
-	{ 'N', "new",       (void *)A_TAB_NEW },
-	{ 'p', "previous",  (void *)A_TAB_PREV },
-	{ 'n', "next",      (void *)A_TAB_NEXT },
-	{ 'd', "duplicate", (void *)A_TAB_DUPLICATE },
-	{ 'c', "close",     (void *)A_TAB_CLOSE },
-	{0}
-};
-
-static struct cmd cmd_history[] = {
-	{ 'p', "previous",  (void *)A_HISTORY_PREV },
-	{ 'n', "next",      (void *)A_HISTORY_NEXT },
-	{0}
-};
-
-static struct cmd cmd_root[] = {
-	/* Parents */
-	{ 'p', "+page",     cmd_page },
-	{ 't', "+tab",      cmd_tab },
-	{ 'h', "+history",  cmd_history },
-	/* Actions */
-	{ 'q', "quit",      (void *)A_QUIT },
-	{0}
-};
-
+/**/
 static void
-cmd_print(struct cmd *cmd, char *path, int len)
+cmd_print(size_t i, char *path, int len)
 {
-	size_t i;
 	printf("%.*s\n", len, path);
-	for (i = 0; cmd[i].c; i++) {
-		printf("\t%c: %s\n", cmd[i].c, cmd[i].str);
+	for (; cmd_tree[i].c; i++) {
+		printf("\t%c: %s\n", cmd_tree[i].c, cmd_tree[i].str);
 	}
 }
 
+/**/
 static enum action
 cmd_action(char *path)
 {
 	int i, j;
-	struct cmd *cmd = cmd_root;
 	if (!path || !path[0]) {
-		cmd_print(cmd, path, 0);
+		cmd_print(0, path, 0);
 		return 0;
 	}
-	for (i = 0; path[i]; i++) {
-		for (j = 0; cmd[j].c && cmd[j].c != path[i]; j++);
-		if (cmd[j].c != path[i]) {
+	for (i = 0, j = 0; path[i]; i++) {
+		for (; cmd_tree[j].c && cmd_tree[j].c != path[i]; j++);
+		if (cmd_tree[j].c != path[i]) {
 			return -1;
 		}
-		if (cmd[j].str[0] == '+') {
-			cmd = cmd[j].next;
+		if (cmd_tree[j].str[0] == '+') {
+			j = cmd_tree[j].next;
 			continue;
 		}
 		if (!path[i+1]) {
-			return (enum action)cmd[j].next;
+			return cmd_tree[j].next;
 		}
 	}
-	cmd_print(cmd, path, i);
+	cmd_print(j, path, i);
 	return 0;
 }
