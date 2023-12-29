@@ -20,42 +20,39 @@ enum action {                   /* Possible actions to input in prompt */
 
 struct cmd {
 	char c, *str;
-	/* Convention is that when STR starts with '+' char then union
-	 * is a pointer to child array, else it is an action. */
-	union {
-		struct cmd *child;
-		enum action action;
-	} v;
+	/* Convention is that when STR starts with '+' char then NEXT
+	 * points to child cmd array, else it is an action int. */
+	void *next;
 };
 
 static struct cmd cmd_page[] = {
-	{ 'r', "reload",    { (struct cmd *)A_PAGE_RELOAD } },
-	{ 'R', "raw",       { (struct cmd *)A_PAGE_RAW } },
+	{ 'r', "reload",    (void *)A_PAGE_RELOAD },
+	{ 'R', "raw",       (void *)A_PAGE_RAW },
 	{0}
 };
 
 static struct cmd cmd_tab[] = {
-	{ 'N', "new",       { (struct cmd *)A_TAB_NEW } },
-	{ 'p', "previous",  { (struct cmd *)A_TAB_PREV } },
-	{ 'n', "next",      { (struct cmd *)A_TAB_NEXT } },
-	{ 'd', "duplicate", { (struct cmd *)A_TAB_DUPLICATE } },
-	{ 'c', "close",     { (struct cmd *)A_TAB_CLOSE } },
+	{ 'N', "new",       (void *)A_TAB_NEW },
+	{ 'p', "previous",  (void *)A_TAB_PREV },
+	{ 'n', "next",      (void *)A_TAB_NEXT },
+	{ 'd', "duplicate", (void *)A_TAB_DUPLICATE },
+	{ 'c', "close",     (void *)A_TAB_CLOSE },
 	{0}
 };
 
 static struct cmd cmd_history[] = {
-	{ 'p', "previous",  { (struct cmd *)A_HISTORY_PREV } },
-	{ 'n', "next",      { (struct cmd *)A_HISTORY_NEXT } },
+	{ 'p', "previous",  (void *)A_HISTORY_PREV },
+	{ 'n', "next",      (void *)A_HISTORY_NEXT },
 	{0}
 };
 
 static struct cmd cmd_root[] = {
 	/* Parents */
-	{ 'p', "+page",     { cmd_page } },
-	{ 't', "+tab",      { cmd_tab } },
-	{ 'h', "+history",  { cmd_history } },
+	{ 'p', "+page",     cmd_page },
+	{ 't', "+tab",      cmd_tab },
+	{ 'h', "+history",  cmd_history },
 	/* Actions */
-	{ 'q', "quit",      { (struct cmd *)A_QUIT } },
+	{ 'q', "quit",      (void *)A_QUIT },
 	{0}
 };
 
@@ -84,11 +81,11 @@ cmd_action(char *path)
 			return -1;
 		}
 		if (cmd[j].str[0] == '+') {
-			cmd = cmd[j].v.child;
+			cmd = cmd[j].next;
 			continue;
 		}
 		if (!path[i+1]) {
-			return cmd[j].v.action;
+			return (enum action)cmd[j].next;
 		}
 	}
 	cmd_print(cmd, path, i);
