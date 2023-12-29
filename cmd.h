@@ -20,39 +20,47 @@ enum action {                   /* Possible action to input in prompt */
 
 struct cmd {
 	char c, *str;
-	/* Convention is that when STR starts with '+' char then NEXT
-	 * is an index to child command group in cmd_tree, else it is
-	 * an action. */
-	int next;
+	enum action action;
+	struct cmd *child;
 };
 
 static struct cmd cmd_tree[] = {
-	{ 'p', "+page",     100 },
-	{ 't', "+tab",      200 },
-	{ 'h', "+history",  300 },
-	{ 'q', "quit",      A_QUIT },
+	{ 'p', "+page", 0,
+	  (struct cmd[]) {
+		  { 'r', "reload", A_PAGE_RELOAD, 0 },
+		  { 'R', "raw",    A_PAGE_RAW, 0 },
+		  {0},
+	  }
+	},
+	{ 't', "+tab", 0,
+	  (struct cmd[]) {
+		  { 'N', "new",       A_TAB_NEW, 0 },
+		  { 'p', "previous",  A_TAB_PREV, 0 },
+		  { 'n', "next",      A_TAB_NEXT, 0 },
+		  { 'd', "duplicate", A_TAB_DUPLICATE, 0 },
+		  { 'c', "close",     A_TAB_CLOSE, 0 },
+		  {0},
+	  }
+	},
+	{ 'h', "+history", 0,
+	  (struct cmd[]) {
+		  { 'p', "previous", A_HISTORY_PREV, 0 },
+		  { 'n', "next",     A_HISTORY_NEXT, 0 },
+		  {0}
+	  }
+	},
+	{ 'q', "quit", A_QUIT, 0 },
 	{0},
-[100] =	{ 'r', "reload",    A_PAGE_RELOAD },
-	{ 'R', "raw",       A_PAGE_RAW },
-	{0},
-[200] =	{ 'N', "new",       A_TAB_NEW },
-	{ 'p', "previous",  A_TAB_PREV },
-	{ 'n', "next",      A_TAB_NEXT },
-	{ 'd', "duplicate", A_TAB_DUPLICATE },
-	{ 'c', "close",     A_TAB_CLOSE },
-	{0},
-[300] =	{ 'p', "previous",  A_HISTORY_PREV },
-	{ 'n', "next",      A_HISTORY_NEXT },
-	{0}
 };
 
 /**/
 static void
-cmd_print(size_t i, char *path, int len)
+cmd_print(struct cmd *cmd, char *path, int len)
 {
+	size_t i;
 	printf("%.*s\n", len, path);
-	for (; cmd_tree[i].c; i++) {
-		printf("\t%c: %s\n", cmd_tree[i].c, cmd_tree[i].str);
+	for (i = 0; cmd[i].c; i++) {
+		printf("\t%c: %s\n", cmd[i].c, cmd[i].str);
 	}
 }
 
@@ -60,24 +68,25 @@ cmd_print(size_t i, char *path, int len)
 static enum action
 cmd_action(char *path)
 {
+	struct cmd *cmd = cmd_tree;
 	int i, j;
 	if (!path || !path[0]) {
-		cmd_print(0, path, 0);
+		cmd_print(cmd, path, 0);
 		return 0;
 	}
-	for (i = 0, j = 0; path[i]; i++) {
-		for (; cmd_tree[j].c && cmd_tree[j].c != path[i]; j++);
-		if (cmd_tree[j].c != path[i]) {
+	for (i = 0; path[i]; i++) {
+		for (j = 0; cmd[j].c && cmd[j].c != path[i]; j++);
+		if (cmd[j].c != path[i]) {
 			return -1;
 		}
-		if (cmd_tree[j].str[0] == '+') {
-			j = cmd_tree[j].next;
+		if (cmd[j].child) {
+			cmd = cmd[j].child;
 			continue;
 		}
 		if (!path[i+1]) {
-			return cmd_tree[j].next;
+			return cmd[j].action;
 		}
 	}
-	cmd_print(j, path, i);
+	cmd_print(cmd, path, i);
 	return 0;
 }
