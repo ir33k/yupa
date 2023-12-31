@@ -2,8 +2,6 @@
 
 #include <errno.h>
 
-#define GPH_PORT        70      /* Defaul port */
-
 enum gph_item {
 	/* Canonical types */
 	GPH_ITEM_TXT    = '0',  /* Text file */

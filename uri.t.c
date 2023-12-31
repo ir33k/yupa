@@ -3,34 +3,35 @@
 
 TEST("uri_protocol_str")
 {
-	SEQ("NONE",	uri_protocol_str(URI_PROTOCOL_NONE));
-	SEQ("",		uri_protocol_str(URI_PROTOCOL_NUL));
-	SEQ("gopher",	uri_protocol_str(URI_PROTOCOL_GOPHER));
-	SEQ("gemini",	uri_protocol_str(URI_PROTOCOL_GEMINI));
-	SEQ("https",	uri_protocol_str(URI_PROTOCOL_HTTPS));
-	SEQ("http",	uri_protocol_str(URI_PROTOCOL_HTTP));
-	SEQ("file",	uri_protocol_str(URI_PROTOCOL_FILE));
-	SEQ("ssh",	uri_protocol_str(URI_PROTOCOL_SSH));
-	SEQ("ftp",	uri_protocol_str(URI_PROTOCOL_FTP));
+	SEQ("<NULL>",	uri_protocol_str(URI_NUL));
+	SEQ("gopher",	uri_protocol_str(URI_GOPHER));
+	SEQ("finger",	uri_protocol_str(URI_FINGER));
+	SEQ("gemini",	uri_protocol_str(URI_GEMINI));
+	SEQ("https",	uri_protocol_str(URI_HTTPS));
+	SEQ("http",	uri_protocol_str(URI_HTTP));
+	SEQ("file",	uri_protocol_str(URI_FILE));
+	SEQ("ssh",	uri_protocol_str(URI_SSH));
+	SEQ("ftp",	uri_protocol_str(URI_FTP));
 }
 
 TEST("uri_protocol")
 {
-	OK(URI_PROTOCOL_NUL	== uri_protocol(""));
-	OK(URI_PROTOCOL_NUL	== uri_protocol("test:70/1/path"));
-	OK(URI_PROTOCOL_NUL	== uri_protocol("://test:70/1/path"));
-	OK(URI_PROTOCOL_NUL	== uri_protocol("://"));
-	OK(URI_PROTOCOL_NONE	== uri_protocol("aaa://test:70/1/path"));
-	OK(URI_PROTOCOL_NONE	== uri_protocol("gopherR://test:70/1/path"));
-	OK(URI_PROTOCOL_GOPHER	== uri_protocol("gopher://test"));
-	OK(URI_PROTOCOL_GOPHER	== uri_protocol("Gopher://test"));
-	OK(URI_PROTOCOL_GOPHER	== uri_protocol("GOPHER://test"));
-	OK(URI_PROTOCOL_GEMINI	== uri_protocol("gemini://test"));
-	OK(URI_PROTOCOL_HTTPS	== uri_protocol("https://test"));
-	OK(URI_PROTOCOL_HTTP	== uri_protocol("http://test"));
-	OK(URI_PROTOCOL_FILE	== uri_protocol("file://"));
-	OK(URI_PROTOCOL_SSH	== uri_protocol("ssh://"));
-	OK(URI_PROTOCOL_FTP	== uri_protocol("ftp://"));
+	OK(URI_NUL	== uri_protocol(""));
+	OK(URI_NUL	== uri_protocol("test:70/1/path"));
+	OK(URI_NUL	== uri_protocol("://test:70/1/path"));
+	OK(URI_NUL	== uri_protocol("://"));
+	OK(URI_NUL	== uri_protocol("aaa://test:70/1/path"));
+	OK(URI_NUL	== uri_protocol("gopherR://test:70/1/path"));
+	OK(URI_GOPHER	== uri_protocol("gopher://test"));
+	OK(URI_GOPHER	== uri_protocol("Gopher://test"));
+	OK(URI_GOPHER	== uri_protocol("GOPHER://test"));
+	OK(URI_FINGER	== uri_protocol("finger://test"));
+	OK(URI_GEMINI	== uri_protocol("gemini://test"));
+	OK(URI_HTTPS	== uri_protocol("https://test"));
+	OK(URI_HTTP	== uri_protocol("http://test"));
+	OK(URI_FILE	== uri_protocol("file://"));
+	OK(URI_SSH	== uri_protocol("ssh://"));
+	OK(URI_FTP	== uri_protocol("ftp://"));
 }
 
 TEST("uri_host")

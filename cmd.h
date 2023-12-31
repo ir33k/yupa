@@ -8,13 +8,13 @@ enum action {                   /* Possible action to input in prompt */
 	/* Prompt cmd */
 	A_PAGE_RELOAD,          /* Reload current page */
 	A_PAGE_RAW,             /* Show raw response */
+	A_PAGE_HISTORY_PREV,    /* Goto previous browsing history page */
+	A_PAGE_HISTORY_NEXT,    /* Goto next browsing history page */
 	A_TAB_NEW,              /* Create new tab */
 	A_TAB_PREV,             /* Switch to previous tab */
 	A_TAB_NEXT,             /* Switch to next tab */
 	A_TAB_DUPLICATE,        /* Duplicate current tab */
 	A_TAB_CLOSE,            /* Close current tab */
-	A_HISTORY_PREV,         /* Goto previous browsing history page */
-	A_HISTORY_NEXT,         /* Goto next browsing history page */
 	A_QUIT                  /* Exit program */
 };
 
@@ -25,14 +25,22 @@ struct cmd {
 };
 
 static struct cmd cmd_tree[] = {
-	{ 'p', "+page", 0,
+	{ 'q', "quit", A_QUIT, 0 },
+	{ 'p', "page", 0,
 	  (struct cmd[]) {
 		  { 'r', "reload", A_PAGE_RELOAD, 0 },
 		  { 'R', "raw",    A_PAGE_RAW, 0 },
+		  { 'h', "history", 0,
+		    (struct cmd[]) {
+			    { 'p', "previous", A_PAGE_HISTORY_PREV, 0 },
+			    { 'n', "next",     A_PAGE_HISTORY_NEXT, 0 },
+			    {0}
+		    }
+		  },
 		  {0},
 	  }
 	},
-	{ 't', "+tab", 0,
+	{ 't', "tab", 0,
 	  (struct cmd[]) {
 		  { 'N', "new",       A_TAB_NEW, 0 },
 		  { 'p', "previous",  A_TAB_PREV, 0 },
@@ -42,14 +50,6 @@ static struct cmd cmd_tree[] = {
 		  {0},
 	  }
 	},
-	{ 'h', "+history", 0,
-	  (struct cmd[]) {
-		  { 'p', "previous", A_HISTORY_PREV, 0 },
-		  { 'n', "next",     A_HISTORY_NEXT, 0 },
-		  {0}
-	  }
-	},
-	{ 'q', "quit", A_QUIT, 0 },
 	{0},
 };
 
@@ -60,7 +60,8 @@ cmd_print(struct cmd *cmd, char *path, int len)
 	size_t i;
 	printf("%.*s\n", len, path);
 	for (i = 0; cmd[i].c; i++) {
-		printf("\t%c: %s\n", cmd[i].c, cmd[i].str);
+		printf("\t%c: %s%s\n", cmd[i].c, cmd[i].str,
+		       cmd[i].child ? " >" : "");
 	}
 }
 

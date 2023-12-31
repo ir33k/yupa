@@ -12,9 +12,9 @@
 #define BSIZ    BUFSIZ          /* Size of generic buffer */
 #define HSIZ    64              /* Size of tab browsing history */
 #define FMAX    FILENAME_MAX    /* Max size of buffer for file path */
-#define LOG_LEVEL -1            /* Range from -1 (all) to 2 (only errors) */
 
-#include "le.h"
+#define LOGERR_IMPLEMENTATION
+#include "logerr.h"
 #include "arg.h"
 #include "cmd.h"
 #include "uri.h"
@@ -31,7 +31,7 @@ enum filename {                 /* File names used by tab */
 
 struct tab {                            /* Tab node in double liked list */
 	struct tab *prev, *next;        /* Previous and next nodes */
-	enum uri_protocol protocol;     /* Current page URI protocol */
+	int     protocol;               /* Current page URI protocol */
 	char    fn[_FN_SIZ][FMAX];      /* File paths */
 	int     show;                   /* FN index of file to show, -1=none */
 	char    history[HSIZ][URI_SIZ]; /* Browsing history */
@@ -244,8 +244,7 @@ req(char *host, int port, char *path)
 static int
 onuri(char *uri)
 {
-	enum uri_protocol protocol;
-	int sfd, port;
+	int sfd, protocol, port;
 	char buf[BSIZ], *host, *path, item = GPH_ITEM_GPH;
 	FILE *raw, *fmt;
 	ssize_t ssiz;
@@ -259,12 +258,12 @@ onuri(char *uri)
 	port = uri_port(uri);
 	path = uri_path(uri);
 	if (!port) {
-		port = GPH_PORT;
+		port = protocol ? protocol : URI_GOPHER;
 	}
 	if (!protocol) {
-		protocol = URI_PROTOCOL_GOPHER;
+		protocol = port;
 	}
-	if (protocol != URI_PROTOCOL_GOPHER) {
+	if (protocol != URI_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
@@ -333,17 +332,32 @@ onuri(char *uri)
 static char *
 link_get(int index)
 {
-	char *uri;
+	char *uri = 0;
 	FILE *raw;
 	assert(index > 0);
-	if (s_tab->protocol != URI_PROTOCOL_GOPHER) {
+	if (s_tab->protocol != URI_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
 	if (!(raw = fopen(s_tab->fn[FN_RAW], "r"))) {
 		ERR("fopen %s:", s_tab->fn[FN_RAW]);
 	}
-	uri = gph_uri(raw, index);
+	switch (s_tab->protocol) {
+	case URI_GOPHER:
+		uri = gph_uri(raw, index);
+		break;
+	case URI_GEMINI:
+	case URI_FILE:
+	case URI_FTP:
+	case URI_SSH:
+	case URI_FINGER:
+	case URI_HTTP:
+	case URI_HTTPS:
+	case URI_NUL:
+	default:
+		WARN("Unsupported protocol %d %s", s_tab->protocol,
+		     uri_protocol_str(s_tab->protocol));
+	}
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s:", s_tab->fn[FN_RAW]);
 	}
@@ -374,9 +388,6 @@ isnum(char *str)
 	return 1;
 }
 
-/* TODO(irek): I would like to have it as data instead of as logic.
- * Also at the moment commands don't take arguments.  Something to
- * think about later. */
 /**/
 static enum action
 action(char *buf)
@@ -459,10 +470,10 @@ run(void)
 			}
 			tab_close();
 			break;
-		case A_HISTORY_PREV:
+		case A_PAGE_HISTORY_PREV:
 			onuri(history_get(-1));
 			break;
-		case A_HISTORY_NEXT:
+		case A_PAGE_HISTORY_NEXT:
 			onuri(history_get(+1));
 			break;
 		case A_QUIT:

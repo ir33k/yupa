@@ -2,44 +2,47 @@
 #include "uri.h"
 
 char *
-uri_protocol_str(enum uri_protocol protocol)
+uri_protocol_str(int protocol)
 {
 	switch (protocol) {
-	case URI_PROTOCOL_NONE:	  return "NONE";
-	case URI_PROTOCOL_NUL:	  return "";
-	case URI_PROTOCOL_GOPHER: return "gopher";
-	case URI_PROTOCOL_GEMINI: return "gemini";
-	case URI_PROTOCOL_HTTPS:  return "https";
-	case URI_PROTOCOL_HTTP:	  return "http";
-	case URI_PROTOCOL_FILE:	  return "file";
-	case URI_PROTOCOL_SSH:	  return "ssh";
-	case URI_PROTOCOL_FTP:	  return "ftp";
+	case URI_NUL:    return "<NULL>";
+	case URI_GOPHER: return "gopher";
+	case URI_FINGER: return "finger";
+	case URI_GEMINI: return "gemini";
+	case URI_HTTPS:  return "https";
+	case URI_HTTP:   return "http";
+	case URI_FILE:   return "file";
+	case URI_SSH:    return "ssh";
+	case URI_FTP:    return "ftp";
 	}
-	assert(0 && "unreachable");
+	return "";
 }
 
 /* Get protocol from URI string. */
-enum uri_protocol
+int
 uri_protocol(char *uri)
 {
 	char *beg;
 	int siz;
-	assert(uri);
+	if (!uri) {
+		return URI_NUL;
+	}
 	if (!(beg = strstr(uri, "://"))) {
-		return URI_PROTOCOL_NUL;
+		return URI_NUL;
 	}
 	if ((siz = beg - uri) <= 0) {
-		return URI_PROTOCOL_NUL;
+		return URI_NUL;
 	}
-#define _URI_PROTOCOL_IS(x) siz == strlen(x) && !strncasecmp(uri, x, siz)
-	if (_URI_PROTOCOL_IS("gopher")) return URI_PROTOCOL_GOPHER;
-	if (_URI_PROTOCOL_IS("gemini")) return URI_PROTOCOL_GEMINI;
-	if (_URI_PROTOCOL_IS("https"))  return URI_PROTOCOL_HTTPS;
-	if (_URI_PROTOCOL_IS("http"))   return URI_PROTOCOL_HTTP;
-	if (_URI_PROTOCOL_IS("file"))   return URI_PROTOCOL_FILE;
-	if (_URI_PROTOCOL_IS("ssh"))    return URI_PROTOCOL_SSH;
-	if (_URI_PROTOCOL_IS("ftp"))    return URI_PROTOCOL_FTP;
-	return URI_PROTOCOL_NONE;
+#define _URI_IS(x) siz == strlen(x) && !strncasecmp(uri, x, siz)
+	if (_URI_IS("gopher")) return URI_GOPHER;
+	if (_URI_IS("finger")) return URI_FINGER;
+	if (_URI_IS("gemini")) return URI_GEMINI;
+	if (_URI_IS("https"))  return URI_HTTPS;
+	if (_URI_IS("http"))   return URI_HTTP;
+	if (_URI_IS("file"))   return URI_FILE;
+	if (_URI_IS("ssh"))    return URI_SSH;
+	if (_URI_IS("ftp"))    return URI_FTP;
+	return URI_NUL;
 }
 
 /* Get host from URI string.  Return NULL if not found.  Return
@@ -92,14 +95,15 @@ uri_path(char *uri)
 /* Construct normalized URI in DST buffer from given URI parts, where
  * only PATH can be NULL. */
 void
-uri_normalize(char dst[URI_SIZ], enum uri_protocol protocol, char *host,
+uri_normalize(char dst[URI_SIZ], int protocol, char *host,
 	      int port, char *path)
 {
 	assert(dst);
-	assert(protocol != URI_PROTOCOL_NONE);
 	assert(host);
 	assert(port > 0);
+	if (!path) {
+		path = "/";
+	}
 	sprintf(dst, "%s://%s:%d%s",
-		uri_protocol_str(protocol),
-		host, port, path ? path : "/");
+		uri_protocol_str(protocol), host, port, path);
 }

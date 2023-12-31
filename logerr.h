@@ -1,4 +1,4 @@
-/* le.h (LogErr.Header) the logger v1.0
+/* LogErr.H (LEH) the logger v1.1
 
 The LOG, WARN and ERR macros prints current file name, line number,
 function name, log prefix and FMT formatted message (printf(3)) with
@@ -6,20 +6,24 @@ optional varying number of arguments for FMT.  When FMT ends with ':'
 then result of perror(0) is appended.  When ERR macro is used then
 program exits with 1.
 
+SINGLE HEADER LIBRARY!  Predefine LOGERR_IMPLEMENTATION in one of
+source files to compile with implementation.
+
 	$ cat -n demo.c
-	     1	#include "le.h"
-	     2	int main(void)
-	     3	{
-	     4		LOG("Print args %d %s", 1, "test");
-	     5		WARN("With perror, fopen:");
-	     6		ERR("Print error and exit with 1");
-	     7		return 0;
-	     8	}
+	     1	#define LOGERR_IMPLEMENTATION   // Add in one src file
+	     2	#include "logerr.h"             // Include header
+	     3	int main(void)
+	     4	{
+	     5		LOG("Print args %d %s", 1, "test");
+	     6		WARN("With perror, fopen:");
+	     7		ERR("Print error and exit with 1");
+	     8		return 0;
+	     9	}
 
 	$ cc demo.c && ./a.out
-	demo.c:4	main()	>>>> Print args 1 test
-	demo.c:5	main()	WARN With perror, fopen: can't open
-	demo.c:6	main()	ERR Print error and exit with 1
+	demo.c:5	main()	>>>> Print args 1 test
+	demo.c:6	main()	WARN With perror, fopen: can't open
+	demo.c:7	main()	ERR Print error and exit with 1
 
 ISC-License
 
@@ -37,6 +41,9 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
+#ifndef LOGERR_H
+#define LOGERR_H
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,7 +55,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define _LEH_LOG(fmt, ...) _leh_log("%s:%d:\t%s()\t" fmt, \
 	__FILE__, __LINE__, __func__, __VA_ARGS__)
 
-static void
+void _leh_log(const char *fmt, ...);
+
+#endif /* LOGERR_H */
+#ifdef LOGERR_IMPLEMENTATION
+
+void
 _leh_log(const char *fmt, ...)
 {
 	va_list ap;
@@ -67,3 +79,5 @@ _leh_log(const char *fmt, ...)
 		exit(die);
 	}
 }
+
+#endif /* LOGERR_IMPLEMENTATION */
