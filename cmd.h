@@ -42,8 +42,8 @@ static struct cmd cmd_tree[] = {
 	{ 0,           "-: +cmd-cancel" },
 	{0},
 [20] =	{ A_HIS_LIST,  "h: history-list" },
-	{ A_HIS_PREV,  "b: history-goto-prev" },
-	{ A_HIS_NEXT,  "f: history-goto-next" },
+	{ A_HIS_PREV,  "p: history-goto-prev" },
+	{ A_HIS_NEXT,  "n: history-goto-next" },
 	{ 10,          "-: +cmd-cancel" },
 	{0},
 [30] =	{ A_TAB_ADD,   "t: tab-add" },
@@ -75,7 +75,7 @@ cmd_action(struct cmd *cmd, char buf[BSIZ])
 			if (buf[b+1] >= ' ') {
 				return A_URI;
 			}
-			return cmd[c].action;
+			return cmd[c].action;   // Found action
 		}
 		for (i = c; cmd[i].name; i++) {
 			printf("\t%s\n", cmd[i].name);

@@ -39,7 +39,8 @@ struct tab {                            // Tab node in double liked list
 };
 
 static struct tab *s_tab  = 0;          // Pointer to current tab
-static int         s_tabi = 0;          // Index of current tab
+static int         s_tabc = 1;          // Tabs count
+static int         s_tabi = 1;          // 1 based index of current tab
 static char       *s_pager;             // Pager default command
 
 char *argv0;                    // First program arg, for arg.h
@@ -96,6 +97,33 @@ tmpf(char *prefix, char *dst)
 	}
 }
 
+// Add new URI to current tab history.
+static void
+history_add(char *uri)
+{
+	if (s_tab->history[s_tab->hi % HSIZ][0]) {
+		s_tab->hi++;
+	}
+	strncpy(s_tab->history[s_tab->hi % HSIZ], uri, URI_SIZ);
+	// Make next history item empty to cut off old forward history
+	// every time the new item is being added.
+	s_tab->history[(s_tab->hi + 1) % HSIZ][0] = 0;
+}
+
+// Get current tab history item shifting history index by SHIFT.
+static char *
+history_get(int shift)
+{
+	if (shift > 0 && !s_tab->history[(s_tab->hi + 1) % HSIZ][0]) {
+		return 0;
+	}
+	if (shift < 0 && !s_tab->hi) {
+		return 0;
+	}
+	s_tab->hi += shift;
+	return s_tab->history[s_tab->hi % HSIZ];
+}
+
 // Add new empty tab and set it as current tab.
 static void
 tab_add(void)
@@ -114,9 +142,32 @@ tab_add(void)
 			s_tab->next->prev = tab;
 		}
 		s_tab->next = tab;
+		s_tabc++;
 		s_tabi++;
 	}
 	s_tab = tab;
+}
+
+static void
+tab_prev(void)
+{
+	if (!s_tab->prev) {
+		return;
+	}
+	s_tab = s_tab->prev;
+	s_tabi--;
+	printf("Tab %d: %s\n", s_tabi, history_get(0));
+}
+
+static void
+tab_next(void)
+{
+	if (!s_tab->next) {
+		return;
+	}
+	s_tab = s_tab->next;
+	s_tabi++;
+	printf("Tab %d: %s\n", s_tabi, history_get(0));
 }
 
 //
@@ -143,33 +194,7 @@ tab_close(void)
 	} else {
 		s_tab = 0;
 	}
-}
-
-// Add new URI to current tab history.
-static void
-history_add(char *uri)
-{
-	if (s_tab->history[s_tab->hi % HSIZ][0]) {
-		s_tab->hi++;
-	}
-	strncpy(s_tab->history[s_tab->hi % HSIZ], uri, URI_SIZ);
-	// Make next history item empty to cut off old forward history
-	// every time the new item is being added.
-	s_tab->history[(s_tab->hi + 1) % HSIZ][0] = 0;
-}
-
-// Get current tab history item shifting history index by SHIFT.
-static char *
-history_get(int shift)
-{
-	if (shift > 0 && !s_tab->history[(s_tab->hi + 1) % HSIZ][0]) {
-		return 0;
-	}
-	if (shift < 0 && !s_tab->hi) {
-		return 0;
-	}
-	s_tab->hi += shift;
-	return s_tab->history[s_tab->hi % HSIZ];
+	s_tabc--;
 }
 
 // Use pager to print content of FILENAME.
@@ -404,10 +429,8 @@ run(void)
 {
 	char buf[BSIZ], *uri;
 
-	while (1) {
-		printf("yupa(%d%s)> ",
-		       s_tabi,
-		       s_tab->next ? "+" : "");
+	while (1) { // Prompt
+		printf("yupa(%d/%d)> ", s_tabi, s_tabc);
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
 		}
@@ -443,20 +466,10 @@ run(void)
 			tab_add();
 			break;
 		case A_TAB_PREV:
-			if (!s_tab->prev) {
-				break;
-			}
-			s_tab = s_tab->prev;
-			s_tabi--;
-			show(s_tab->fn[s_tab->show]);
+			tab_prev();
 			break;
 		case A_TAB_NEXT:
-			if (!s_tab->next) {
-				break;
-			}
-			s_tab = s_tab->next;
-			s_tabi++;
-			show(s_tab->fn[s_tab->show]);
+			tab_next();
 			break;
 		case A_TAB_DUP:
 			uri = history_get(0);
