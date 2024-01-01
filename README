@@ -1,11 +1,15 @@
-Yupa
+Yupa, WORK IN PROGRESS
 
-What I would like to have before calling this a v1.0?
+I'm activli working on it at the moment (2024.01.01 Mon 16:16) to have
+v1.0 for my personal usage but you never know with thos side projects.
+I hope it will be finished soon as I would like to use it.
+
+MVP What I would like to have before calling this a v1.0?
 
 x Executing shell commands.
 - Gopher support for search item.
 - Gopher support for error item.
 - Gopher are there any other special items?
-- Gemini basic support.
+- Gemini basic support (essentially what I have in gmi100).
 - Restoring previous brosing session.
 - Downloading raw and formatted response.
