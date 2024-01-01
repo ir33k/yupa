@@ -1,6 +1,6 @@
 #define NAME    "Yupa"
-#define AUTHOR  "irek@gabr.pl"
 #define VERSION "v0.9"
+#define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -127,6 +127,14 @@ history_add(char *uri)
 static char *
 history_get(int shift)
 {
+	if (shift == 0) {
+		return s_tab->history[s_tab->hi % HSIZ];
+	}
+	// TODO(irek): I expect that there is a bug when you loop over
+	// the HSIZ and then try to get back.  I'm not checking for
+	// the empty history entry.  Also when going forward I'm
+	// looking only at very next entry but value of SHIFT can be
+	// more then 1.
 	if (shift > 0 && !s_tab->history[(s_tab->hi + 1) % HSIZ][0]) {
 		return 0;
 	}
@@ -186,10 +194,7 @@ tab_next(void)
 static void
 tab_goto(int index)
 {
-	if (index <= 0) {
-		return;
-	}
-	if (index > s_tabc) {
+	if (index < 1 || index > s_tabc) {
 		return;
 	}
 	while (s_tab->prev) s_tab = s_tab->prev;
@@ -234,7 +239,7 @@ ontab_list(void)
 	for (i = 1; tab; tab = tab->next, i++) {
 		printf("\t%d: %s%s\n", i,
 		       i == s_tabi ? "> " : "  ",
-		       tab->history[tab->hi]);
+		       tab->history[tab->hi % HSIZ]);
 	}
 }
 
