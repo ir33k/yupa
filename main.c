@@ -19,11 +19,11 @@
 #define HSIZ    64              // Size of tab browsing history
 #define FMAX    FILENAME_MAX    // Max size of buffer for file path
 
-#include "cmd.c"
-#include "gph.c"
-
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
 _Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
+
+#include "cmd.c"
+#include "gph.c"
 
 enum filename {                 // File names used by tab
 	FN_BODY = 0,            // Response body
@@ -437,79 +437,79 @@ onprompt(char buf[BSIZ])
 	char *arg, *uri;
 	int i;
 	switch (cmd_action(cmd_tree, buf, &arg)) {
-	case A_QUIT:
+	case CMD_A_QUIT:
 		while (s_tab) {
 			tab_close();
 		}
 		exit(0);
 		break;
-	case A_HELP:
+	case CMD_A_HELP:
 		printf(s_help);
 		break;
-	case A_REPEAT:
+	case CMD_A_REPEAT:
 		if (last[0]) {
 			strcpy(buf, last);
 			onprompt(buf);
 		}
-		return; // Return to avoid defining A_REPEAT as last cmd
-	case A_URI:
+		return; // Return to avoid defining CMD_A_REPEAT as last cmd
+	case CMD_A_URI:
 		if (onuri(buf)) {
 			history_add(buf);
 		}
 		break;
-	case A_LINK:
+	case CMD_A_LINK:
 		uri = link_get(atoi(buf));
 		if (onuri(uri)) {
 			history_add(uri);
 		}
 		break;
-	case A_PAGE_GET:
+	case CMD_A_PAGE_GET:
 		onuri(history_get(0));
 		break;
-	case A_PAGE_BODY:
+	case CMD_A_PAGE_BODY:
 		show(s_tab->fn[FN_BODY]);
 		break;
-	case A_TAB_LIST:
+	case CMD_A_TAB_LIST:
 		if ((i = atoi(arg))) {
 			tab_goto(i);
 		} else {
 			ontab_list();
 		}
 		break;
-	case A_TAB_ADD:
+	case CMD_A_TAB_ADD:
 		tab_add();
 		break;
-	case A_TAB_PREV:
+	case CMD_A_TAB_PREV:
 		tab_prev();
 		break;
-	case A_TAB_NEXT:
+	case CMD_A_TAB_NEXT:
 		tab_next();
 		break;
-	case A_TAB_DUP:
+	case CMD_A_TAB_DUP:
 		uri = history_get(0);
 		tab_add();
 		if (onuri(uri)) {
 			history_add(uri);
 		}
 		break;
-	case A_TAB_CLOSE:
+	case CMD_A_TAB_CLOSE:
 		if (!s_tab->prev && !s_tab->next) {
 			printf("Can't close last tab\n");
 			break;
 		}
 		tab_close();
 		break;
-	case A_HIS_LIST:
+	case CMD_A_HIS_LIST:
 		WARN("Not implemented");
 		break;
-	case A_HIS_PREV:
+	case CMD_A_HIS_PREV:
 		onuri(history_get(-1));
 		break;
-	case A_HIS_NEXT:
+	case CMD_A_HIS_NEXT:
 		onuri(history_get(+1));
 		break;
-	case A_CANCEL:
-	case A_NUL:
+	case CMD_A_CANCEL:
+	case CMD_A_NUL:
 		break;
 	default:
 		ERR("Unreachable");
