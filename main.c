@@ -1,6 +1,6 @@
 #define NAME    "Yupa"
 #define AUTHOR  "irek@gabr.pl"
-#define VERSION "v0.8"
+#define VERSION "v0.9"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -18,8 +18,8 @@
 #define LOGERR_IMPLEMENTATION
 #include "logerr.h"
 #include "arg.h"
-#include "cmd.h"
 #include "uri.h"
+#include "cmd.h"
 #include "gph.c"
 
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
@@ -182,6 +182,21 @@ tab_next(void)
 	printf("Tab %d: %s\n", s_tabi, history_get(0));
 }
 
+static void
+tab_goto(int index)
+{
+	if (index <= 0) {
+		return;
+	}
+	if (index > s_tabc) {
+		return;
+	}
+	while (s_tab->prev) s_tab = s_tab->prev;
+	s_tabi = index;
+	while (--index) s_tab = s_tab->next;
+	printf("Tab %d: %s\n", s_tabi, history_get(0));
+}
+
 //
 static void
 tab_close(void)
@@ -207,6 +222,19 @@ tab_close(void)
 		s_tab = 0;
 	}
 	s_tabc--;
+}
+
+static void
+ontab_list(void)
+{
+	struct tab *tab = s_tab;
+	int i;
+	while (tab->prev) tab = tab->prev;
+	for (i = 1; tab; tab = tab->next, i++) {
+		printf("\t%d: %s%s\n", i,
+		       i == s_tabi ? "> " : "  ",
+		       tab->history[tab->hi]);
+	}
 }
 
 // Use pager to print content of FILENAME.
@@ -406,8 +434,9 @@ static void
 onprompt(char buf[BSIZ])
 {
 	static char last[BSIZ] = {0};
-	char *uri;
-	switch (cmd_action(cmd_tree, buf)) {
+	char *arg, *uri;
+	int i;
+	switch (cmd_action(cmd_tree, buf, &arg)) {
 	case A_QUIT:
 		while (s_tab) {
 			tab_close();
@@ -439,6 +468,13 @@ onprompt(char buf[BSIZ])
 		break;
 	case A_PAGE_BODY:
 		show(s_tab->fn[FN_BODY]);
+		break;
+	case A_TAB_LIST:
+		if ((i = atoi(arg))) {
+			tab_goto(i);
+		} else {
+			ontab_list();
+		}
 		break;
 	case A_TAB_ADD:
 		tab_add();
@@ -502,7 +538,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < argc; i++) {
 		tab_add();
 		if (onuri(argv[i])) {
-			history_add(argv[0]);
+			history_add(argv[i]);
 		}
 	}
 	if (!s_tab) {

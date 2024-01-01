@@ -1,7 +1,5 @@
 // Prompt commands.
 
-#define CMD_DEFAULT A_URI       // Default cmd action when nothing matched
-
 enum action {                   // Possible action to input in cmd prompt
 	A_NUL = 0,              // Empty action
 	A_URI,                  // Absolute URI string (default action)
@@ -16,6 +14,7 @@ enum action {                   // Possible action to input in cmd prompt
 	A_HIS_LIST,             // Print history list of current page
 	A_HIS_PREV,             // Goto previous browsing history page
 	A_HIS_NEXT,             // Goto next browsing history page
+	A_TAB_LIST,             // Print list of tabs
 	A_TAB_ADD,              // Add new tab
 	A_TAB_PREV,             // Switch to previous tab
 	A_TAB_NEXT,             // Switch to next tab
@@ -48,7 +47,8 @@ static struct cmd cmd_tree[] = {
 	{ A_HIS_NEXT,  "n: history-goto-next" },
 	{ 10,          "-: +cmd-cancel" },
 	{0},
-[30] =	{ A_TAB_ADD,   "t: tab-add" },
+[30] =	{ A_TAB_LIST,  "t[index]: tab-list" },
+	{ A_TAB_ADD,   "a: tab-add" },
 	{ A_TAB_PREV,  "p: tab-goto-prev" },
 	{ A_TAB_NEXT,  "n: tab-goto-next" },
 	{ A_TAB_DUP,   "d: tab-duplicat" },
@@ -74,34 +74,36 @@ isnum(char *str)
 
 //
 static enum action
-cmd_action(struct cmd *cmd, char buf[BSIZ])
+cmd_action(struct cmd *cmd, char buf[BSIZ], char **arg)
 {
 	size_t i, c=0, b=0;
 	assert(cmd);
 	assert(buf);
+	*arg = 0;
+	if (uri_protocol(buf)) {
+		return A_URI;
+	}
 	if (isnum(buf)) {
 		return A_LINK;
 	}
 	while (1) {
-		for (; buf[b] >= ' '; b++) {
+		for (; buf[b] > ' '; b++) {
 			while (cmd[c].name && cmd[c].name[0] != buf[b]) c++;
 			if (!cmd[c].name) {
-				return CMD_DEFAULT;
+				return 0;
 			}
 			if (cmd[c].name[3] == '+') {
 				c = cmd[c].action;
 				continue;
 			}
-			if (buf[b+1] >= ' ') {
-				return CMD_DEFAULT;
-			}
+			*arg = buf + b + 1;
 			return cmd[c].action;   // Found action
 		}
 		for (i = c; cmd[i].name; i++) {
 			printf("\t%s\n", cmd[i].name);
 		}
 		if (BSIZ - b <= 0) {
-			return CMD_DEFAULT;
+			return 0;
 		}
 		printf("cmd> %.*s", (int)b, buf);
 		fgets(buf+b, BSIZ-b, stdin);
