@@ -22,7 +22,7 @@ enum cmd_action {               // Possible action to input in cmd prompt
 	CMD_A_TAB_ADD,          // Add new tab
 	CMD_A_TAB_PREV,         // Switch to previous tab
 	CMD_A_TAB_NEXT,         // Switch to next tab
-	CMD_A_TAB_DUP,          // Duplicate current tab
+	CMD_A_TAB_OPEN,         // Open current or provided page in new tab
 	CMD_A_TAB_CLOSE,        // Close current tab
 };
 

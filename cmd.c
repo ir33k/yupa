@@ -28,11 +28,11 @@ static const struct cmd tree[] = {
 	{ CMD_A_HIS_NEXT,       "n: history-goto-next" },
 	{ 10,                   "-: +cmd-cancel" },
 	{0},
-[60] =	{ CMD_A_TAB_LIST,       "t[index]: tab-list" },
+[60] =	{ CMD_A_TAB_LIST,       "t[tab_index]: tab-list" },
+	{ CMD_A_TAB_OPEN,       "o[uri/link]: tab-open" },
 	{ CMD_A_TAB_ADD,        "a: tab-add" },
 	{ CMD_A_TAB_PREV,       "p: tab-goto-prev" },
 	{ CMD_A_TAB_NEXT,       "n: tab-goto-next" },
-	{ CMD_A_TAB_DUP,        "d: tab-duplicat" },
 	{ CMD_A_TAB_CLOSE,      "c: tab-close" },
 	{ 0,                    "-: +cmd-cancel" },
 	{0},
@@ -76,6 +76,7 @@ cmd_action(char buf[BUFSIZ], char **arg)
 				continue;
 			}
 			*arg = buf + b + 1;
+			while (**arg && **arg <= ' ') (*arg)++;
 			return tree[c].action;   // Found action
 		}
 		for (i = c; tree[i].name; i++) {

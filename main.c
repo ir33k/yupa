@@ -491,8 +491,12 @@ onprompt(char buf[BSIZ])
 	case CMD_A_TAB_NEXT:
 		tab_next();
 		break;
-	case CMD_A_TAB_DUP:
-		uri = history_get(0);
+	case CMD_A_TAB_OPEN:
+		if (arg[0]) {
+			uri = (i = atoi(arg)) ? link_get(i) : arg;
+		} else {
+			uri = history_get(0);
+		}
 		tab_add();
 		if (onuri(uri)) {
 			history_add(uri);
