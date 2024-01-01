@@ -10,16 +10,16 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
+#define LOGERR_IMPLEMENTATION
+#include "logerr.h"
+#include "arg.h"
+#include "uri.h"
 
 #define BSIZ    BUFSIZ          // Size of generic buffer
 #define HSIZ    64              // Size of tab browsing history
 #define FMAX    FILENAME_MAX    // Max size of buffer for file path
 
-#define LOGERR_IMPLEMENTATION
-#include "logerr.h"
-#include "arg.h"
-#include "uri.h"
-#include "cmd.h"
+#include "cmd.c"
 #include "gph.c"
 
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
