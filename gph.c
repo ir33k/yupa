@@ -69,19 +69,19 @@ gph_label(enum gph_item item)
 	assert(0 && "Unhandled item type"); /* Should never happen */
 }
 
-/* Assuming that RAW is a file with Gopher submenu, write prettier
+/* Assuming that BODY is a file with Gopher submenu, write prettier
  * formatted version to FMT file. */
 static void
-gph_format(FILE *raw, FILE *fmt)
+gph_format(FILE *body, FILE *fmt)
 {
 	int n;                  /* Link item index */
 	char buf[BSIZ], *label;
-	assert(raw);
+	assert(body);
 	assert(fmt);
-	rewind(raw);
+	rewind(body);
 	n = 1;
 	errno = 0;
-	while (fgets(buf, sizeof(buf), raw)) {
+	while (fgets(buf, sizeof(buf), body)) {
 		if (buf[0] == '.') {    /* Single dot means end of file */
 			break;
 		}
@@ -96,17 +96,17 @@ gph_format(FILE *raw, FILE *fmt)
 	}
 }
 
-/* Search in RAW file for the link under INDEX (1 == first link).
+/* Search in BODY file for the link under INDEX (1 == first link).
  * Return pointer to static string with normalized URI. */
 static char *
-gph_uri(FILE *raw, int index)
+gph_uri(FILE *body, int index)
 {
 	static char uri[BSIZ];
 	char c, buf[BSIZ], path[BSIZ], host[BSIZ];
 	int port;
-	assert(raw);
+	assert(body);
 	assert(index > 0);
-	while (fgets(buf, BSIZ, raw)) {
+	while (fgets(buf, BSIZ, body)) {
 		if (buf[0] == '.') {
 			break;
 		}

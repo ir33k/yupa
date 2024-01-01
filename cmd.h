@@ -1,93 +1,88 @@
-/* Prompt commands. */
+// Prompt commands.
 
-enum action {                   /* Possible action to input in prompt */
-	A_NUL = 0,              /* Empty action */
-	/* Default actions */
-	A_URI,                  /* Absolute URI string */
-	A_LINK,                 /* Index to link on current page */
-	/* Prompt cmd */
-	A_PAGE_RELOAD,          /* Reload current page */
-	A_PAGE_RAW,             /* Show raw response */
-	A_PAGE_HISTORY_PREV,    /* Goto previous browsing history page */
-	A_PAGE_HISTORY_NEXT,    /* Goto next browsing history page */
-	A_TAB_NEW,              /* Create new tab */
-	A_TAB_PREV,             /* Switch to previous tab */
-	A_TAB_NEXT,             /* Switch to next tab */
-	A_TAB_DUPLICATE,        /* Duplicate current tab */
-	A_TAB_CLOSE,            /* Close current tab */
-	A_QUIT                  /* Exit program */
+enum action {                   // Possible action to input in cmd prompt
+	A_NUL           = 0,    // Empty action
+	A_URI,                  // Absolute URI string (default action)
+	A_LINK,                 // Index to link on current page
+	// Cmd actions
+	A_QUIT,                 // Exit program
+	A_HELP,                 // Print program help
+	A_REPEAT,               // Repeat last command
+	A_CANCEL,               // Cancel insertion of current command
+	A_PAGE_RELOAD   = 100,  // Reload current page
+	A_PAGE_BODY,            // Response body
+	A_HIS_LIST,             // Print history list of current page
+	A_HIS_PREV,             // Goto previous browsing history page
+	A_HIS_NEXT,             // Goto next browsing history page
+	A_TAB_ADD       = 200,  // Add new tab
+	A_TAB_PREV,             // Switch to previous tab
+	A_TAB_NEXT,             // Switch to next tab
+	A_TAB_DUP,              // Duplicate current tab
+	A_TAB_CLOSE,            // Close current tab
 };
 
 struct cmd {
-	char c, *str;
-	enum action action;
-	struct cmd *child;
+	const char *name;
+	enum action child;
 };
 
+#define CMD_ROOT A_QUIT
 static struct cmd cmd_tree[] = {
-	{ 'q', "quit", A_QUIT, 0 },
-	{ 'p', "page", 0,
-	  (struct cmd[]) {
-		  { 'r', "reload", A_PAGE_RELOAD, 0 },
-		  { 'R', "raw",    A_PAGE_RAW, 0 },
-		  { 'h', "history", 0,
-		    (struct cmd[]) {
-			    { 'p', "previous", A_PAGE_HISTORY_PREV, 0 },
-			    { 'n', "next",     A_PAGE_HISTORY_NEXT, 0 },
-			    {0}
-		    }
-		  },
-		  {0},
-	  }
-	},
-	{ 't', "tab", 0,
-	  (struct cmd[]) {
-		  { 'N', "new",       A_TAB_NEW, 0 },
-		  { 'p', "previous",  A_TAB_PREV, 0 },
-		  { 'n', "next",      A_TAB_NEXT, 0 },
-		  { 'd', "duplicate", A_TAB_DUPLICATE, 0 },
-		  { 'c', "close",     A_TAB_CLOSE, 0 },
-		  {0},
-	  }
-	},
-	{0},
+	[A_QUIT]        = { "q: Quit program", 0 },
+	[A_HELP]        = { "h: Help", 0 },
+	[A_REPEAT]      = { ".: Repeat last command", 0 },
+	[A_CANCEL]      = { "-: Cancel command", 0 },
+	                  { "p: Page of current tab", A_PAGE_RELOAD },
+	                  { "t: Tabs navigation", A_TAB_ADD },
+	                  {0},
+	[A_PAGE_RELOAD] = { "p: Reload current page", 0 },
+	[A_PAGE_BODY]   = { "b: Print raw page response body", 0 },
+	[A_HIS_LIST]    = { "h: List page history", 0 },
+	[A_HIS_PREV]    = { "b: History: go back", 0 },
+	[A_HIS_NEXT]    = { "f: History: go forward", 0 },
+	                  { "-: Cancel command", CMD_ROOT },
+	                  {0},
+	[A_TAB_ADD]     = { "t: Add new tab", 0 },
+	[A_TAB_PREV]    = { "p: Goto previous", 0 },
+	[A_TAB_NEXT]    = { "n: Goto next", 0 },
+	[A_TAB_DUP]     = { "d: Duplicat current tab", 0 },
+	[A_TAB_CLOSE]   = { "c: Close current tab", 0 },
+	                  { "-: Cancel command", CMD_ROOT },
+	                  {0},
 };
 
-/**/
-static void
-cmd_print(struct cmd *cmd, char *path, int len)
-{
-	size_t i;
-	printf("%.*s\n", len, path);
-	for (i = 0; cmd[i].c; i++) {
-		printf("\t%c: %s%s\n", cmd[i].c, cmd[i].str,
-		       cmd[i].child ? " >" : "");
-	}
-}
-
-/**/
+//
 static enum action
-cmd_action(char *path)
+cmd_action(struct cmd *cmd, char buf[BSIZ])
 {
-	struct cmd *cmd = cmd_tree;
-	int i, j;
-	if (!path || !path[0]) {
-		cmd_print(cmd, path, 0);
-		return 0;
+	size_t i, c=CMD_ROOT, b=0;
+	assert(cmd);
+	assert(buf);
+	while (1) {
+		for (; buf[b] >= ' '; b++) {
+			while (cmd[c].name && cmd[c].name[0] != buf[b]) c++;
+			if (!cmd[c].name) {
+				return A_URI;
+			}
+			if (cmd[c].child > 0) {
+				c = cmd[c].child;
+				continue;
+			}
+			if (buf[b+1] >= ' ') {
+				return A_URI;
+			}
+			return c;
+		}
+		for (i = c; cmd[i].name; i++) {
+			printf("%8s%s\n",
+			       cmd[i].child ? "+ " : "",
+			       cmd[i].name);
+		}
+		if (BSIZ - b <= 0) {
+			return A_URI;	
+		}
+		printf("cmd> %.*s", (int)b, buf);
+		fgets(buf+b, BSIZ-b, stdin);
 	}
-	for (i = 0; path[i]; i++) {
-		for (j = 0; cmd[j].c && cmd[j].c != path[i]; j++);
-		if (cmd[j].c != path[i]) {
-			return -1;
-		}
-		if (cmd[j].child) {
-			cmd = cmd[j].child;
-			continue;
-		}
-		if (!path[i+1]) {
-			return cmd[j].action;
-		}
-	}
-	cmd_print(cmd, path, i);
-	return 0;
+	ERR("Unreachable");
 }
