@@ -437,7 +437,7 @@ onprompt(char buf[BSIZ])
 	static char last[BSIZ] = {0};
 	char *arg, *uri;
 	int i;
-	switch (cmd_action(cmd_tree, buf, &arg)) {
+	switch (cmd_action(buf, &arg)) {
 	case CMD_A_QUIT:
 		while (s_tab) {
 			tab_close();

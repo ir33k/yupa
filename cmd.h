@@ -26,14 +26,7 @@ enum cmd_action {               // Possible action to input in cmd prompt
 	CMD_A_TAB_CLOSE,        // Close current tab
 };
 
-struct cmd {
-	enum cmd_action action;
-	const char *name;
-};
-
-extern const struct cmd cmd_tree[];
-
 //
-enum cmd_action cmd_action(const struct cmd *cmd, char buf[BUFSIZ], char **arg);
+enum cmd_action cmd_action(char buf[BUFSIZ], char **arg);
 
 #endif // _CMD_H

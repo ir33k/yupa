@@ -3,9 +3,14 @@
 #include "cmd.h"
 #include "uri.h"
 
-const struct cmd cmd_tree[] = {
+struct cmd {
+	enum cmd_action action;
 	// First char in NAME is command key and when fourth char
 	// is '+' then ACTION is used as index to CMD array.
+	const char *name;
+};
+
+static const struct cmd tree[] = {
 [0] =	{ CMD_A_QUIT,           "q: quit" },
 	{ CMD_A_HELP,           "h: help" },
 	{ 20,                   "p: +page" },
@@ -48,12 +53,10 @@ isnum(char *str)
 	return 1;
 }
 
-//
 enum cmd_action
-cmd_action(const struct cmd *cmd, char buf[BUFSIZ], char **arg)
+cmd_action(char buf[BUFSIZ], char **arg)
 {
 	size_t i, c=0, b=0;
-	assert(cmd);
 	assert(buf);
 	*arg = 0;
 	if (uri_protocol(buf)) {
@@ -64,19 +67,19 @@ cmd_action(const struct cmd *cmd, char buf[BUFSIZ], char **arg)
 	}
 	while (1) {
 		for (; buf[b] > ' '; b++) {
-			while (cmd[c].name && cmd[c].name[0] != buf[b]) c++;
-			if (!cmd[c].name) {
+			while (tree[c].name && tree[c].name[0] != buf[b]) c++;
+			if (!tree[c].name) {
 				return 0;
 			}
-			if (cmd[c].name[3] == '+') {
-				c = cmd[c].action;
+			if (tree[c].name[3] == '+') {
+				c = tree[c].action;
 				continue;
 			}
 			*arg = buf + b + 1;
-			return cmd[c].action;   // Found action
+			return tree[c].action;   // Found action
 		}
-		for (i = c; cmd[i].name; i++) {
-			printf("\t%s\n", cmd[i].name);
+		for (i = c; tree[i].name; i++) {
+			printf("\t%s\n", tree[i].name);
 		}
 		if (BUFSIZ - b <= 0) {
 			return 0;
