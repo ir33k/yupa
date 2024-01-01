@@ -1,4 +1,4 @@
-// Prompt commands.
+// Prompt action commands.
 
 #ifndef _CMD_H
 #define _CMD_H
@@ -28,7 +28,12 @@ enum cmd_action {               // Possible action to input in cmd prompt
 	CMD_A_TAB_CLOSE,        // Close current tab
 };
 
-//
+// Get action for BUF command string.  If BUF is empty or command
+// incomplete then interactive prompt will ask for input as long as
+// command is not completed.  If BUF contains number then assume LINK
+// and if BUF starts with valid protocol name then assume URI.  ARG
+// pointer will be set to point at beginning of command arguments in
+// BUF if any.
 enum cmd_action cmd_action(char buf[BUFSIZ], char **arg);
 
 #endif // _CMD_H
