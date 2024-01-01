@@ -5,9 +5,11 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 #include "arg.h"
@@ -69,6 +71,14 @@ usage(void)
 	       "	[uri..]	List of URIs to open on startup.\n"
 	       "env	PAGER	Pager cmd (less -XI).\n"
 	       , argv0);
+}
+
+/* Return pointer to static string being path to user home dir. */
+static char *
+home(void)
+{
+	struct passwd *pw = getpwuid(getuid());
+	return pw ? pw->pw_dir : "";
 }
 
 // Return pointer to static string with random alphanumeric characters
@@ -437,13 +447,67 @@ link_get(int index)
 	return uri;
 }
 
+// Return a pointer to static string being file path with FILENAME_MAX
+// max size created by concatinating varying number of string args.
+#define FJOIN(...) _fjoin(0, __VA_ARGS__, 0)
+static char *
+_fjoin(int _ignore, ...)
+{
+	static char tmp[FILENAME_MAX];
+	va_list ap;
+	size_t sum = 0, len;
+	char *arg;
+	va_start(ap, _ignore);
+	while ((arg = va_arg(ap, char *))) {
+		len = strlen(arg);
+		// Nothing more can fit the TMP but don't error out.
+		// This function doesn't try to be always correct
+		// rather it tires to by convenient.
+		if (sum + len + 1 > FILENAME_MAX) {
+			WARN("FILENAME_MAX exceeded with %s", arg);
+			break;
+		}
+		memcpy(tmp + sum, arg, len + 1);
+		sum += len;
+	}
+	va_end(ap);
+	return tmp;
+}
+
 // Copy SRC file to DST path.
 static void
-cp(char *src, char *dst)
+copy(char *src, char *dst)
 {
-	char buf[BSIZ];
-	sprintf(buf, "cp %s %s", src, dst);
-	system(buf);
+	FILE *fd[2];
+	char buf[BSIZ], *tmp;
+	size_t siz;
+	assert(src && src[0]);
+	assert(dst);
+	if (!dst[0]) {
+		printf("Missing destination file path.\n");
+		return;
+	}
+	tmp = FJOIN(dst[0] == '~' ? home() : "",
+		    dst[0] == '~' ? dst +1 : dst);
+	if (!(fd[0] = fopen(src, "rb"))) {
+		WARN("%s %s fopen(src):", src, tmp);
+		return;
+	}
+	if (!(fd[1] = fopen(tmp, "wb"))) {
+		WARN("%s %s fopen(dst):", src, tmp);
+		return;
+	}
+	while ((siz = fread(buf, 1, sizeof(buf), fd[0]))) {
+		if (fwrite(buf, 1, siz, fd[1]) != siz) {
+			WARN("%s %s fwrite:", src, tmp);
+		}
+	}
+	if (fclose(fd[0])) {
+		WARN("%s %s fclose(src):", src, tmp);
+	}
+	if (fclose(fd[1])) {
+		WARN("%s %s fclose(dst):", src, tmp);
+	}
 }
 
 //
@@ -538,10 +602,10 @@ onprompt(char buf[BSIZ])
 		onuri(history_get(+1));
 		break;
 	case NAV_A_GET_RAW:
-		cp(s_tab->fn[FN_RAW], arg);
+		copy(s_tab->fn[FN_RAW], arg);
 		break;
 	case NAV_A_GET_FMT:
-		cp(s_tab->fn[FN_FMT], arg);
+		copy(s_tab->fn[FN_FMT], arg);
 		break;
 	case NAV_A_CANCEL:
 	case NAV_A_NUL:
