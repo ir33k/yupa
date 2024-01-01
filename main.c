@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include "arg.h"
 #include "uri.h"
-#include "cmd.h"
+#include "nav.h"
 
 #define LOGERR_IMPLEMENTATION
 #include "logerr.h"
@@ -51,7 +51,7 @@ static const char *s_help =
 	"\n"
 	"Gopher protocol CLI browser with tabs and browsing history.\n"
 	"Browse by inserting absolute URI or link index from current page.\n"
-	"Press RETURN to open commands menu or insert command upfront.\n"
+	"Press RETURN to open navigation menu or insert command upfront.\n"
 	"Prompt indicate (current_tab_number/number_of_all_tabs).\n"
 	"Run program with -h flag to read about arguments and env vars.\n"
 	"\n";
@@ -243,12 +243,14 @@ ontab_list(void)
 	}
 }
 
-// Use pager to print content of FILENAME.
+// Execute CMD with FILENAME.
 static void
-show(char *filename)
+cmd_run(char *cmd, char *filename)
 {
 	char buf[BSIZ];
-	sprintf(buf, "%s %s", s_pager, filename);
+	assert(cmd);
+	assert(filename);
+	sprintf(buf, "%s %s", cmd, filename);
 	system(buf);
 }
 
@@ -395,7 +397,7 @@ onuri(char *uri)
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
 	}
-	show(s_tab->fn[s_tab->show]);
+	cmd_run(s_pager, s_tab->fn[s_tab->show]);
 	return 1;
 }
 
@@ -435,15 +437,6 @@ link_get(int index)
 	return uri;
 }
 
-// Execue CMD shell command with FILENAME.
-static void
-onsh(char *cmd, char *filename)
-{
-	char buf[BSIZ];
-	sprintf(buf, "%s %s", cmd, filename);
-	system(buf);
-}
-
 //
 static void
 onprompt(char buf[BSIZ])
@@ -451,62 +444,62 @@ onprompt(char buf[BSIZ])
 	static char last[BSIZ] = {0};
 	char *arg, *uri;
 	int i;
-	switch (cmd_action(buf, &arg)) {
-	case CMD_A_QUIT:
+	switch (nav_action(buf, &arg)) {
+	case NAV_A_QUIT:
 		while (s_tab) {
 			tab_close();
 		}
 		exit(0);
 		break;
-	case CMD_A_HELP:
+	case NAV_A_HELP:
 		printf(s_help);
 		break;
-	case CMD_A_SH_RAW:
-		onsh(arg, s_tab->fn[FN_RAW]);
+	case NAV_A_SH_RAW:
+		cmd_run(arg, s_tab->fn[FN_RAW]);
 		break;
-	case CMD_A_SH_FMT:
-		onsh(arg, s_tab->fn[FN_FMT]);
+	case NAV_A_SH_FMT:
+		cmd_run(arg, s_tab->fn[FN_FMT]);
 		break;
-	case CMD_A_REPEAT:
+	case NAV_A_REPEAT:
 		if (last[0]) {
 			strcpy(buf, last);
 			onprompt(buf);
 		}
-		return; // Return to avoid defining CMD_A_REPEAT as last cmd
-	case CMD_A_URI:
+		return; // Return to avoid defining NAV_A_REPEAT as last cmd
+	case NAV_A_URI:
 		if (onuri(buf)) {
 			history_add(buf);
 		}
 		break;
-	case CMD_A_LINK:
+	case NAV_A_LINK:
 		uri = link_get(atoi(buf));
 		if (onuri(uri)) {
 			history_add(uri);
 		}
 		break;
-	case CMD_A_PAGE_GET:
+	case NAV_A_PAGE_GET:
 		onuri(history_get(0));
 		break;
-	case CMD_A_PAGE_RAW:
-		show(s_tab->fn[FN_RAW]);
+	case NAV_A_PAGE_RAW:
+		cmd_run(s_pager, s_tab->fn[FN_RAW]);
 		break;
-	case CMD_A_TAB_GOTO:
+	case NAV_A_TAB_GOTO:
 		if ((i = atoi(arg))) {
 			tab_goto(i);
 		} else {
 			ontab_list();
 		}
 		break;
-	case CMD_A_TAB_ADD:
+	case NAV_A_TAB_ADD:
 		tab_add();
 		break;
-	case CMD_A_TAB_PREV:
+	case NAV_A_TAB_PREV:
 		tab_prev();
 		break;
-	case CMD_A_TAB_NEXT:
+	case NAV_A_TAB_NEXT:
 		tab_next();
 		break;
-	case CMD_A_TAB_OPEN:
+	case NAV_A_TAB_OPEN:
 		if (arg[0]) {
 			uri = (i = atoi(arg)) ? link_get(i) : arg;
 		} else {
@@ -517,24 +510,24 @@ onprompt(char buf[BSIZ])
 			history_add(uri);
 		}
 		break;
-	case CMD_A_TAB_CLOSE:
+	case NAV_A_TAB_CLOSE:
 		if (!s_tab->prev && !s_tab->next) {
 			printf("Can't close last tab\n");
 			break;
 		}
 		tab_close();
 		break;
-	case CMD_A_HIS_LIST:
+	case NAV_A_HIS_LIST:
 		WARN("Not implemented");
 		break;
-	case CMD_A_HIS_PREV:
+	case NAV_A_HIS_PREV:
 		onuri(history_get(-1));
 		break;
-	case CMD_A_HIS_NEXT:
+	case NAV_A_HIS_NEXT:
 		onuri(history_get(+1));
 		break;
-	case CMD_A_CANCEL:
-	case CMD_A_NUL:
+	case NAV_A_CANCEL:
+	case NAV_A_NUL:
 		break;
 	default:
 		ERR("Unreachable");
