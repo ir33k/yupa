@@ -5,10 +5,11 @@
 
 enum {                          // Indexes of first item in nav group
 	ROOT =  0,
-	PAGE = 20,
-	HIST = 40,
-	TAB  = 60,
-	SH   = 80,
+	PAGE = 10,
+	HIST = 20,
+	GET  = 30,
+	TAB  = 40,
+	SH   = 50,
 };
 
 struct nav {
@@ -30,6 +31,7 @@ static const struct nav tree[] = {
 [PAGE]=	{ NAV_A_PAGE_GET,       "p: page-reload" },
 	{ NAV_A_PAGE_RAW,       "b: page-show-raw-response" },
 	{ HIST,                 "h+ page-history" },
+	{ GET,                  "d+ page-download" },
 	{ ROOT,                 ",+ nav-cancel" },
 	{0},
 [HIST]=	{ NAV_A_HIS_LIST,       "h: history-list" },
@@ -37,7 +39,11 @@ static const struct nav tree[] = {
 	{ NAV_A_HIS_NEXT,       "n: history-goto-next" },
 	{ PAGE,                 ",+ nav-cancel" },
 	{0},
-[TAB]=	{ NAV_A_TAB_GOTO,       "t[tab_index]: tab-goto-list" },
+[GET]=	{ NAV_A_GET_RAW,        "d<path>: download-raw" },
+	{ NAV_A_GET_FMT,        "f<path>: download-fmt" },
+	{ PAGE,                 ",+ nav-cancel" },
+	{0},
+[TAB]=	{ NAV_A_TAB_GOTO,       "t[index]: tab-goto-list" },
 	{ NAV_A_TAB_OPEN,       "o[uri/link]: tab-open" },
 	{ NAV_A_TAB_ADD,        "a: tab-add" },
 	{ NAV_A_TAB_PREV,       "p: tab-goto-prev" },

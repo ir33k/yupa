@@ -437,6 +437,15 @@ link_get(int index)
 	return uri;
 }
 
+// Copy SRC file to DST path.
+static void
+cp(char *src, char *dst)
+{
+	char buf[BSIZ];
+	sprintf(buf, "cp %s %s", src, dst);
+	system(buf);
+}
+
 //
 static void
 onprompt(char buf[BSIZ])
@@ -500,6 +509,8 @@ onprompt(char buf[BSIZ])
 		tab_next();
 		break;
 	case NAV_A_TAB_OPEN:
+		// TODO(irek): Tab duplication should also copy
+		// history from current tab.
 		if (arg[0]) {
 			uri = (i = atoi(arg)) ? link_get(i) : arg;
 		} else {
@@ -525,6 +536,12 @@ onprompt(char buf[BSIZ])
 		break;
 	case NAV_A_HIS_NEXT:
 		onuri(history_get(+1));
+		break;
+	case NAV_A_GET_RAW:
+		cp(s_tab->fn[FN_RAW], arg);
+		break;
+	case NAV_A_GET_FMT:
+		cp(s_tab->fn[FN_FMT], arg);
 		break;
 	case NAV_A_CANCEL:
 	case NAV_A_NUL:

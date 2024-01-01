@@ -20,6 +20,8 @@ enum nav_action {               // Possible action to input in nav prompt
 	NAV_A_HIS_LIST,         // Print history list of current page
 	NAV_A_HIS_PREV,         // Goto previous browsing history page
 	NAV_A_HIS_NEXT,         // Goto next browsing history page
+	NAV_A_GET_RAW,          // Download current page raw response
+	NAV_A_GET_FMT,          // Download current page formatted response
 	NAV_A_TAB_GOTO,         // Goto taby by index / list tabs indexes
 	NAV_A_TAB_ADD,          // Add new tab
 	NAV_A_TAB_PREV,         // Switch to previous tab
