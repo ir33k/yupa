@@ -3,42 +3,51 @@
 #include "cmd.h"
 #include "uri.h"
 
+enum {                          // Indexes of first item in cmd group
+	ROOT =  0,
+	PAGE = 20,
+	HIST = 40,
+	TAB  = 60,
+	SH   = 80,
+};
+
 struct cmd {
-	enum cmd_action action;
-	// First char in NAME is command key and when fourth char
+	int next;
+	// First char in NAME is command key and when second char
 	// is '+' then ACTION is used as index to CMD array.
 	const char *name;
 };
 
 static const struct cmd tree[] = {
-[0] =	{ CMD_A_QUIT,           "q: quit" },
+[ROOT]=	{ CMD_A_QUIT,           "q: quit" },
 	{ CMD_A_HELP,           "h: help" },
-	{ 20,                   "p: +page" },
-	{ 60,                   "t: +tabs" },
-	{ 80,                   "!: +cmd" },
+	{ PAGE,                 "p+ page" },
+	{ TAB,                  "t+ tabs" },
+	{ SH,                   "!+ shell" },
 	{ CMD_A_REPEAT,         ".: cmd-repeat-last" },
 	{ CMD_A_CANCEL,         ",: cmd-cancel" },
 	{0},
-[20] =	{ CMD_A_PAGE_GET,       "p: page-reload" },
+[PAGE]=	{ CMD_A_PAGE_GET,       "p: page-reload" },
 	{ CMD_A_PAGE_RAW,       "b: page-show-raw-response" },
-	{ 40,                   "h: +page-history" },
-	{ 0,                    ",: +cmd-cancel" },
+	{ HIST,                 "h+ page-history" },
+	{ ROOT,                 ",+ cmd-cancel" },
 	{0},
-[40] =	{ CMD_A_HIS_LIST,       "h: history-list" },
+[HIST]=	{ CMD_A_HIS_LIST,       "h: history-list" },
 	{ CMD_A_HIS_PREV,       "p: history-goto-prev" },
 	{ CMD_A_HIS_NEXT,       "n: history-goto-next" },
-	{ 10,                   ",: +cmd-cancel" },
+	{ PAGE,                 ",+ cmd-cancel" },
 	{0},
-[60] =	{ CMD_A_TAB_GOTO,       "t[tab_index]: tab-goto-list" },
+[TAB]=	{ CMD_A_TAB_GOTO,       "t[tab_index]: tab-goto-list" },
 	{ CMD_A_TAB_OPEN,       "o[uri/link]: tab-open" },
 	{ CMD_A_TAB_ADD,        "a: tab-add" },
 	{ CMD_A_TAB_PREV,       "p: tab-goto-prev" },
 	{ CMD_A_TAB_NEXT,       "n: tab-goto-next" },
 	{ CMD_A_TAB_CLOSE,      "c: tab-close" },
-	{ 0,                    ",: +cmd-cancel" },
+	{ ROOT,                 ",+ cmd-cancel" },
 	{0},
-[80] =	{ CMD_A_CMD_RAW,        "!<cmd>: cmd-on-raw-response" },
-	{ CMD_A_CMD_FMT,        "f<cmd>: cmd-on-fmt-response" },
+[SH]=	{ CMD_A_SH_RAW,         "!<cmd>: shell-cmd-on-raw-response" },
+	{ CMD_A_SH_FMT,         "f<cmd>: shell-cmd-on-fmt-response" },
+	{ ROOT,                 ",+ cmd-cancel" },
 	{0},
 };
 
@@ -75,13 +84,13 @@ cmd_action(char buf[BUFSIZ], char **arg)
 			if (!tree[c].name) {
 				return 0;
 			}
-			if (tree[c].name[3] == '+') {
-				c = tree[c].action;
+			if (tree[c].name[1] == '+') {
+				c = tree[c].next;
 				continue;
 			}
 			*arg = buf + b + 1;
 			while (**arg && **arg <= ' ') (*arg)++;
-			return tree[c].action;   // Found action
+			return tree[c].next;    // Found action
 		}
 		for (i = c; tree[i].name; i++) {
 			printf("\t%s\n", tree[i].name);

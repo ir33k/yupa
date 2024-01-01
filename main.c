@@ -435,9 +435,9 @@ link_get(int index)
 	return uri;
 }
 
-// Use pager to print content of FILENAME.
+// Execue CMD shell command with FILENAME.
 static void
-oncmd(char *cmd, char *filename)
+onsh(char *cmd, char *filename)
 {
 	char buf[BSIZ];
 	sprintf(buf, "%s %s", cmd, filename);
@@ -461,11 +461,11 @@ onprompt(char buf[BSIZ])
 	case CMD_A_HELP:
 		printf(s_help);
 		break;
-	case CMD_A_CMD_RAW:
-		oncmd(arg, s_tab->fn[FN_RAW]);
+	case CMD_A_SH_RAW:
+		onsh(arg, s_tab->fn[FN_RAW]);
 		break;
-	case CMD_A_CMD_FMT:
-		oncmd(arg, s_tab->fn[FN_FMT]);
+	case CMD_A_SH_FMT:
+		onsh(arg, s_tab->fn[FN_FMT]);
 		break;
 	case CMD_A_REPEAT:
 		if (last[0]) {
