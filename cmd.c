@@ -1,10 +1,11 @@
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 #include "cmd.h"
 #include "uri.h"
-#include "logerr.h"
 
 const struct cmd cmd_tree[] = {
+	// First char in NAME is command key and when fourth char
+	// is '+' then ACTION is used as index to CMD array.
 [0] =	{ CMD_A_QUIT,           "q: quit" },
 	{ CMD_A_HELP,           "h: help" },
 	{ 20,                   "p: +page" },
@@ -83,5 +84,5 @@ cmd_action(const struct cmd *cmd, char buf[BUFSIZ], char **arg)
 		printf("cmd> %.*s", (int)b, buf);
 		fgets(buf+b, BUFSIZ-b, stdin);
 	}
-	ERR("Unreachable");
+	assert(0 && "unreachable");
 }

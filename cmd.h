@@ -28,8 +28,6 @@ enum cmd_action {               // Possible action to input in cmd prompt
 
 struct cmd {
 	enum cmd_action action;
-	// First char in NAME is command key and when fourth char is
-	// '+' then ACTION is used as index to CMD array.
 	const char *name;
 };
 
