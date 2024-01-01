@@ -440,82 +440,94 @@ action(char *buf)
 
 //
 static void
+onprompt(char buf[BSIZ])
+{
+	static char last[BSIZ] = {0};
+	char *uri;
+	switch (action(buf)) {
+	case A_QUIT:
+		onquit();
+		break;
+	case A_HELP:
+		onhelp();
+		break;
+	case A_REPEAT:
+		if (last[0]) {
+			strcpy(buf, last);
+			onprompt(buf);
+		}
+		return;         // Avoid defining A_REPEAT as last cmd
+	case A_URI:
+		if (onuri(buf)) {
+			history_add(buf);
+		}
+		break;
+	case A_LINK:
+		uri = link_get(atoi(buf));
+		if (onuri(uri)) {
+			history_add(uri);
+		}
+		break;
+	case A_PAGE_GET:
+		onuri(history_get(0));
+		break;
+	case A_PAGE_BODY:
+		show(s_tab->fn[FN_BODY]);
+		break;
+	case A_TAB_ADD:
+		tab_add();
+		break;
+	case A_TAB_PREV:
+		tab_prev();
+		break;
+	case A_TAB_NEXT:
+		tab_next();
+		break;
+	case A_TAB_DUP:
+		uri = history_get(0);
+		tab_add();
+		if (onuri(uri)) {
+			history_add(uri);
+		}
+		break;
+	case A_TAB_CLOSE:
+		if (!s_tab->prev && !s_tab->next) {
+			printf("Can't close last tab\n");
+			break;
+		}
+		tab_close();
+		break;
+	case A_HIS_LIST:
+		WARN("Not implemented");
+		break;
+	case A_HIS_PREV:
+		onuri(history_get(-1));
+		break;
+	case A_HIS_NEXT:
+		onuri(history_get(+1));
+		break;
+	case A_CANCEL:
+	case A_NUL:
+		break;
+	default:
+		ERR("Unreachable");
+		break;
+	}
+	strcpy(last, buf);
+}
+
+//
+static void
 run(void)
 {
-	char buf[BSIZ], *uri;
-
+	char buf[BSIZ];
 	while (1) { // Prompt
 		printf("yupa(%d/%d)> ", s_tabi, s_tabc);
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			continue;
 		}
 		buf[strlen(buf)-1] = 0;
-		switch (action(buf)) {
-		case A_QUIT:
-			onquit();
-			break;
-		case A_HELP:
-			onhelp();
-			break;
-		case A_REPEAT:
-			WARN("Not implemented");
-			break;
-		case A_URI:
-			if (onuri(buf)) {
-				history_add(buf);
-			}
-			break;
-		case A_LINK:
-			uri = link_get(atoi(buf));
-			if (onuri(uri)) {
-				history_add(uri);
-			}
-			break;
-		case A_PAGE_GET:
-			onuri(history_get(0));
-			break;
-		case A_PAGE_BODY:
-			show(s_tab->fn[FN_BODY]);
-			break;
-		case A_TAB_ADD:
-			tab_add();
-			break;
-		case A_TAB_PREV:
-			tab_prev();
-			break;
-		case A_TAB_NEXT:
-			tab_next();
-			break;
-		case A_TAB_DUP:
-			uri = history_get(0);
-			tab_add();
-			if (onuri(uri)) {
-				history_add(uri);
-			}
-			break;
-		case A_TAB_CLOSE:
-			if (!s_tab->prev && !s_tab->next) {
-				printf("Can't close last tab\n");
-				break;
-			}
-			tab_close();
-			break;
-		case A_HIS_LIST:
-			WARN("Not implemented");
-			break;
-		case A_HIS_PREV:
-			onuri(history_get(-1));
-			break;
-		case A_HIS_NEXT:
-			onuri(history_get(+1));
-			break;
-		case A_CANCEL:
-		case A_NUL:
-			break;
-		default:
-			ERR("Unreachable");
-			break;
-		}
+		onprompt(buf);
 	}
 }
 
