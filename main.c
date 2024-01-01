@@ -27,8 +27,8 @@ _Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
 #include "gph.c"
 
 enum filename {                 // File names used by tab
-	FN_BODY = 0,            // Response body
-	FN_FMT,                 // Formatted BODY content
+	FN_RAW = 0,             // Raw response body
+	FN_FMT,                 // Formatted RAW content
 	_FN_SIZ                 // For array size
 };
 
@@ -154,8 +154,8 @@ tab_add(void)
 		ERR("malloc:");
 	}
 	memset(tab, 0, sizeof(*tab));
-	tmpf("yupa.body", tab->fn[FN_BODY]);
-	tmpf("yupa.fmt",  tab->fn[FN_FMT]);
+	tmpf("yupa.raw", tab->fn[FN_RAW]);
+	tmpf("yupa.fmt", tab->fn[FN_FMT]);
 	tab->prev = s_tab;
 	if (s_tab) {
 		tab->next = s_tab->next;
@@ -208,7 +208,7 @@ static void
 tab_close(void)
 {
 	struct tab *tab = s_tab;
-	if (unlink(tab->fn[FN_BODY]) == -1) {
+	if (unlink(tab->fn[FN_RAW]) == -1) {
 		WARN("unlink:");
 	}
 	if (unlink(tab->fn[FN_FMT]) == -1) {
@@ -317,7 +317,7 @@ onuri(char *uri)
 {
 	int sfd, protocol, port;
 	char buf[BSIZ], *host, *path, item = GPH_ITEM_GPH;
-	FILE *body, *fmt;
+	FILE *raw, *fmt;
 	ssize_t ssiz;
 	LOG("%s", uri);
 	if (!uri || !uri[0]) {
@@ -346,11 +346,11 @@ onuri(char *uri)
 		printf("Invalid URI %s\n", uri);
 		return 0;
 	}
-	if (!(body = fopen(s_tab->fn[FN_BODY], "w+"))) {
-		ERR("fopen %s %s:", uri, s_tab->fn[FN_BODY]);
+	if (!(raw = fopen(s_tab->fn[FN_RAW], "w+"))) {
+		ERR("fopen %s %s:", uri, s_tab->fn[FN_RAW]);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
-		if (fwrite(buf, 1, ssiz, body) != (size_t)ssiz) {
+		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
 			ERR("fwrite %s:", uri);
 		}
 	}
@@ -363,7 +363,7 @@ onuri(char *uri)
 	s_tab->protocol = protocol;
 	switch (item) {
 	case GPH_ITEM_TXT:
-		s_tab->show = FN_BODY;
+		s_tab->show = FN_RAW;
 		break;
 	case GPH_ITEM_GPH:
 		s_tab->show = FN_FMT;
@@ -377,8 +377,8 @@ onuri(char *uri)
 		// TODO(irek): Flow of closing this file is ugly.
 		// This probably could be refactored with some good
 		// old goto.
-		if (fclose(body) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->fn[FN_BODY]);
+		if (fclose(raw) == EOF) {
+			ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
 		}
 		printf("Not a Gopher submenu and not a text file\n");
 		return 0;
@@ -387,13 +387,13 @@ onuri(char *uri)
 		if (!(fmt = fopen(s_tab->fn[FN_FMT], "w"))) {
 			ERR("fopen %s %s:", uri, s_tab->fn[FN_FMT]);
 		}
-		gph_format(body, fmt);
+		gph_format(raw, fmt);
 		if (fclose(fmt) == EOF) {
 			ERR("fclose %s %s:", uri, s_tab->fn[FN_FMT]);
 		}
 	}
-	if (fclose(body) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab->fn[FN_BODY]);
+	if (fclose(raw) == EOF) {
+		ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
 	}
 	show(s_tab->fn[s_tab->show]);
 	return 1;
@@ -404,18 +404,18 @@ static char *
 link_get(int index)
 {
 	char *uri = 0;
-	FILE *body;
+	FILE *raw;
 	assert(index > 0);
 	if (s_tab->protocol != URI_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
-	if (!(body = fopen(s_tab->fn[FN_BODY], "r"))) {
-		ERR("fopen %s:", s_tab->fn[FN_BODY]);
+	if (!(raw = fopen(s_tab->fn[FN_RAW], "r"))) {
+		ERR("fopen %s:", s_tab->fn[FN_RAW]);
 	}
 	switch (s_tab->protocol) {
 	case URI_GOPHER:
-		uri = gph_uri(body, index);
+		uri = gph_uri(raw, index);
 		break;
 	case URI_GEMINI:
 	case URI_FILE:
@@ -429,10 +429,19 @@ link_get(int index)
 		WARN("Unsupported protocol %d %s", s_tab->protocol,
 		     uri_protocol_str(s_tab->protocol));
 	}
-	if (fclose(body) == EOF) {
-		ERR("fclose %s:", s_tab->fn[FN_BODY]);
+	if (fclose(raw) == EOF) {
+		ERR("fclose %s:", s_tab->fn[FN_RAW]);
 	}
 	return uri;
+}
+
+// Use pager to print content of FILENAME.
+static void
+oncmd(char *cmd, char *filename)
+{
+	char buf[BSIZ];
+	sprintf(buf, "%s %s", cmd, filename);
+	system(buf);
 }
 
 //
@@ -451,6 +460,12 @@ onprompt(char buf[BSIZ])
 		break;
 	case CMD_A_HELP:
 		printf(s_help);
+		break;
+	case CMD_A_CMD_RAW:
+		oncmd(arg, s_tab->fn[FN_RAW]);
+		break;
+	case CMD_A_CMD_FMT:
+		oncmd(arg, s_tab->fn[FN_FMT]);
 		break;
 	case CMD_A_REPEAT:
 		if (last[0]) {
@@ -472,8 +487,8 @@ onprompt(char buf[BSIZ])
 	case CMD_A_PAGE_GET:
 		onuri(history_get(0));
 		break;
-	case CMD_A_PAGE_BODY:
-		show(s_tab->fn[FN_BODY]);
+	case CMD_A_PAGE_RAW:
+		show(s_tab->fn[FN_RAW]);
 		break;
 	case CMD_A_TAB_GOTO:
 		if ((i = atoi(arg))) {

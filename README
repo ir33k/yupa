@@ -2,10 +2,10 @@ Yupa
 
 What I would like to have before calling this a v1.0?
 
+x Executing shell commands.
 - Gopher support for search item.
 - Gopher support for error item.
 - Gopher are there any other special items?
 - Gemini basic support.
 - Restoring previous brosing session.
-- Executing shell commands.
 - Downloading raw and formatted response.

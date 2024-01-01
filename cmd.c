@@ -15,11 +15,12 @@ static const struct cmd tree[] = {
 	{ CMD_A_HELP,           "h: help" },
 	{ 20,                   "p: +page" },
 	{ 60,                   "t: +tabs" },
+	{ 80,                   "!: +cmd" },
 	{ CMD_A_REPEAT,         ".: cmd-repeat-last" },
 	{ CMD_A_CANCEL,         ",: cmd-cancel" },
 	{0},
 [20] =	{ CMD_A_PAGE_GET,       "p: page-reload" },
-	{ CMD_A_PAGE_BODY,      "b: page-show-res-body" },
+	{ CMD_A_PAGE_RAW,       "b: page-show-raw-response" },
 	{ 40,                   "h: +page-history" },
 	{ 0,                    ",: +cmd-cancel" },
 	{0},
@@ -35,6 +36,9 @@ static const struct cmd tree[] = {
 	{ CMD_A_TAB_NEXT,       "n: tab-goto-next" },
 	{ CMD_A_TAB_CLOSE,      "c: tab-close" },
 	{ 0,                    ",: +cmd-cancel" },
+	{0},
+[80] =	{ CMD_A_CMD_RAW,        "!<cmd>: cmd-on-raw-response" },
+	{ CMD_A_CMD_FMT,        "f<cmd>: cmd-on-fmt-response" },
 	{0},
 };
 

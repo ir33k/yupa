@@ -11,10 +11,12 @@ enum cmd_action {               // Possible action to input in cmd prompt
 	CMD_A_LINK,             // Index to link on current page
 	CMD_A_QUIT,             // Exit program
 	CMD_A_HELP,             // Print program help
+	CMD_A_CMD_RAW,          // Run cmd command on raw response body
+	CMD_A_CMD_FMT,          // Run cmd command on formatted response
 	CMD_A_REPEAT,           // Repeat last command
 	CMD_A_CANCEL,           // Cancel insertion of current command
 	CMD_A_PAGE_GET,         // Get (reload) current page
-	CMD_A_PAGE_BODY,        // Show response body
+	CMD_A_PAGE_RAW,         // Show raw response body
 	CMD_A_HIS_LIST,         // Print history list of current page
 	CMD_A_HIS_PREV,         // Goto previous browsing history page
 	CMD_A_HIS_NEXT,         // Goto next browsing history page
