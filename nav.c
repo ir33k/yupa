@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "nav.h"
 #include "uri.h"
 
@@ -15,7 +16,7 @@ enum {                          // Indexes to navigation groups
 struct nav {
 	int next;
 	// First char in NAME is command key and when second char
-	// is '+' then ACTION is used as index to NAV array.
+	// is '+' then ACTION is used as index to submenu in array.
 	const char *name;
 };
 
@@ -57,32 +58,17 @@ static const struct nav tree[] = {
 	{0},
 };
 
-// Return non 0 value when STR contains only digits.
-static int
-isnum(char *str)
-{
-	if (*str == 0) {
-		return 0;
-	}
-	for (; *str; str++) {
-		if (*str < '0' || *str > '9') {
-			return 0;
-		}
-	}
-	return 1;
-}
-
 enum nav_action
 nav_action(char buf[BUFSIZ], char **arg)
 {
 	size_t i, c=0, b=0;
 	assert(buf);
 	*arg = 0;
+	if (atoi(buf)) {
+		return NAV_A_LINK;
+	}
 	if (uri_protocol(buf)) {
 		return NAV_A_URI;
-	}
-	if (isnum(buf)) {
-		return NAV_A_LINK;
 	}
 	while (1) {
 		for (; buf[b] > ' '; b++) {

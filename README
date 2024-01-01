@@ -15,4 +15,5 @@ x Downloading raw and formatted response.
 For v2.0 I want to have Gemini support.
 
 - Gemini basic support (essentially what I have in gmi100).
+- History list.
 - Restoring previous brosing session.

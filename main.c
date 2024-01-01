@@ -593,7 +593,7 @@ onprompt(char buf[BSIZ])
 		tab_close();
 		break;
 	case NAV_A_HIS_LIST:
-		WARN("Not implemented");
+		WARN("TODO");
 		break;
 	case NAV_A_HIS_PREV:
 		onuri(history_get(-1));
