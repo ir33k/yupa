@@ -3,13 +3,13 @@
 #include "nav.h"
 #include "uri.h"
 
-enum {                          // Indexes of first item in nav group
-	ROOT =  0,
-	PAGE = 10,
-	HIST = 20,
-	GET  = 30,
-	TAB  = 40,
-	SH   = 50,
+enum {                          // Indexes to navigation groups
+	ROOT =  0,              // Root nav menu
+	PAGE = 10,              // Pages stuff
+	HIST = 20,              // Page history submenu
+	GET  = 30,              // Page download submenu
+	TAB  = 40,              // Tabs manipulation
+	SH   = 50,              // Shell commands execution
 };
 
 struct nav {
