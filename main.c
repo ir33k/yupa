@@ -1,4 +1,6 @@
-// Yupa v0.6 by irek@gabr.pl
+#define NAME    "Yupa"
+#define AUTHOR  "irek@gabr.pl"
+#define VERSION "v0.8"
 
 #include <assert.h>
 #include <fcntl.h>
@@ -49,13 +51,26 @@ char *argv0;                    // First program arg, for arg.h
 static void
 usage(void)
 {
-	fprintf(stdout,
-		"usage: %s [-h] [uri..]\n"
-		"\n"
-		"	-h	Print this help message.\n"
-		"	[uri..]	List of URIs to open on startup.\n"
-		"env	PAGER	Pager cmd (less -XI).\n"
-		, argv0);
+	printf("usage: %s [-v] [-h] [uri..]\n"
+	       "\n"
+	       "	-v	Print version.\n"
+	       "	-h	Print this help message.\n"
+	       "	[uri..]	List of URIs to open on startup.\n"
+	       "env	PAGER	Pager cmd (less -XI).\n"
+	       , argv0);
+}
+
+static void
+onhelp(void)
+{
+	printf(NAME " " VERSION " by " AUTHOR "\n"
+	       "\n"
+	       "Gopher protocol CLI browser with tabs and browsing history.\n"
+	       "Browse by inserting absolute URI or link index from current page.\n"
+	       "Press RETURN to open commands menu or insert command upfront.\n"
+	       "Prompt indicate (current_tab_number/number_of_all_tabs).\n"
+	       "Run program with -h flag to read about arguments and env vars.\n"
+	       "\n");
 }
 
 // Return pointer to static string with random alphanumeric characters
@@ -440,7 +455,7 @@ run(void)
 			onquit();
 			break;
 		case A_HELP:
-			WARN("Not implemented");
+			onhelp();
 			break;
 		case A_REPEAT:
 			WARN("Not implemented");
@@ -511,6 +526,9 @@ main(int argc, char *argv[])
 	int i;
 	s_pager = (env = getenv("PAGER")) ? env : "less -XI";
 	ARGBEGIN {
+	case 'v':
+		printf(VERSION "\n");
+		return 0;
 	case 'h':
 		usage();
 		return 0;
