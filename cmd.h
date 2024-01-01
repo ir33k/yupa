@@ -1,5 +1,7 @@
 // Prompt commands.
 
+#define CMD_DEFAULT A_URI       // Default cmd action when nothing matched
+
 enum action {                   // Possible action to input in cmd prompt
 	A_NUL = 0,              // Empty action
 	A_URI,                  // Absolute URI string (default action)
@@ -55,6 +57,21 @@ static struct cmd cmd_tree[] = {
 	{0},
 };
 
+// Return non 0 value when STR contains only digits.
+static int
+isnum(char *str)
+{
+	if (*str == 0) {
+		return 0;
+	}
+	for (; *str; str++) {
+		if (*str < '0' || *str > '9') {
+			return 0;
+		}
+	}
+	return 1;
+}
+
 //
 static enum action
 cmd_action(struct cmd *cmd, char buf[BSIZ])
@@ -62,18 +79,21 @@ cmd_action(struct cmd *cmd, char buf[BSIZ])
 	size_t i, c=0, b=0;
 	assert(cmd);
 	assert(buf);
+	if (isnum(buf)) {
+		return A_LINK;
+	}
 	while (1) {
 		for (; buf[b] >= ' '; b++) {
 			while (cmd[c].name && cmd[c].name[0] != buf[b]) c++;
 			if (!cmd[c].name) {
-				return A_URI;
+				return CMD_DEFAULT;
 			}
 			if (cmd[c].name[3] == '+') {
 				c = cmd[c].action;
 				continue;
 			}
 			if (buf[b+1] >= ' ') {
-				return A_URI;
+				return CMD_DEFAULT;
 			}
 			return cmd[c].action;   // Found action
 		}
@@ -81,7 +101,7 @@ cmd_action(struct cmd *cmd, char buf[BSIZ])
 			printf("\t%s\n", cmd[i].name);
 		}
 		if (BSIZ - b <= 0) {
-			return A_URI;
+			return CMD_DEFAULT;
 		}
 		printf("cmd> %.*s", (int)b, buf);
 		fgets(buf+b, BSIZ-b, stdin);

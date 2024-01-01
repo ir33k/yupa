@@ -45,6 +45,16 @@ static int         s_tabc = 1;          // Tabs count
 static int         s_tabi = 1;          // 1 based index of current tab
 static char       *s_pager;             // Pager default command
 
+static const char *s_help =
+	NAME " " VERSION " by " AUTHOR "\n"
+	"\n"
+	"Gopher protocol CLI browser with tabs and browsing history.\n"
+	"Browse by inserting absolute URI or link index from current page.\n"
+	"Press RETURN to open commands menu or insert command upfront.\n"
+	"Prompt indicate (current_tab_number/number_of_all_tabs).\n"
+	"Run program with -h flag to read about arguments and env vars.\n"
+	"\n";
+
 char *argv0;                    // First program arg, for arg.h
 
 // Print usage help message.
@@ -58,19 +68,6 @@ usage(void)
 	       "	[uri..]	List of URIs to open on startup.\n"
 	       "env	PAGER	Pager cmd (less -XI).\n"
 	       , argv0);
-}
-
-static void
-onhelp(void)
-{
-	printf(NAME " " VERSION " by " AUTHOR "\n"
-	       "\n"
-	       "Gopher protocol CLI browser with tabs and browsing history.\n"
-	       "Browse by inserting absolute URI or link index from current page.\n"
-	       "Press RETURN to open commands menu or insert command upfront.\n"
-	       "Prompt indicate (current_tab_number/number_of_all_tabs).\n"
-	       "Run program with -h flag to read about arguments and env vars.\n"
-	       "\n");
 }
 
 // Return pointer to static string with random alphanumeric characters
@@ -404,59 +401,28 @@ link_get(int index)
 	return uri;
 }
 
-static void
-onquit(void)
-{
-	while (s_tab) {
-		tab_close();
-	}
-	exit(0);
-}
-
-// Return non 0 value when STR contains only digits.
-static int
-isnum(char *str)
-{
-	if (*str == 0) {
-		return 0;
-	}
-	for (; *str; str++) {
-		if (*str < '0' || *str > '9') {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-//
-static enum action
-action(char *buf)
-{
-	if (isnum(buf)) {
-		return A_LINK;
-	}
-	return cmd_action(cmd_tree, buf);
-}
-
 //
 static void
 onprompt(char buf[BSIZ])
 {
 	static char last[BSIZ] = {0};
 	char *uri;
-	switch (action(buf)) {
+	switch (cmd_action(cmd_tree, buf)) {
 	case A_QUIT:
-		onquit();
+		while (s_tab) {
+			tab_close();
+		}
+		exit(0);
 		break;
 	case A_HELP:
-		onhelp();
+		printf(s_help);
 		break;
 	case A_REPEAT:
 		if (last[0]) {
 			strcpy(buf, last);
 			onprompt(buf);
 		}
-		return;         // Avoid defining A_REPEAT as last cmd
+		return; // Return to avoid defining A_REPEAT as last cmd
 	case A_URI:
 		if (onuri(buf)) {
 			history_add(buf);
@@ -516,27 +482,11 @@ onprompt(char buf[BSIZ])
 	strcpy(last, buf);
 }
 
-//
-static void
-run(void)
-{
-	char buf[BSIZ];
-	while (1) { // Prompt
-		printf("yupa(%d/%d)> ", s_tabi, s_tabc);
-		if (!fgets(buf, sizeof(buf), stdin)) {
-			continue;
-		}
-		buf[strlen(buf)-1] = 0;
-		onprompt(buf);
-	}
-}
-
 int
 main(int argc, char *argv[])
 {
-	char *env;
+	char *env, buf[BSIZ];
 	int i;
-	s_pager = (env = getenv("PAGER")) ? env : "less -XI";
 	ARGBEGIN {
 	case 'v':
 		printf(VERSION "\n");
@@ -548,6 +498,7 @@ main(int argc, char *argv[])
 		usage();
 		return 1;
 	} ARGEND
+	s_pager = (env = getenv("PAGER")) ? env : "less -XI";
 	for (i = 0; i < argc; i++) {
 		tab_add();
 		if (onuri(argv[i])) {
@@ -557,6 +508,13 @@ main(int argc, char *argv[])
 	if (!s_tab) {
 		tab_add();
 	}
-	run();
+	while (1) {
+		printf("yupa(%d/%d)> ", s_tabi, s_tabc);
+		if (!fgets(buf, sizeof(buf), stdin)) {
+			continue;
+		}
+		buf[strlen(buf)-1] = 0;
+		onprompt(buf);
+	}
 	return 0;
 }
