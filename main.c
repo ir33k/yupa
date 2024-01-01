@@ -433,7 +433,7 @@ run(void)
 				history_add(uri);
 			}
 			break;
-		case A_PAGE_RELOAD:
+		case A_PAGE_GET:
 			onuri(history_get(0));
 			break;
 		case A_PAGE_BODY:
