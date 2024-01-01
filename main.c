@@ -475,7 +475,7 @@ onprompt(char buf[BSIZ])
 	case CMD_A_PAGE_BODY:
 		show(s_tab->fn[FN_BODY]);
 		break;
-	case CMD_A_TAB_LIST:
+	case CMD_A_TAB_GOTO:
 		if ((i = atoi(arg))) {
 			tab_goto(i);
 		} else {

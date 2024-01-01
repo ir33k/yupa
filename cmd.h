@@ -18,7 +18,7 @@ enum cmd_action {               // Possible action to input in cmd prompt
 	CMD_A_HIS_LIST,         // Print history list of current page
 	CMD_A_HIS_PREV,         // Goto previous browsing history page
 	CMD_A_HIS_NEXT,         // Goto next browsing history page
-	CMD_A_TAB_LIST,         // Print list of tabs
+	CMD_A_TAB_GOTO,         // Goto taby by index / list tabs indexes
 	CMD_A_TAB_ADD,          // Add new tab
 	CMD_A_TAB_PREV,         // Switch to previous tab
 	CMD_A_TAB_NEXT,         // Switch to next tab
