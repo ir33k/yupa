@@ -10,10 +10,12 @@
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
-#define LOGERR_IMPLEMENTATION
-#include "logerr.h"
 #include "arg.h"
 #include "uri.h"
+#include "cmd.h"
+
+#define LOGERR_IMPLEMENTATION
+#include "logerr.h"
 
 #define BSIZ    BUFSIZ          // Size of generic buffer
 #define HSIZ    64              // Size of tab browsing history
@@ -22,7 +24,6 @@
 _Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
 _Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
 
-#include "cmd.c"
 #include "gph.c"
 
 enum filename {                 // File names used by tab

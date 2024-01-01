@@ -43,8 +43,8 @@
 // NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-#ifndef LOGERR_H
-#define LOGERR_H
+#ifndef _LOGERR_H
+#define _LOGERR_H
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -59,7 +59,7 @@
 
 void _leh_log(const char *fmt, ...);
 
-#endif // LOGERR_H
+#endif // _LOGERR_H
 #ifdef LOGERR_IMPLEMENTATION
 
 void
