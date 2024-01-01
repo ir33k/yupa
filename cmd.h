@@ -22,35 +22,36 @@ enum action {                   // Possible action to input in cmd prompt
 };
 
 struct cmd {
-	int next;
 	enum action action;
-	const char c, *name;
+	// First char in NAME is command key and when fourth char is
+	// '+' then ACTION is used as index to CMD array.
+	const char *name;
 };
 
 static struct cmd cmd_tree[] = {
-[0] =	{ 0, A_QUIT,      'q', "quit" },
-	{ 0, A_HELP,      'h', "help" },
-	{ 1, 10,          'p', "page" },
-	{ 1, 30,          't', "tabs" },
-	{ 0, A_REPEAT,    '.', "cmd-repeat-last" },
-	{ 0, A_CANCEL,    '-', "cmd-cancel" },
+[0] =	{ A_QUIT,      "q: quit" },
+	{ A_HELP,      "h: help" },
+	{ 10,          "p: +page" },
+	{ 30,          "t: +tabs" },
+	{ A_REPEAT,    ".: cmd-repeat-last" },
+	{ A_CANCEL,    "-: cmd-cancel" },
 	{0},
-[10] =	{ 0, A_PAGE_GET,  'p', "page-reload" },
-	{ 0, A_PAGE_BODY, 'b', "page-show-res-body" },
-	{ 1, 20,          'h', "page-history" },
-	{ 1, 0,           '-', "cmd-cancel" },
+[10] =	{ A_PAGE_GET,  "p: page-reload" },
+	{ A_PAGE_BODY, "b: page-show-res-body" },
+	{ 20,          "h: +page-history" },
+	{ 0,           "-: +cmd-cancel" },
 	{0},
-[20] =	{ 0, A_HIS_LIST,  'h', "history-list" },
-	{ 0, A_HIS_PREV,  'b', "history-goto-prev" },
-	{ 0, A_HIS_NEXT,  'f', "history-goto-next" },
-	{ 1, 10,          '-', "cmd-cancel" },
+[20] =	{ A_HIS_LIST,  "h: history-list" },
+	{ A_HIS_PREV,  "b: history-goto-prev" },
+	{ A_HIS_NEXT,  "f: history-goto-next" },
+	{ 10,          "-: +cmd-cancel" },
 	{0},
-[30] =	{ 0, A_TAB_ADD,   't', "tab-add" },
-	{ 0, A_TAB_PREV,  'p', "tab-goto-prev" },
-	{ 0, A_TAB_NEXT,  'n', "tab-goto-next" },
-	{ 0, A_TAB_DUP,   'd', "tab-duplicat" },
-	{ 0, A_TAB_CLOSE, 'c', "tab-close" },
-	{ 1, 0,           '-', "cmd-cancel" },
+[30] =	{ A_TAB_ADD,   "t: tab-add" },
+	{ A_TAB_PREV,  "p: tab-goto-prev" },
+	{ A_TAB_NEXT,  "n: tab-goto-next" },
+	{ A_TAB_DUP,   "d: tab-duplicat" },
+	{ A_TAB_CLOSE, "c: tab-close" },
+	{ 0,           "-: +cmd-cancel" },
 	{0},
 };
 
@@ -63,11 +64,11 @@ cmd_action(struct cmd *cmd, char buf[BSIZ])
 	assert(buf);
 	while (1) {
 		for (; buf[b] >= ' '; b++) {
-			while (cmd[c].c != buf[b]) c++;
-			if (!cmd[c].c) {
+			while (cmd[c].name && cmd[c].name[0] != buf[b]) c++;
+			if (!cmd[c].name) {
 				return A_URI;
 			}
-			if (cmd[c].next) {
+			if (cmd[c].name[3] == '+') {
 				c = cmd[c].action;
 				continue;
 			}
@@ -77,10 +78,7 @@ cmd_action(struct cmd *cmd, char buf[BSIZ])
 			return cmd[c].action;
 		}
 		for (i = c; cmd[i].name; i++) {
-			printf("\t%c: %s%s\n",
-			       cmd[i].c,
-			       cmd[i].next ? "+" : "",
-			       cmd[i].name);
+			printf("\t%s\n", cmd[i].name);
 		}
 		if (BSIZ - b <= 0) {
 			return A_URI;
