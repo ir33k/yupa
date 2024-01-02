@@ -2,7 +2,7 @@
 set -ex # Stop on first error and log all commands
 
 CC="cc"
-CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99"
+CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99"
 
 # Build libs
 $CC $CFLAGS -c uri.c
