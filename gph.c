@@ -1,130 +1,99 @@
-/* Gopher protocol. */
+// Gopher protocol.
 
-#include <errno.h>
-
-enum gph_item {
-	/* Canonical types */
-	GPH_ITEM_TXT    = '0',  /* Text file */
-	GPH_ITEM_GPH    = '1',  /* Gopher submenu */
-	GPH_ITEM_CCSO   = '2',  /* CCSO Nameserver */
-	GPH_ITEM_ERR    = '3',  /* Error code returned by server */
-	GPH_ITEM_BIN16  = '4',  /* BinHex-encoded file (for Macintosh) */
-	GPH_ITEM_DOS    = '5',  /* DOS file */
-	GPH_ITEM_UUEN   = '6',  /* uuencoded file */
-	GPH_ITEM_QUERY  = '7',  /* Gopher full-text search, query */
-	GPH_ITEM_TNET   = '8',  /* Telnet */
-	GPH_ITEM_BIN    = '9',  /* Binary file */
-	GPH_ITEM_MIRR   = '+',  /* Mirror or alternate server */
-	GPH_ITEM_GIF    = 'g',  /* GIF file */
-	GPH_ITEM_IMG    = 'I',  /* Image file */
-	GPH_ITEM_T3270  = 'T',  /* Telnet 3270 */
-	/* Gopher+ types */
-	GPH_ITEM_BMP    = ':',  /* Bitmap image */
-	GPH_ITEM_VIDEO  = ';',  /* Movie/video file */
-	GPH_ITEM_AUDIO  = '<',  /* Sound file */
-	/* Non-canonical types */
-	GPH_ITEM_DOC    = 'd',  /* Doc. Seen used alongside PDF's and .DOC's */
-	GPH_ITEM_HTML   = 'h',  /* HTML file */
-	GPH_ITEM_PNG    = 'p',  /* Image file "(especially the png format)" */
-	GPH_ITEM_RTF    = 'r',  /* Document rtf file ("rich text format") */
-	GPH_ITEM_WAV    = 's',  /* Sound file (especially the WAV format) */
-	GPH_ITEM_PDF    = 'P',  /* document pdf file */
-	GPH_ITEM_XML    = 'X',  /* document xml file */
-	GPH_ITEM_INFO   = 'i'   /* Informational message, widely used */
-};
-
-/**/
+// For ITEM type of Gopher submenu line return pointer to static
+// string with human readable label.  Return NULL for unknown type.
 static char *
-gph_label(enum gph_item item)
+gph_label(char item)
 {
 	switch(item) {
-	case GPH_ITEM_TXT:      return "TXT";
-	case GPH_ITEM_GPH:      return "GPH";
-	case GPH_ITEM_CCSO:     return "CCSO";
-	case GPH_ITEM_ERR:      return "ERR";
-	case GPH_ITEM_BIN16:    return "BIN16";
-	case GPH_ITEM_DOS:      return "DOS";
-	case GPH_ITEM_UUEN:     return "UUEN";
-	case GPH_ITEM_QUERY:    return "QUERY";
-	case GPH_ITEM_TNET:     return "TNET";
-	case GPH_ITEM_BIN:      return "BIN";
-	case GPH_ITEM_MIRR:     return "MIRR";
-	case GPH_ITEM_GIF:      return "GIF";
-	case GPH_ITEM_IMG:      return "IMG";
-	case GPH_ITEM_T3270:    return "T3270";
-	case GPH_ITEM_BMP:      return "BMP";
-	case GPH_ITEM_VIDEO:    return "VIDEO";
-	case GPH_ITEM_AUDIO:    return "AUDIO";
-	case GPH_ITEM_DOC:      return "DOC";
-	case GPH_ITEM_HTML:     return "HTML";
-	case GPH_ITEM_PNG:      return "PNG";
-	case GPH_ITEM_RTF:      return "RTF";
-	case GPH_ITEM_WAV:      return "WAV";
-	case GPH_ITEM_PDF:      return "PDF";
-	case GPH_ITEM_XML:      return "XML";
-	case GPH_ITEM_INFO:     return 0;
+	// Canonical types
+	case '0': return "TXT";         // Text file
+	case '1': return "GPH";         // Gopher submenu
+	case '2': return "CCSO";        // CCSO Nameserver
+	case '3': return "ERROR";       // Error code returned by server
+	case '4': return "BIN16";       // BinHex-encoded file (for Macintosh)
+	case '5': return "DOS";         // DOS file
+	case '6': return "UUEN";        // uuencoded file
+	case '7': return "QUERY";       // Gopher full-text search, query
+	case '8': return "TNET";        // Telnet
+	case '9': return "BIN";         // Binary file
+	case '+': return "MIRR";        // Mirror or alternate server
+	case 'g': return "GIF";         // GIF file
+	case 'I': return "IMG";         // Image file
+	case 'T': return "T3270";       // Telnet 3270
+	// Gopher+ types
+	case ':': return "BMP";         // Bitmap image
+	case ';': return "VIDEO";       // Movie/video file
+	case '<': return "AUDIO";       // Sound file
+	// Non-canonical types
+	case 'd': return "DOC";         // Doc. Seen used alongside PDF's and DOC's
+	case 'h': return "HTML";        // HTML file
+	case 'p': return "PNG";         // Image file "(especially the png format)"
+	case 'r': return "RTF";         // Document rtf file ("rich text format")
+	case 's': return "WAV";         // Sound file (especially the WAV format)
+	case 'P': return "PDF";         // document pdf file
+	case 'X': return "XML";         // document xml file
+	case 'i': return "";            // Informational message, widely used
 	}
-	/* I'm assuming that there are no more item types but you never
-	   know so here is a guard. */
-	assert(0 && "Unhandled item type"); /* Should never happen */
+	return 0;                       // Unknown type
 }
 
-/* Assuming that BODY is a file with Gopher submenu, write prettier
- * formatted version to FMT file. */
+// Assuming that BODY is an open file with Gopher submenu, write
+// prettier formatted version to open FMT file.
 static void
 gph_format(FILE *body, FILE *fmt)
 {
-	int n;                  /* Link item index */
-	char buf[BSIZ], *label;
+	static const int margin = 4;    // Left margin
+	int link = 1;                   // Link index
+	char buf[BSIZ], tmp[8], *label;
 	assert(body);
 	assert(fmt);
-	rewind(body);
-	n = 1;
-	errno = 0;
 	while (fgets(buf, sizeof(buf), body)) {
-		if (buf[0] == '.') {    /* Single dot means end of file */
+		if (*buf == '.') {              // Single dot means end of file
 			break;
 		}
-		buf[strcspn(buf, "\t")] = 0;    /* End string at first tab */
-		if ((label = gph_label(buf[0]))) {
-			fprintf(fmt, "(%d)\t<%s> ", n++, label);
+		buf[strcspn(buf, "\t")] = 0;    // End string at first tab
+		label = gph_label(buf[0]);
+		if (!label) {                   // Unknown label
+			fprintf(fmt, "%-*s<\?\?\?> %s\n", margin, "", buf);
+		} else if (*label) {            // Link with label
+			snprintf(tmp, sizeof(tmp), "%d: ", link++);
+			fprintf(fmt, "%-*s<%s> %s\n", margin, tmp, label, buf+1);
+		} else {                        // Empty label
+			fprintf(fmt, "%-*s%s\n", margin, "", buf+1);
 		}
-		fprintf(fmt, "%s\n", &buf[1]);
-	}
-	if (errno) {
-		WARN("fgets:");
 	}
 }
 
-/* Search in BODY file for the link under INDEX (1 == first link).
- * Return pointer to static string with normalized URI. */
+// Search in BODY open file for the link under INDEX (1 == first
+// link).  Return pointer to static string with normalized URI.
 static char *
 gph_uri(FILE *body, int index)
 {
-	static char uri[BSIZ];
-	char c, buf[BSIZ], path[BSIZ], host[BSIZ];
+	static char uri[URI_SIZ];
+	char c, buf[BSIZ], path[URI_SIZ], host[URI_SIZ], *label;
 	int port;
 	assert(body);
 	assert(index > 0);
-	while (fgets(buf, BSIZ, body)) {
+	while (fgets(buf, sizeof(buf), body)) {
 		if (buf[0] == '.') {
 			break;
 		}
-		if (buf[0] == GPH_ITEM_INFO) {
+		label = gph_label(buf[0]);
+		if (!label || !*label || --index) {
 			continue;
 		}
-		if (--index) {
-			continue;
-		}
-		/* Found */
+		// Found
 		sscanf(buf, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d",
 		       &c, path, host, &port);
-		if (c == GPH_ITEM_HTML) {
+		if (c == 'h') {
 			strcpy(uri, path);
 			return uri + 4;
 		}
-		sprintf(uri, "gopher://%.1024s:%d/%c%.1024s",
-			host, port, c, path);
+#pragma GCC diagnostic ignored "-Wformat-truncation="
+		snprintf(uri, sizeof(uri), "gopher://%s:%d/%c%s",
+			 host, port, c, path);
+#pragma GCC diagnostic pop
 		return uri;
 	}
 	return 0;

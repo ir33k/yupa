@@ -12,7 +12,7 @@
  * and port are essentially the same thing.  OFC you can have custom
  * port number but protocol for it will still be a number being the
  * default port number. */
-enum {
+enum protocol {
 	URI_NUL    = 0,         /* For empty or unknown protocol */
 	URI_FILE   = 1,         /* Reading files from local drive */
 	URI_ABOUT  = 2,         /* For browser generated pages */
@@ -26,7 +26,7 @@ enum {
 };
 
 /* For given PROTOCOL return protocol name as string. */
-char *uri_protocol_str(int protocol);
+char *uri_protocol_str(enum protocol protocol);
 
 /* Get protocol default port from URI string. */
 int uri_protocol(char *uri);

@@ -20,8 +20,10 @@ struct nav {
 	const char *name;
 };
 
+// TODO(irek): Make closer connection between command names and
+// functions in source code.
 static const struct nav tree[] = {
-[ROOT]=	{ NAV_A_QUIT,           "q: quit" },
+[ROOT]= { NAV_A_QUIT,           "q: quit" },
 	{ NAV_A_HELP,           "h: help" },
 	{ PAGE,                 "p+ page" },
 	{ TAB,                  "t+ tabs" },
@@ -29,22 +31,22 @@ static const struct nav tree[] = {
 	{ NAV_A_REPEAT,         ".: nav-repeat-last" },
 	{ NAV_A_CANCEL,         ",: nav-cancel" },
 	{0},
-[PAGE]=	{ NAV_A_PAGE_GET,       "p: page-reload" },
+[PAGE]= { NAV_A_PAGE_GET,       "p: page-reload" },
 	{ NAV_A_PAGE_RAW,       "b: page-show-raw-response" },
 	{ HIST,                 "h+ page-history" },
 	{ GET,                  "d+ page-download" },
 	{ ROOT,                 ",+ nav-cancel" },
 	{0},
-[HIST]=	{ NAV_A_HIS_LIST,       "h: history-list" },
-	{ NAV_A_HIS_PREV,       "p: history-goto-prev" },
-	{ NAV_A_HIS_NEXT,       "n: history-goto-next" },
+[HIST]= { NAV_A_HIS_LIST,       "h: page-history-list" },
+	{ NAV_A_HIS_PREV,       "p: page-history-goto-prev" },
+	{ NAV_A_HIS_NEXT,       "n: page-history-goto-next" },
 	{ PAGE,                 ",+ nav-cancel" },
 	{0},
-[GET]=	{ NAV_A_GET_RAW,        "d<path>: download-raw" },
-	{ NAV_A_GET_FMT,        "f<path>: download-fmt" },
+[GET]=  { NAV_A_GET_RAW,        "d<path>: pae-download-raw" },
+	{ NAV_A_GET_FMT,        "f<path>: pae-download-fmt" },
 	{ PAGE,                 ",+ nav-cancel" },
 	{0},
-[TAB]=	{ NAV_A_TAB_GOTO,       "t[index]: tab-goto-list" },
+[TAB]=  { NAV_A_TAB_GOTO,       "t[index]: tab-goto-list" },
 	{ NAV_A_TAB_OPEN,       "o[uri/link]: tab-open" },
 	{ NAV_A_TAB_ADD,        "a: tab-add" },
 	{ NAV_A_TAB_PREV,       "p: tab-goto-prev" },
@@ -52,7 +54,7 @@ static const struct nav tree[] = {
 	{ NAV_A_TAB_CLOSE,      "c: tab-close" },
 	{ ROOT,                 ",+ nav-cancel" },
 	{0},
-[SH]=	{ NAV_A_SH_RAW,         "!<cmd>: shell-cmd-on-raw-response" },
+[SH]=   { NAV_A_SH_RAW,         "!<cmd>: shell-cmd-on-raw-response" },
 	{ NAV_A_SH_FMT,         "f<cmd>: shell-cmd-on-fmt-response" },
 	{ ROOT,                 ",+ nav-cancel" },
 	{0},
@@ -81,6 +83,8 @@ nav_action(char buf[BUFSIZ], char **arg)
 				continue;
 			}
 			*arg = buf + b + 1;
+			// TODO(irek): When there is no arg then I
+			// would like the ARG to be NULL.
 			while (**arg && **arg <= ' ') (*arg)++;
 			return tree[c].next;    // Found action
 		}
@@ -91,6 +95,7 @@ nav_action(char buf[BUFSIZ], char **arg)
 			return 0;
 		}
 		printf("nav> %.*s", (int)b, buf);
+		fflush(stdout);
 		fgets(buf+b, BUFSIZ-b, stdin);
 	}
 	assert(0 && "unreachable");

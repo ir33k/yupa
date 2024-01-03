@@ -36,7 +36,7 @@ enum filename {                 // File names used by tab
 
 struct tab {                            // Tab node in double liked list
 	struct tab *prev, *next;        // Previous and next nodes
-	int     protocol;               // Current page URI protocol
+	enum protocol protocol;         // Current page URI protocol
 	char    fn[_FN_SIZ][FMAX];      // File paths
 	int     show;                   // FN index of file to show, -1=none
 	char    history[HSIZ][URI_SIZ]; // Browsing history
@@ -79,6 +79,33 @@ home(void)
 {
 	struct passwd *pw = getpwuid(getuid());
 	return pw ? pw->pw_dir : "";
+}
+
+// Return a pointer to static string being string with BSIZ max size
+// created by concatenating varying number of string args.
+#define JOIN(...) _join(0, __VA_ARGS__, 0)
+static char *
+_join(int _ignore, ...)
+{
+	static char tmp[BSIZ];
+	va_list ap;
+	size_t sum = 0, len;
+	char *arg;
+	va_start(ap, _ignore);
+	while ((arg = va_arg(ap, char *))) {
+		len = strlen(arg);
+		// Nothing more can fit the TMP but don't error out.
+		// This function doesn't try to be always correct
+		// rather it tires to by convenient.
+		if (sum + len + 1 > BSIZ) {
+			WARN("BSIZ %d exceeded with %s", BSIZ, arg);
+			break;
+		}
+		memcpy(tmp + sum, arg, len + 1);
+		sum += len;
+	}
+	va_end(ap);
+	return tmp;
 }
 
 // Return pointer to static string with random alphanumeric characters
@@ -327,8 +354,9 @@ req(char *host, int port, char *path)
 static int
 onuri(char *uri)
 {
-	int sfd, protocol, port;
-	char buf[BSIZ], *host, *path, item = GPH_ITEM_GPH;
+	enum protocol protocol;
+	int sfd, port;
+	char buf[BSIZ] = {0}, *host, *path, *tmp, item = '1';
 	FILE *raw, *fmt;
 	ssize_t ssiz;
 	LOG("%s", uri);
@@ -346,13 +374,37 @@ onuri(char *uri)
 	if (!protocol) {
 		protocol = port;
 	}
-	if (protocol != URI_GOPHER) {
-		WARN("Only gopher protocol is supported");
+	switch (protocol) {
+	case URI_GOPHER:
+		if (path && path[1]) {
+			item = path[1];
+			path += 2;
+		}
+		break;
+	case URI_GEMINI:
+	case URI_FILE:
+	case URI_ABOUT:
+	case URI_FTP:
+	case URI_SSH:
+	case URI_FINGER:
+	case URI_HTTP:
+	case URI_HTTPS:
+	case URI_NUL:
+	default:
+		WARN("Unsupported protocol %d %s", s_tab->protocol,
+		     uri_protocol_str(s_tab->protocol));
 		return 0;
 	}
-	if (path && path[1]) {
-		item = path[1];
-		path += 2;
+	if (item == '7') {
+		fputs("enter search query: ", stdout);
+		fflush(stdout);
+		fgets(buf, sizeof(buf), stdin);
+		buf[strlen(buf)-1] = 0;
+		if (!buf[0]) { // Empty search
+			return 0;
+		}
+		tmp = JOIN(path, "\t", buf);
+		path = tmp;
 	}
 	if ((sfd = req(host, port, path)) == 0) {
 		printf("Invalid URI %s\n", uri);
@@ -372,19 +424,19 @@ onuri(char *uri)
 	if (close(sfd)) {
 		ERR("close %s %d:", uri, sfd);
 	}
+	// Set tab value only after successful request.
 	s_tab->protocol = protocol;
 	switch (item) {
-	case GPH_ITEM_TXT:
+	case '0':
 		s_tab->show = FN_RAW;
 		break;
-	case GPH_ITEM_GPH:
+	case '1':
+	case '7':
 		s_tab->show = FN_FMT;
 		break;
 	default:
 		s_tab->show = -1;
 	}
-	LOG("item %c", item);
-	LOG("show %d", s_tab->show);
 	if (s_tab->show == -1) {
 		// TODO(irek): Flow of closing this file is ugly.
 		// This probably could be refactored with some good
@@ -399,6 +451,7 @@ onuri(char *uri)
 		if (!(fmt = fopen(s_tab->fn[FN_FMT], "w"))) {
 			ERR("fopen %s %s:", uri, s_tab->fn[FN_FMT]);
 		}
+		rewind(raw);
 		gph_format(raw, fmt);
 		if (fclose(fmt) == EOF) {
 			ERR("fclose %s %s:", uri, s_tab->fn[FN_FMT]);
@@ -417,7 +470,9 @@ link_get(int index)
 {
 	char *uri = 0;
 	FILE *raw;
-	assert(index > 0);
+	if (index <= 0) {
+		return 0;
+	}
 	if (s_tab->protocol != URI_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
@@ -431,6 +486,7 @@ link_get(int index)
 		break;
 	case URI_GEMINI:
 	case URI_FILE:
+	case URI_ABOUT:
 	case URI_FTP:
 	case URI_SSH:
 	case URI_FINGER:
@@ -447,33 +503,6 @@ link_get(int index)
 	return uri;
 }
 
-// Return a pointer to static string being file path with FILENAME_MAX
-// max size created by concatinating varying number of string args.
-#define FJOIN(...) _fjoin(0, __VA_ARGS__, 0)
-static char *
-_fjoin(int _ignore, ...)
-{
-	static char tmp[FILENAME_MAX];
-	va_list ap;
-	size_t sum = 0, len;
-	char *arg;
-	va_start(ap, _ignore);
-	while ((arg = va_arg(ap, char *))) {
-		len = strlen(arg);
-		// Nothing more can fit the TMP but don't error out.
-		// This function doesn't try to be always correct
-		// rather it tires to by convenient.
-		if (sum + len + 1 > FILENAME_MAX) {
-			WARN("FILENAME_MAX exceeded with %s", arg);
-			break;
-		}
-		memcpy(tmp + sum, arg, len + 1);
-		sum += len;
-	}
-	va_end(ap);
-	return tmp;
-}
-
 // Copy SRC file to DST path.
 static void
 copy(char *src, char *dst)
@@ -487,8 +516,8 @@ copy(char *src, char *dst)
 		printf("Missing destination file path.\n");
 		return;
 	}
-	tmp = FJOIN(dst[0] == '~' ? home() : "",
-		    dst[0] == '~' ? dst +1 : dst);
+	tmp = JOIN(dst[0] == '~' ? home() : "",
+		   dst[0] == '~' ? dst +1 : dst);
 	if (!(fd[0] = fopen(src, "rb"))) {
 		WARN("%s %s fopen(src):", src, tmp);
 		return;
