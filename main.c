@@ -15,38 +15,26 @@
 #include "arg.h"
 #include "uri.h"
 #include "nav.h"
-
 #define LOGERR_IMPLEMENTATION
 #include "logerr.h"
-
-#define BSIZ    BUFSIZ          // Size of generic buffer
-#define HSIZ    64              // Size of tab browsing history
-#define FMAX    FILENAME_MAX    // Max size of buffer for file path
-
-_Static_assert(BSIZ > URI_SIZ, "BSIZ too small for URI_SIZ");
-_Static_assert(BSIZ > FMAX,    "BSIZ too small for FMAX");
-
 #include "gph.c"
 
-enum filename {                 // File names used by tab
-	FN_RAW = 0,             // Raw response body
-	FN_FMT,                 // Formatted RAW content
-	_FN_SIZ                 // For array size
-};
+#define HSIZ 64                 // Maximum tab history array capacity
 
 struct tab {                            // Tab node in double liked list
 	struct tab *prev, *next;        // Previous and next nodes
 	enum protocol protocol;         // Current page URI protocol
-	char    fn[_FN_SIZ][FMAX];      // File paths
-	int     show;                   // FN index of file to show, -1=none
-	char    history[HSIZ][URI_SIZ]; // Browsing history
+	char    raw[FILENAME_MAX];      // Path to file with raw response
+	char    fmt[FILENAME_MAX];      // Path to file with formatted RAW
+	char    history[HSIZ][URI_SIZ]; // Browsing history ring
 	size_t  hi;                     // Index to current history item
 };
 
-static struct tab *s_tab  = 0;          // Pointer to current tab
-static int         s_tabc = 1;          // Tabs count
-static int         s_tabi = 1;          // 1 based index of current tab
-static char       *s_pager;             // Pager default command
+static struct tab *s_tab  = 0;  // Pointer to current tab
+static int         s_tabc = 1;  // Tabs count
+static int         s_tabi = 1;  // 1 based index of current tab
+static char       *s_pager;     // Pager default command
+char *argv0;                    // First program arg, for arg.h
 
 static const char *s_help =
 	NAME " " VERSION " by " AUTHOR "\n"
@@ -57,8 +45,6 @@ static const char *s_help =
 	"Prompt indicate (current_tab_number/number_of_all_tabs).\n"
 	"Run program with -h flag to read about arguments and env vars.\n"
 	"\n";
-
-char *argv0;                    // First program arg, for arg.h
 
 // Print usage help message.
 static void
@@ -87,7 +73,7 @@ home(void)
 static char *
 _join(int _ignore, ...)
 {
-	static char tmp[BSIZ];
+	static char tmp[4056];
 	va_list ap;
 	size_t sum = 0, len;
 	char *arg;
@@ -97,8 +83,8 @@ _join(int _ignore, ...)
 		// Nothing more can fit the TMP but don't error out.
 		// This function doesn't try to be always correct
 		// rather it tires to by convenient.
-		if (sum + len + 1 > BSIZ) {
-			WARN("BSIZ %d exceeded with %s", BSIZ, arg);
+		if (sum + len + 1 > sizeof(tmp)) {
+			WARN("BSIZ %d exceeded with %s", sizeof(tmp), arg);
 			break;
 		}
 		memcpy(tmp + sum, arg, len + 1);
@@ -111,20 +97,19 @@ _join(int _ignore, ...)
 // Return pointer to static string with random alphanumeric characters
 // of LEN length.
 static char *
-strrand(int len)
+strrand(size_t len)
 {
-	static int seed = 0;
 	static const char *allow =
 		"ABCDEFGHIJKLMNOPRSTUWXYZ"
 		"abcdefghijklmnoprstuwxyz"
 		"0123456789";
-	size_t limit = strlen(allow);
+	static const size_t siz = sizeof(allow);
+	static int seed = 0;
 	static char str[32];
-	assert(len < 32);
+	assert(len < sizeof(str));
 	srand(time(0) + seed++);
-	str[len] = 0;
-	while (len--) {
-		str[len] = allow[rand() % limit];
+	for (str[len]=0; len--;) {
+		str[len] = allow[rand() % siz];
 	}
 	return str;
 }
@@ -191,8 +176,8 @@ tab_add(void)
 		ERR("malloc:");
 	}
 	memset(tab, 0, sizeof(*tab));
-	tmpf("yupa.raw", tab->fn[FN_RAW]);
-	tmpf("yupa.fmt", tab->fn[FN_FMT]);
+	tmpf("yupa.raw", tab->raw);
+	tmpf("yupa.fmt", tab->fmt);
 	tab->prev = s_tab;
 	if (s_tab) {
 		tab->next = s_tab->next;
@@ -245,10 +230,10 @@ static void
 tab_close(void)
 {
 	struct tab *tab = s_tab;
-	if (unlink(tab->fn[FN_RAW]) == -1) {
+	if (unlink(tab->raw) == -1) {
 		WARN("unlink:");
 	}
-	if (unlink(tab->fn[FN_FMT]) == -1) {
+	if (unlink(tab->fmt) == -1) {
 		WARN("unlink:");
 	}
 	if (tab->next) {
@@ -284,10 +269,10 @@ ontab_list(void)
 static void
 cmd_run(char *cmd, char *filename)
 {
-	char buf[BSIZ];
+	char buf[FILENAME_MAX+1024];
 	assert(cmd);
 	assert(filename);
-	sprintf(buf, "%s %s", cmd, filename);
+	snprintf(buf, sizeof(buf), "%s %s", cmd, filename);
 	system(buf);
 }
 
@@ -356,7 +341,7 @@ onuri(char *uri)
 {
 	enum protocol protocol;
 	int sfd, port;
-	char buf[BSIZ] = {0}, *host, *path, *tmp, item = '1';
+	char buf[4056]={0}, *host, *path, *tmp, item='1', *show;
 	FILE *raw, *fmt;
 	ssize_t ssiz;
 	LOG("%s", uri);
@@ -410,8 +395,8 @@ onuri(char *uri)
 		printf("Invalid URI %s\n", uri);
 		return 0;
 	}
-	if (!(raw = fopen(s_tab->fn[FN_RAW], "w+"))) {
-		ERR("fopen %s %s:", uri, s_tab->fn[FN_RAW]);
+	if (!(raw = fopen(s_tab->raw, "w+"))) {
+		ERR("fopen %s %s:", uri, s_tab->raw);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
@@ -428,39 +413,39 @@ onuri(char *uri)
 	s_tab->protocol = protocol;
 	switch (item) {
 	case '0':
-		s_tab->show = FN_RAW;
+		show = s_tab->raw;
 		break;
 	case '1':
 	case '7':
-		s_tab->show = FN_FMT;
+		show = s_tab->fmt;
 		break;
 	default:
-		s_tab->show = -1;
+		show = 0;
 	}
-	if (s_tab->show == -1) {
+	if (show == 0) {
 		// TODO(irek): Flow of closing this file is ugly.
 		// This probably could be refactored with some good
 		// old goto.
 		if (fclose(raw) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
+			ERR("fclose %s %s:", uri, s_tab->raw);
 		}
 		printf("Not a Gopher submenu and not a text file\n");
 		return 0;
 	}
-	if (s_tab->show == FN_FMT) {
-		if (!(fmt = fopen(s_tab->fn[FN_FMT], "w"))) {
-			ERR("fopen %s %s:", uri, s_tab->fn[FN_FMT]);
+	if (show == s_tab->fmt) {
+		if (!(fmt = fopen(s_tab->fmt, "w"))) {
+			ERR("fopen %s %s:", uri, s_tab->fmt);
 		}
 		rewind(raw);
 		gph_format(raw, fmt);
 		if (fclose(fmt) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->fn[FN_FMT]);
+			ERR("fclose %s %s:", uri, s_tab->fmt);
 		}
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab->fn[FN_RAW]);
+		ERR("fclose %s %s:", uri, s_tab->raw);
 	}
-	cmd_run(s_pager, s_tab->fn[s_tab->show]);
+	cmd_run(s_pager, show);
 	return 1;
 }
 
@@ -477,8 +462,8 @@ link_get(int index)
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
-	if (!(raw = fopen(s_tab->fn[FN_RAW], "r"))) {
-		ERR("fopen %s:", s_tab->fn[FN_RAW]);
+	if (!(raw = fopen(s_tab->raw, "r"))) {
+		ERR("fopen %s:", s_tab->raw);
 	}
 	switch (s_tab->protocol) {
 	case URI_GOPHER:
@@ -498,7 +483,7 @@ link_get(int index)
 		     uri_protocol_str(s_tab->protocol));
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s:", s_tab->fn[FN_RAW]);
+		ERR("fclose %s:", s_tab->raw);
 	}
 	return uri;
 }
@@ -508,7 +493,7 @@ static void
 copy(char *src, char *dst)
 {
 	FILE *fd[2];
-	char buf[BSIZ], *tmp;
+	char buf[4056], *tmp;
 	size_t siz;
 	assert(src && src[0]);
 	assert(dst);
@@ -541,9 +526,9 @@ copy(char *src, char *dst)
 
 //
 static void
-onprompt(char buf[BSIZ])
+onprompt(size_t siz, char *buf)
 {
-	static char last[BSIZ] = {0};
+	static char last[4056] = {0};
 	char *arg, *uri;
 	int i;
 	switch (nav_action(buf, &arg)) {
@@ -557,15 +542,15 @@ onprompt(char buf[BSIZ])
 		printf(s_help);
 		break;
 	case NAV_A_SH_RAW:
-		cmd_run(arg, s_tab->fn[FN_RAW]);
+		cmd_run(arg, s_tab->raw);
 		break;
 	case NAV_A_SH_FMT:
-		cmd_run(arg, s_tab->fn[FN_FMT]);
+		cmd_run(arg, s_tab->fmt);
 		break;
 	case NAV_A_REPEAT:
-		if (last[0]) {
+		if (*last) {
 			strcpy(buf, last);
-			onprompt(buf);
+			onprompt(siz, buf);
 		}
 		return; // Return to avoid defining NAV_A_REPEAT as last cmd
 	case NAV_A_URI:
@@ -583,7 +568,7 @@ onprompt(char buf[BSIZ])
 		onuri(history_get(0));
 		break;
 	case NAV_A_PAGE_RAW:
-		cmd_run(s_pager, s_tab->fn[FN_RAW]);
+		cmd_run(s_pager, s_tab->raw);
 		break;
 	case NAV_A_TAB_GOTO:
 		if ((i = atoi(arg))) {
@@ -631,10 +616,10 @@ onprompt(char buf[BSIZ])
 		onuri(history_get(+1));
 		break;
 	case NAV_A_GET_RAW:
-		copy(s_tab->fn[FN_RAW], arg);
+		copy(s_tab->raw, arg);
 		break;
 	case NAV_A_GET_FMT:
-		copy(s_tab->fn[FN_FMT], arg);
+		copy(s_tab->fmt, arg);
 		break;
 	case NAV_A_CANCEL:
 	case NAV_A_NUL:
@@ -649,7 +634,7 @@ onprompt(char buf[BSIZ])
 int
 main(int argc, char *argv[])
 {
-	char *env, buf[BSIZ];
+	char *env, buf[4056];
 	int i;
 	ARGBEGIN {
 	case 'v':
@@ -675,10 +660,11 @@ main(int argc, char *argv[])
 	while (1) {
 		printf("yupa(%d/%d)> ", s_tabi, s_tabc);
 		if (!fgets(buf, sizeof(buf), stdin)) {
+			WARN("fgets:");
 			continue;
 		}
 		buf[strlen(buf)-1] = 0;
-		onprompt(buf);
+		onprompt(sizeof(buf), buf);
 	}
 	return 0;
 }
