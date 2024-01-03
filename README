@@ -9,8 +9,8 @@ MVP What I would like to have before calling this a v1.0?
 x Executing shell commands.
 x Downloading raw and formatted response.
 x Gopher support for search item.
-- Gopher support for error item.
-- Gopher are there any other special items?
+x Gopher support for error item.
+x Gopher are there any other special items?
 
 For v2.0 I want to have Gemini support.
 
