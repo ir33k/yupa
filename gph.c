@@ -39,7 +39,7 @@ enum gph_kind {         // Kinds of Gopher menu items
 };
 
 static enum gph_kind
-gph_kind(int item)
+gph_kind(enum gph_type item)
 {
 	switch (item) {
 	case GPH_TXT: case GPH_GPH: case GPH_CSO: case GPH_ERR:
@@ -51,7 +51,8 @@ gph_kind(int item)
 		return GPH_NAV;
 	case GPH_INF:
 		return GPH_NON;
-	case GPH_EOF:
+	}
+	if ((int)item == GPH_EOF) {
 		return GPH_EOF;
 	}
 	return GPH_NUL;
