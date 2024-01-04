@@ -96,7 +96,7 @@ gph_str(enum gph_type item)
 static void
 gph_format(FILE *body, FILE *fmt)
 {
-	static const int margin=4;      // Left margin
+	static const int margin=4;
 	int link=1;
 	char *bp, buf[1024], nav[8], str[16];
 	assert(body);
@@ -113,7 +113,7 @@ gph_format(FILE *body, FILE *fmt)
 			snprintf(str, sizeof(str), "(%s) ", gph_str(*bp));
 			// Fallthrough
 		case GPH_NON:
-			bp++;   // Skip first item type character
+			bp++;   // Skip item type character
 		}
 		fprintf(fmt, "%-*s%s%s\n", margin, nav, str, bp);
 	}
@@ -133,9 +133,8 @@ gph_uri(FILE *body, int index)
 		switch (gph_kind(*buf)) {
 		case GPH_EOF: return 0;
 		case GPH_NAV: break;
-		case GPH_NON: continue;
+		case GPH_NON:
 		case GPH_NUL: continue;
-		default:      continue;
 		}
 		if (--index) {
 			continue;

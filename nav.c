@@ -10,67 +10,67 @@ enum {                          // Indexes to navigation groups
 	HIST = 20,              // Page history submenu
 	GET  = 30,              // Page download submenu
 	TAB  = 40,              // Tabs manipulation
-	SH   = 50,              // Shell commands execution
+	SH   = 50,              // Page shell commands execution
 };
 
 struct nav {
 	int next;
 	// First char in NAME is command key and when second char
-	// is '+' then ACTION is used as index to submenu in array.
+	// is '+' then CMD is used as index to submenu in array.
 	const char *name;
 };
 
 // TODO(irek): Make closer connection between command names and
 // functions in source code.
 static const struct nav tree[] = {
-[ROOT]= { NAV_A_QUIT,           "q: quit" },
-	{ NAV_A_HELP,           "h: help" },
-	{ PAGE,                 "p+ page" },
-	{ TAB,                  "t+ tabs" },
-	{ SH,                   "!+ shell" },
-	{ NAV_A_REPEAT,         ".: nav-repeat-last" },
-	{ NAV_A_CANCEL,         ",: nav-cancel" },
+[ROOT]= {CMD_QUIT,      "q  Quit program"},
+	{CMD_HELP,      "h  Print help message"},
+	{PAGE,          "p+ Page commands"},
+	{TAB,           "t+ Tabs commands"},
+	{SH,            "!+ Shell commands"},
+	{CMD_REPEAT,    ".  Repeat last command"},
+	{CMD_CANCEL,    ",  Cancel command"},
+	{0},	        
+[PAGE]= {CMD_PAGE_GET,  "r  Reload page"},
+	{CMD_PAGE_RAW,  "b  Show raw response body"},
+	{HIST,          "h+ History commands"},
+	{GET,           "d+ Download commands"},
+	{ROOT,          ",+ Cancel command"},
+	{0},	        
+[HIST]= {CMD_HIS_LIST,  "h  List page history entries"},
+	{CMD_HIS_PREV,  "b  Go back in browsing history"},
+	{CMD_HIS_NEXT,  "f  Go forward in browsing history"},
+	{PAGE,          ",+ Cancel command"},
+	{0},	        
+[GET]=  {CMD_GET_RAW,   "d<path>  Download raw page"},
+	{CMD_GET_FMT,   "f<path>  Download formatted page"},
+	{PAGE,          ",+ Cancel command"},
+	{0},	        
+[TAB]=  {CMD_TAB_GOTO,  "t[index]  List tabs or goto tab by index"},
+	{CMD_TAB_OPEN,  "o[uri/link]  Clone tab or open new with URI/LINK"},
+	{CMD_TAB_ADD,   "a  Add new empty tab"},
+	{CMD_TAB_PREV,  "p  Go to previous tab"},
+	{CMD_TAB_NEXT,  "n  Go to next tab"},
+	{CMD_TAB_CLOSE, "c  Close tab"},
+	{ROOT,          ",+ Cancel command"},
 	{0},
-[PAGE]= { NAV_A_PAGE_GET,       "p: page-reload" },
-	{ NAV_A_PAGE_RAW,       "b: page-show-raw-response" },
-	{ HIST,                 "h+ page-history" },
-	{ GET,                  "d+ page-download" },
-	{ ROOT,                 ",+ nav-cancel" },
-	{0},
-[HIST]= { NAV_A_HIS_LIST,       "h: page-history-list" },
-	{ NAV_A_HIS_PREV,       "p: page-history-goto-prev" },
-	{ NAV_A_HIS_NEXT,       "n: page-history-goto-next" },
-	{ PAGE,                 ",+ nav-cancel" },
-	{0},
-[GET]=  { NAV_A_GET_RAW,        "d<path>: pae-download-raw" },
-	{ NAV_A_GET_FMT,        "f<path>: pae-download-fmt" },
-	{ PAGE,                 ",+ nav-cancel" },
-	{0},
-[TAB]=  { NAV_A_TAB_GOTO,       "t[index]: tab-goto-list" },
-	{ NAV_A_TAB_OPEN,       "o[uri/link]: tab-open" },
-	{ NAV_A_TAB_ADD,        "a: tab-add" },
-	{ NAV_A_TAB_PREV,       "p: tab-goto-prev" },
-	{ NAV_A_TAB_NEXT,       "n: tab-goto-next" },
-	{ NAV_A_TAB_CLOSE,      "c: tab-close" },
-	{ ROOT,                 ",+ nav-cancel" },
-	{0},
-[SH]=   { NAV_A_SH_RAW,         "!<cmd>: shell-cmd-on-raw-response" },
-	{ NAV_A_SH_FMT,         "f<cmd>: shell-cmd-on-fmt-response" },
-	{ ROOT,                 ",+ nav-cancel" },
-	{0},
+[SH]=   {CMD_SH_RAW,    "!<cmd>  Run shell CMD on raw page"},
+	{CMD_SH_FMT,    "f<cmd>  Run shell CMD on formatted page"},
+	{ROOT,          ",+ Cancel command"},
+	{0},	        
 };
 
-enum nav_action
-nav_action(char buf[BUFSIZ], char **arg)
+enum cmd
+nav_cmd(char buf[BUFSIZ], char **arg)
 {
 	size_t i, c=0, b=0;
 	assert(buf);
 	*arg = 0;
 	if (atoi(buf)) {
-		return NAV_A_LINK;
+		return CMD_LINK;
 	}
 	if (uri_protocol(buf)) {
-		return NAV_A_URI;
+		return CMD_URI;
 	}
 	while (1) {
 		for (; buf[b] > ' '; b++) {
@@ -82,11 +82,9 @@ nav_action(char buf[BUFSIZ], char **arg)
 				c = tree[c].next;
 				continue;
 			}
-			*arg = buf + b + 1;
-			// TODO(irek): When there is no arg then I
-			// would like the ARG to be NULL.
-			while (**arg && **arg <= ' ') (*arg)++;
-			return tree[c].next;    // Found action
+			while (buf[++b] && buf[b] <= ' ');
+			*arg = buf[b] ? buf + b : 0;
+			return tree[c].next;    // Found cmd
 		}
 		for (i = c; tree[i].name; i++) {
 			printf("\t%s\n", tree[i].name);

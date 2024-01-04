@@ -1,5 +1,5 @@
 #define NAME    "Yupa"
-#define VERSION "v1.0"
+#define VERSION "v1.1"
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
@@ -496,8 +496,7 @@ copy(char *src, char *dst)
 	char buf[4056], *tmp;
 	size_t siz;
 	assert(src && src[0]);
-	assert(dst);
-	if (!dst[0]) {
+	if (!dst) {
 		printf("Missing destination file path.\n");
 		return;
 	}
@@ -509,18 +508,18 @@ copy(char *src, char *dst)
 	}
 	if (!(fd[1] = fopen(tmp, "wb"))) {
 		WARN("%s %s fopen(dst):", src, tmp);
-		return;
+		goto clean;
 	}
 	while ((siz = fread(buf, 1, sizeof(buf), fd[0]))) {
 		if (fwrite(buf, 1, siz, fd[1]) != siz) {
 			WARN("%s %s fwrite:", src, tmp);
 		}
 	}
-	if (fclose(fd[0])) {
-		WARN("%s %s fclose(src):", src, tmp);
-	}
 	if (fclose(fd[1])) {
 		WARN("%s %s fclose(dst):", src, tmp);
+	}
+clean:	if (fclose(fd[0])) {
+		WARN("%s %s fclose(src):", src, tmp);
 	}
 }
 
@@ -531,65 +530,65 @@ onprompt(size_t siz, char *buf)
 	static char last[4056] = {0};
 	char *arg, *uri;
 	int i;
-	switch (nav_action(buf, &arg)) {
-	case NAV_A_QUIT:
+	switch (nav_cmd(buf, &arg)) {
+	case CMD_QUIT:
 		while (s_tab) {
 			tab_close();
 		}
 		exit(0);
 		break;
-	case NAV_A_HELP:
+	case CMD_HELP:
 		printf(s_help);
 		break;
-	case NAV_A_SH_RAW:
+	case CMD_SH_RAW:
 		cmd_run(arg, s_tab->raw);
 		break;
-	case NAV_A_SH_FMT:
+	case CMD_SH_FMT:
 		cmd_run(arg, s_tab->fmt);
 		break;
-	case NAV_A_REPEAT:
+	case CMD_REPEAT:
 		if (*last) {
 			strcpy(buf, last);
 			onprompt(siz, buf);
 		}
-		return; // Return to avoid defining NAV_A_REPEAT as last cmd
-	case NAV_A_URI:
+		return; // Return to avoid defining CMD_REPEAT as last cmd
+	case CMD_URI:
 		if (onuri(buf)) {
 			history_add(buf);
 		}
 		break;
-	case NAV_A_LINK:
+	case CMD_LINK:
 		uri = link_get(atoi(buf));
 		if (onuri(uri)) {
 			history_add(uri);
 		}
 		break;
-	case NAV_A_PAGE_GET:
+	case CMD_PAGE_GET:
 		onuri(history_get(0));
 		break;
-	case NAV_A_PAGE_RAW:
+	case CMD_PAGE_RAW:
 		cmd_run(s_pager, s_tab->raw);
 		break;
-	case NAV_A_TAB_GOTO:
-		if ((i = atoi(arg))) {
+	case CMD_TAB_GOTO:
+		if (arg && (i = atoi(arg))) {
 			tab_goto(i);
 		} else {
 			ontab_list();
 		}
 		break;
-	case NAV_A_TAB_ADD:
+	case CMD_TAB_ADD:
 		tab_add();
 		break;
-	case NAV_A_TAB_PREV:
+	case CMD_TAB_PREV:
 		tab_prev();
 		break;
-	case NAV_A_TAB_NEXT:
+	case CMD_TAB_NEXT:
 		tab_next();
 		break;
-	case NAV_A_TAB_OPEN:
+	case CMD_TAB_OPEN:
 		// TODO(irek): Tab duplication should also copy
 		// history from current tab.
-		if (arg[0]) {
+		if (arg) {
 			uri = (i = atoi(arg)) ? link_get(i) : arg;
 		} else {
 			uri = history_get(0);
@@ -599,30 +598,30 @@ onprompt(size_t siz, char *buf)
 			history_add(uri);
 		}
 		break;
-	case NAV_A_TAB_CLOSE:
+	case CMD_TAB_CLOSE:
 		if (!s_tab->prev && !s_tab->next) {
 			printf("Can't close last tab\n");
 			break;
 		}
 		tab_close();
 		break;
-	case NAV_A_HIS_LIST:
+	case CMD_HIS_LIST:
 		WARN("TODO");
 		break;
-	case NAV_A_HIS_PREV:
+	case CMD_HIS_PREV:
 		onuri(history_get(-1));
 		break;
-	case NAV_A_HIS_NEXT:
+	case CMD_HIS_NEXT:
 		onuri(history_get(+1));
 		break;
-	case NAV_A_GET_RAW:
+	case CMD_GET_RAW:
 		copy(s_tab->raw, arg);
 		break;
-	case NAV_A_GET_FMT:
+	case CMD_GET_FMT:
 		copy(s_tab->fmt, arg);
 		break;
-	case NAV_A_CANCEL:
-	case NAV_A_NUL:
+	case CMD_CANCEL:
+	case CMD_NUL:
 		break;
 	default:
 		ERR("Unreachable");
