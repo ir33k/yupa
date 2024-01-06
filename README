@@ -25,3 +25,17 @@ gopher://tilde.pink
 gopher://geminiprotocol.net
 gopher://gopher.floodgap.com
 gopher://hngopher.com:70/1/archive/2017/2017-07-17/items/14791355
+
+
+2024.01.06 Sat 21:14	Codebase size without unit tests
+
+	$ cloc --quiet lib/*.c lib/*.h main.c 
+	github.com/AlDanial/cloc v 1.96  T=0.02 s (888.7 files/s, 82707.1 lines/s)
+	-------------------------------------------------------------------------------
+	Language                     files          blank        comment           code
+	-------------------------------------------------------------------------------
+	C                                7             43             55            953
+	C/C++ Header                     8             55            125            165
+	-------------------------------------------------------------------------------
+	SUM:                            15             98            180           1118
+	-------------------------------------------------------------------------------
