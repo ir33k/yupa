@@ -17,6 +17,8 @@ TEST("tab_new")
 	OK(tab.open == tab.head);
 	OK(tab.n == 1);
 	OK(tab.i == 0);
+	OK(tab.open->raw[0]);
+	OK(tab.open->fmt[0]);
 
 	tab_new(&tab);
 	tab_new(&tab);
@@ -97,6 +99,8 @@ TEST("tab_close")
 	OK(tab.head != 0);
 	OK(tab.open != 0);
 	OK(tab.open == tab.head);
+	OK(tab.open->raw[0]);
+	OK(tab.open->fmt[0]);
 	OK(tab.n == 4);
 	OK(tab.i == 0);
 	tab_close(&tab, 0);

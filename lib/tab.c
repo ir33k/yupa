@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "util.h"
 #include "tab.h"
 #include "le.h"
@@ -38,6 +39,8 @@ tab_new(struct tab *tab)
 		return;
 	}
 	memset(new, 0, sizeof(*new));
+	tmpf("yupa.raw", new->raw);
+	tmpf("yupa.fmt", new->fmt);
 	tab->n++;
 	if (!tab->head || !tab->open) {
 		tab->head = new;
@@ -81,6 +84,12 @@ tab_close(struct tab *tab, int index)
 		prev->next = node->next;
 	} else {
 		tab->head = node->next;
+	}
+	if (unlink(node->raw) == -1) {
+		WARN("unlink '%s':", node->raw);
+	}
+	if (unlink(node->fmt) == -1) {
+		WARN("unlink '%s':", node->fmt);
 	}
 	free(node);
 	if (!--tab->n) {

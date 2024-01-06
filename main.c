@@ -177,7 +177,7 @@ onuri(char *uri)
 		return 0;
 	}
 	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
-		ERR("fopen %s %s:", uri, s_tab.open->raw);
+		ERR("fopen '%s' '%s':", uri, s_tab.open->raw);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {

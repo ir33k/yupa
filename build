@@ -8,14 +8,8 @@ CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -ped
 cd lib && $CC $CFLAGS -c *.c && cd ..
 
 # Build and run tests
-for src in $(ls test/*.t.c)
-do
-    name="$(basename -s .t.c "$src")"
-    bin="test/$name.t"
-    lib="lib/$name.o"
-    $CC $CFLAGS -o "$bin" "$src" "$lib"
-    "./$bin"
-done
+$CC $CFLAGS -o test/uri.t test/uri.t.c lib/uri.o && ./test/uri.t
+$CC $CFLAGS -o test/tab.t test/tab.t.c lib/tab.o lib/util.o && ./test/tab.t
 
 # Build main program
 $CC $CFLAGS -o yupa main.c lib/*.o
