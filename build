@@ -5,11 +5,17 @@ CC="cc"
 CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99"
 
 # Build libs
-$CC $CFLAGS -c uri.c
-$CC $CFLAGS -c nav.c
+cd lib && $CC $CFLAGS -c *.c && cd ..
 
 # Build and run tests
-$CC $CFLAGS -o uri.t uri.t.c uri.o && ./uri.t
+for src in $(ls test/*.t.c)
+do
+    name="$(basename -s .t.c "$src")"
+    bin="test/$name.t"
+    lib="lib/$name.o"
+    $CC $CFLAGS -o "$bin" "$src" "$lib"
+    "./$bin"
+done
 
 # Build main program
-$CC $CFLAGS -o yupa main.c uri.o nav.o
+$CC $CFLAGS -o yupa main.c lib/*.o

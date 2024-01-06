@@ -13,15 +13,14 @@ enum {                          // Indexes to navigation groups
 	SH   = 50,              // Page shell commands execution
 };
 
-struct nav {
-	int next;
+struct nav {                    // Navigation tree array item
+	const int next;         // Action enum or index to nav menu
 	// First char in NAME is command key and when second char
 	// is '+' then CMD is used as index to submenu in array.
-	const char *name;
+	const char *name;       // Action or submenu name
 };
 
-// TODO(irek): Make closer connection between command names and
-// functions in source code.
+//
 static const struct nav tree[] = {
 [ROOT]= {CMD_QUIT,      "q  Quit program"},
 	{CMD_HELP,      "h  Print help message"},
@@ -47,11 +46,11 @@ static const struct nav tree[] = {
 	{PAGE,          ",+ Cancel command"},
 	{0},	        
 [TAB]=  {CMD_TAB_GOTO,  "t[index]  List tabs or goto tab by index"},
+	{CMD_TAB_CLOSE, "c[index]  Close current tab or by index"},
 	{CMD_TAB_OPEN,  "o[uri/link]  Clone tab or open new with URI/LINK"},
 	{CMD_TAB_ADD,   "a  Add new empty tab"},
 	{CMD_TAB_PREV,  "p  Go to previous tab"},
 	{CMD_TAB_NEXT,  "n  Go to next tab"},
-	{CMD_TAB_CLOSE, "c  Close tab"},
 	{ROOT,          ",+ Cancel command"},
 	{0},
 [SH]=   {CMD_SH_RAW,    "!<cmd>  Run shell CMD on raw page"},

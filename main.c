@@ -1,40 +1,27 @@
 #define NAME    "Yupa"
-#define VERSION "v1.1"
+#define VERSION "v1.3"
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
-#include <fcntl.h>
 #include <netdb.h>
-#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
-#include "arg.h"
-#include "uri.h"
-#include "nav.h"
 #define LOGERR_IMPLEMENTATION
-#include "logerr.h"
-#include "gph.c"
+#include "lib/le.h"
+#include "lib/arg.h"
+#include "lib/nav.h"
+#include "lib/tab.h"
+#include "lib/uri.h"
+#include "lib/util.h"
+// Protocols
+#include "lib/gmi.h"
+#include "lib/gph.h"
 
-#define HSIZ 64                 // Maximum tab history array capacity
-
-struct tab {                            // Tab node in double liked list
-	struct tab *prev, *next;        // Previous and next nodes
-	enum protocol protocol;         // Current page URI protocol
-	char    raw[FILENAME_MAX];      // Path to file with raw response
-	char    fmt[FILENAME_MAX];      // Path to file with formatted RAW
-	char    history[HSIZ][URI_SIZ]; // Browsing history ring
-	size_t  hi;                     // Index to current history item
-};
-
-static struct tab *s_tab  = 0;  // Pointer to current tab
-static int         s_tabc = 1;  // Tabs count
-static int         s_tabi = 1;  // 1 based index of current tab
-static char       *s_pager;     // Pager default command
-char *argv0;                    // First program arg, for arg.h
+static struct tab  s_tab={0};   // Browser tabs
+static char       *s_pager;     // Pager command
+char              *argv0;       // First program arg, for arg.h
 
 static const char *s_help =
 	NAME " " VERSION " by " AUTHOR "\n"
@@ -57,212 +44,6 @@ usage(void)
 	       "	[uri..]	List of URIs to open on startup.\n"
 	       "env	PAGER	Pager cmd (less -XI).\n"
 	       , argv0);
-}
-
-/* Return pointer to static string being path to user home dir. */
-static char *
-home(void)
-{
-	struct passwd *pw = getpwuid(getuid());
-	return pw ? pw->pw_dir : "";
-}
-
-// Return a pointer to static string being string with BSIZ max size
-// created by concatenating varying number of string args.
-#define JOIN(...) _join(0, __VA_ARGS__, 0)
-static char *
-_join(int _ignore, ...)
-{
-	static char tmp[4056];
-	va_list ap;
-	size_t sum = 0, len;
-	char *arg;
-	va_start(ap, _ignore);
-	while ((arg = va_arg(ap, char *))) {
-		len = strlen(arg);
-		// Nothing more can fit the TMP but don't error out.
-		// This function doesn't try to be always correct
-		// rather it tires to by convenient.
-		if (sum + len + 1 > sizeof(tmp)) {
-			WARN("BSIZ %d exceeded with %s", sizeof(tmp), arg);
-			break;
-		}
-		memcpy(tmp + sum, arg, len + 1);
-		sum += len;
-	}
-	va_end(ap);
-	return tmp;
-}
-
-// Return pointer to static string with random alphanumeric characters
-// of LEN length.
-static char *
-strrand(size_t len)
-{
-	static const char *allow =
-		"ABCDEFGHIJKLMNOPRSTUWXYZ"
-		"abcdefghijklmnoprstuwxyz"
-		"0123456789";
-	static const size_t siz = sizeof(allow);
-	static int seed = 0;
-	static char str[32];
-	assert(len < sizeof(str));
-	srand(time(0) + seed++);
-	for (str[len]=0; len--;) {
-		str[len] = allow[rand() % siz];
-	}
-	return str;
-}
-
-// Create temporary file in /tmp dir with PREFIX file name prefix.
-// DST string should point to buffer of FILENAME_MAX size where path
-// to create file will be stored.
-static void
-tmpf(char *prefix, char *dst)
-{
-	int fd;
-	do {
-		sprintf(dst, "%s%s-%s", "/tmp/", prefix, strrand(6));
-	} while (!access(dst, F_OK));
-	if ((fd = open(dst, O_RDWR | O_CREAT)) == -1) {
-		ERR("open %s:", dst);
-	}
-	if (close(fd)) {
-		ERR("close %s:", dst);
-	}
-}
-
-// Add new URI to current tab history.
-static void
-history_add(char *uri)
-{
-	if (s_tab->history[s_tab->hi % HSIZ][0]) {
-		s_tab->hi++;
-	}
-	strncpy(s_tab->history[s_tab->hi % HSIZ], uri, URI_SIZ);
-	// Make next history item empty to cut off old forward history
-	// every time the new item is being added.
-	s_tab->history[(s_tab->hi + 1) % HSIZ][0] = 0;
-}
-
-// Get current tab history item shifting history index by SHIFT.
-static char *
-history_get(int shift)
-{
-	if (shift == 0) {
-		return s_tab->history[s_tab->hi % HSIZ];
-	}
-	// TODO(irek): I expect that there is a bug when you loop over
-	// the HSIZ and then try to get back.  I'm not checking for
-	// the empty history entry.  Also when going forward I'm
-	// looking only at very next entry but value of SHIFT can be
-	// more then 1.
-	if (shift > 0 && !s_tab->history[(s_tab->hi + 1) % HSIZ][0]) {
-		return 0;
-	}
-	if (shift < 0 && !s_tab->hi) {
-		return 0;
-	}
-	s_tab->hi += shift;
-	return s_tab->history[s_tab->hi % HSIZ];
-}
-
-// Add new empty tab and set it as current tab.
-static void
-tab_add(void)
-{
-	struct tab *tab;
-	if (!(tab = malloc(sizeof(*tab)))) {
-		ERR("malloc:");
-	}
-	memset(tab, 0, sizeof(*tab));
-	tmpf("yupa.raw", tab->raw);
-	tmpf("yupa.fmt", tab->fmt);
-	tab->prev = s_tab;
-	if (s_tab) {
-		tab->next = s_tab->next;
-		if (s_tab->next) {
-			s_tab->next->prev = tab;
-		}
-		s_tab->next = tab;
-		s_tabc++;
-		s_tabi++;
-	}
-	s_tab = tab;
-}
-
-static void
-tab_prev(void)
-{
-	if (!s_tab->prev) {
-		return;
-	}
-	s_tab = s_tab->prev;
-	s_tabi--;
-	printf("Tab %d: %s\n", s_tabi, history_get(0));
-}
-
-static void
-tab_next(void)
-{
-	if (!s_tab->next) {
-		return;
-	}
-	s_tab = s_tab->next;
-	s_tabi++;
-	printf("Tab %d: %s\n", s_tabi, history_get(0));
-}
-
-static void
-tab_goto(int index)
-{
-	if (index < 1 || index > s_tabc) {
-		return;
-	}
-	while (s_tab->prev) s_tab = s_tab->prev;
-	s_tabi = index;
-	while (--index) s_tab = s_tab->next;
-	printf("Tab %d: %s\n", s_tabi, history_get(0));
-}
-
-//
-static void
-tab_close(void)
-{
-	struct tab *tab = s_tab;
-	if (unlink(tab->raw) == -1) {
-		WARN("unlink:");
-	}
-	if (unlink(tab->fmt) == -1) {
-		WARN("unlink:");
-	}
-	if (tab->next) {
-		tab->next->prev = tab->prev;
-		if (tab->prev) {
-			tab->prev->next = tab->next;
-		}
-		s_tab = tab->next;
-	} else if (tab->prev) {
-		tab->prev->next = 0;
-		s_tab = tab->prev;
-		s_tabi--;
-	} else {
-		s_tab = 0;
-	}
-	s_tabc--;
-}
-
-static void
-ontab_list(void)
-{
-	struct tab *tab = s_tab;
-	int i;
-	while (tab->prev) tab = tab->prev;
-	for (i = 1; tab; tab = tab->next, i++) {
-		printf("\t%d: %s%s\n", i,
-		       i == s_tabi ? "> " : "  ",
-		       tab->history[tab->hi % HSIZ]);
-	}
 }
 
 // Execute CMD with FILENAME.
@@ -339,9 +120,9 @@ req(char *host, int port, char *path)
 static int
 onuri(char *uri)
 {
-	enum protocol protocol;
+	enum uri_protocol protocol;
 	int sfd, port;
-	char buf[4056]={0}, *host, *path, *tmp, item='1', *show;
+	char buf[4096]={0}, *host, *path, *tmp, item='1', *show;
 	FILE *raw, *fmt;
 	ssize_t ssiz;
 	LOG("%s", uri);
@@ -376,8 +157,8 @@ onuri(char *uri)
 	case URI_HTTPS:
 	case URI_NUL:
 	default:
-		WARN("Unsupported protocol %d %s", s_tab->protocol,
-		     uri_protocol_str(s_tab->protocol));
+		WARN("Unsupported protocol %d %s", s_tab.open->protocol,
+		     uri_protocol_str(s_tab.open->protocol));
 		return 0;
 	}
 	if (item == '7') {
@@ -395,8 +176,8 @@ onuri(char *uri)
 		printf("Invalid URI %s\n", uri);
 		return 0;
 	}
-	if (!(raw = fopen(s_tab->raw, "w+"))) {
-		ERR("fopen %s %s:", uri, s_tab->raw);
+	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
+		ERR("fopen %s %s:", uri, s_tab.open->raw);
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
@@ -410,14 +191,14 @@ onuri(char *uri)
 		ERR("close %s %d:", uri, sfd);
 	}
 	// Set tab value only after successful request.
-	s_tab->protocol = protocol;
+	s_tab.open->protocol = protocol;
 	switch (item) {
 	case '0':
-		show = s_tab->raw;
+		show = s_tab.open->raw;
 		break;
 	case '1':
 	case '7':
-		show = s_tab->fmt;
+		show = s_tab.open->fmt;
 		break;
 	default:
 		show = 0;
@@ -427,23 +208,23 @@ onuri(char *uri)
 		// This probably could be refactored with some good
 		// old goto.
 		if (fclose(raw) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->raw);
+			ERR("fclose %s %s:", uri, s_tab.open->raw);
 		}
 		printf("Not a Gopher submenu and not a text file\n");
 		return 0;
 	}
-	if (show == s_tab->fmt) {
-		if (!(fmt = fopen(s_tab->fmt, "w"))) {
-			ERR("fopen %s %s:", uri, s_tab->fmt);
+	if (show == s_tab.open->fmt) {
+		if (!(fmt = fopen(s_tab.open->fmt, "w"))) {
+			ERR("fopen %s %s:", uri, s_tab.open->fmt);
 		}
 		rewind(raw);
-		gph_format(raw, fmt);
+		gph_fmt(raw, fmt);
 		if (fclose(fmt) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab->fmt);
+			ERR("fclose %s %s:", uri, s_tab.open->fmt);
 		}
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab->raw);
+		ERR("fclose %s %s:", uri, s_tab.open->raw);
 	}
 	cmd_run(s_pager, show);
 	return 1;
@@ -458,14 +239,14 @@ link_get(int index)
 	if (index <= 0) {
 		return 0;
 	}
-	if (s_tab->protocol != URI_GOPHER) {
+	if (s_tab.open->protocol != URI_GOPHER) {
 		WARN("Only gopher protocol is supported");
 		return 0;
 	}
-	if (!(raw = fopen(s_tab->raw, "r"))) {
-		ERR("fopen %s:", s_tab->raw);
+	if (!(raw = fopen(s_tab.open->raw, "r"))) {
+		ERR("fopen %s:", s_tab.open->raw);
 	}
-	switch (s_tab->protocol) {
+	switch (s_tab.open->protocol) {
 	case URI_GOPHER:
 		uri = gph_uri(raw, index);
 		break;
@@ -479,11 +260,11 @@ link_get(int index)
 	case URI_HTTPS:
 	case URI_NUL:
 	default:
-		WARN("Unsupported protocol %d %s", s_tab->protocol,
-		     uri_protocol_str(s_tab->protocol));
+		WARN("Unsupported protocol %d %s", s_tab.open->protocol,
+		     uri_protocol_str(s_tab.open->protocol));
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s:", s_tab->raw);
+		ERR("fclose %s:", s_tab.open->raw);
 	}
 	return uri;
 }
@@ -493,7 +274,7 @@ static void
 copy(char *src, char *dst)
 {
 	FILE *fd[2];
-	char buf[4056], *tmp;
+	char buf[4096], *tmp;
 	size_t siz;
 	assert(src && src[0]);
 	if (!dst) {
@@ -527,13 +308,13 @@ clean:	if (fclose(fd[0])) {
 static void
 onprompt(size_t siz, char *buf)
 {
-	static char last[4056] = {0};
+	static char last[4096] = {0};
 	char *arg, *uri;
 	int i;
 	switch (nav_cmd(buf, &arg)) {
 	case CMD_QUIT:
-		while (s_tab) {
-			tab_close();
+		while (s_tab.n) {
+			tab_close(&s_tab, 0);
 		}
 		exit(0);
 		break;
@@ -541,10 +322,10 @@ onprompt(size_t siz, char *buf)
 		printf(s_help);
 		break;
 	case CMD_SH_RAW:
-		cmd_run(arg, s_tab->raw);
+		cmd_run(arg, s_tab.open->raw);
 		break;
 	case CMD_SH_FMT:
-		cmd_run(arg, s_tab->fmt);
+		cmd_run(arg, s_tab.open->fmt);
 		break;
 	case CMD_REPEAT:
 		if (*last) {
@@ -554,36 +335,36 @@ onprompt(size_t siz, char *buf)
 		return; // Return to avoid defining CMD_REPEAT as last cmd
 	case CMD_URI:
 		if (onuri(buf)) {
-			history_add(buf);
+			tab_history_add(s_tab.open, buf);
 		}
 		break;
 	case CMD_LINK:
 		uri = link_get(atoi(buf));
 		if (onuri(uri)) {
-			history_add(uri);
+			tab_history_add(s_tab.open, uri);
 		}
 		break;
 	case CMD_PAGE_GET:
-		onuri(history_get(0));
+		onuri(tab_history_get(s_tab.open, 0));
 		break;
 	case CMD_PAGE_RAW:
-		cmd_run(s_pager, s_tab->raw);
+		cmd_run(s_pager, s_tab.open->raw);
 		break;
 	case CMD_TAB_GOTO:
 		if (arg && (i = atoi(arg))) {
-			tab_goto(i);
+			tab_goto(&s_tab, i-1);
 		} else {
-			ontab_list();
+			tab_print(&s_tab);
 		}
 		break;
 	case CMD_TAB_ADD:
-		tab_add();
+		tab_open(&s_tab);
 		break;
 	case CMD_TAB_PREV:
-		tab_prev();
+		tab_goto(&s_tab, s_tab.i -1);
 		break;
 	case CMD_TAB_NEXT:
-		tab_next();
+		tab_goto(&s_tab, s_tab.i +1);
 		break;
 	case CMD_TAB_OPEN:
 		// TODO(irek): Tab duplication should also copy
@@ -591,34 +372,41 @@ onprompt(size_t siz, char *buf)
 		if (arg) {
 			uri = (i = atoi(arg)) ? link_get(i) : arg;
 		} else {
-			uri = history_get(0);
+			uri = tab_history_get(s_tab.open, 0);
 		}
-		tab_add();
+		tab_open(&s_tab);
 		if (onuri(uri)) {
-			history_add(uri);
+			tab_history_add(s_tab.open, uri);
 		}
 		break;
 	case CMD_TAB_CLOSE:
-		if (!s_tab->prev && !s_tab->next) {
+		if (s_tab.n <= 1) {
 			printf("Can't close last tab\n");
 			break;
 		}
-		tab_close();
+		tab_close(&s_tab, s_tab.i);
 		break;
 	case CMD_HIS_LIST:
+		// TODO(irek): It might be possible that when I
+		// implement the file:// protocol then I could have
+		// global history list (for all tabs from current
+		// session and the past) as a file in one of protocols
+		// like GOPHER.  Then openine history list will be
+		// just an opening a file and serving it as regular
+		// page in current tab.
 		WARN("TODO");
 		break;
 	case CMD_HIS_PREV:
-		onuri(history_get(-1));
+		onuri(tab_history_get(s_tab.open, -1));
 		break;
 	case CMD_HIS_NEXT:
-		onuri(history_get(+1));
+		onuri(tab_history_get(s_tab.open, +1));
 		break;
 	case CMD_GET_RAW:
-		copy(s_tab->raw, arg);
+		copy(s_tab.open->raw, arg);
 		break;
 	case CMD_GET_FMT:
-		copy(s_tab->fmt, arg);
+		copy(s_tab.open->fmt, arg);
 		break;
 	case CMD_CANCEL:
 	case CMD_NUL:
@@ -633,7 +421,7 @@ onprompt(size_t siz, char *buf)
 int
 main(int argc, char *argv[])
 {
-	char *env, buf[4056];
+	char *env, buf[4096];
 	int i;
 	ARGBEGIN {
 	case 'v':
@@ -648,16 +436,16 @@ main(int argc, char *argv[])
 	} ARGEND
 	s_pager = (env = getenv("PAGER")) ? env : "less -XI";
 	for (i = 0; i < argc; i++) {
-		tab_add();
+		tab_open(&s_tab);
 		if (onuri(argv[i])) {
-			history_add(argv[i]);
+			tab_history_add(s_tab.open, argv[i]);
 		}
 	}
-	if (!s_tab) {
-		tab_add();
+	if (!s_tab.n) {
+		tab_open(&s_tab);
 	}
 	while (1) {
-		printf("yupa(%d/%d)> ", s_tabi, s_tabc);
+		printf("yupa(%d/%d)> ", s_tab.i+1, s_tab.n);
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			WARN("fgets:");
 			continue;

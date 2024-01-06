@@ -1,0 +1,15 @@
+// Gopher protocol.
+
+#ifndef _GPH_H
+#define _GPH_H
+
+// Assuming that BODY is an open file with Gopher submenu, write
+// prettier formatted version to open FMT file.
+void gph_fmt(FILE *body, FILE *fmt);
+
+
+// Search in BODY open file for the link under INDEX (1 == first
+// link).  Return pointer to static string with normalized URI.
+char *gph_uri(FILE *body, int index);
+
+#endif // _GPH_H

@@ -1,5 +1,5 @@
 #include "walter.h"
-#include "uri.h"
+#include "../lib/uri.h"
 
 TEST("uri_protocol_str")
 {
