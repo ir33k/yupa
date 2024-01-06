@@ -1,4 +1,4 @@
-// LogErr.H (LEH) the logger v1.2
+// LogErr.H (LEH) the logger v1.3
 // 
 // The LOG, WARN and ERR macros prints current file name, line number,
 // function name, log prefix and FMT formatted message (printf(3))
@@ -15,14 +15,14 @@
 // 	     3	int main(void)
 // 	     4	{
 // 	     5		LOG("Print args %d %s", 1, "test");
-// 	     6		WARN("With perror, fopen:");
+// 	     6		WARN("fopen:"); // Append perror(0)
 // 	     7		ERR("Print error and exit with 1");
 // 	     8		return 0;
 // 	     9	}
 // 
 // 	$ cc demo.c && ./a.out
 // 	demo.c:5	main()	>>>> Print args 1 test
-// 	demo.c:6	main()	WARN With perror, fopen: can't open
+// 	demo.c:6	main()	WARN fopen: No such file or directory
 // 	demo.c:7	main()	ERR Print error and exit with 1
 // 
 // ISC-License
