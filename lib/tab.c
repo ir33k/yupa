@@ -21,7 +21,7 @@ get_prev(struct tab *tab, struct tab_node *next)
 {
 	struct tab_node *node;
 	assert(tab);
-	if (!tab->head || next || tab->head == next) {
+	if (!tab->head || !next || tab->head == next) {
 		return 0;
 	}
 	for (node = tab->head; node->next != next; node = node->next);
@@ -77,13 +77,16 @@ tab_close(struct tab *tab, int index)
 	if (!(node = get_node(tab, index))) {
 		return;
 	}
-	if (!(prev = get_prev(tab, node))) {
-		tab->head = node->next;
-	} else {
+	if ((prev = get_prev(tab, node))) {
 		prev->next = node->next;
+	} else {
+		tab->head = node->next;
 	}
 	free(node);
-	tab->n--;
+	if (!--tab->n) {
+		tab->open = 0;
+		return;
+	}
 	if (index == tab->i) {
 		index = CLAMP(0, index, tab->n-1);
 		tab_goto(tab, index);

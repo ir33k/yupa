@@ -40,13 +40,13 @@ struct tab_node {                       // Tab node in liked list
 // Add new empty tab and set it as current tab.
 void tab_new(struct tab *tab);
 
-//
+// Like tab_new but also sets new tab as open (active) tab.
 void tab_open(struct tab *tab);
 
-//
+// Set tab node under INDEX as open (active) tab.
 void tab_goto(struct tab *tab, int index);
 
-//
+// Sloce tab node under INDEX.
 void tab_close(struct tab *tab, int index);
 
 // Print list of all tabs.
