@@ -308,6 +308,10 @@ clean:	if (fclose(fd[0])) {
 static void
 onprompt(size_t siz, char *buf)
 {
+	// TODO(irek): I don't like passing the SIZ and the creating
+	// LAST buffer with size that is potentially different.  This
+	// whole approach is fundamentally wrong.  I should use const
+	// value for both.
 	static char last[4096] = {0};
 	char *arg, *uri;
 	int i;
@@ -335,17 +339,17 @@ onprompt(size_t siz, char *buf)
 		return; // Return to avoid defining CMD_REPEAT as last cmd
 	case CMD_URI:
 		if (onuri(buf)) {
-			tab_history_add(s_tab.open, buf);
+			past_push(&s_tab.open->past, buf);
 		}
 		break;
 	case CMD_LINK:
 		uri = link_get(atoi(buf));
 		if (onuri(uri)) {
-			tab_history_add(s_tab.open, uri);
+			past_push(&s_tab.open->past, uri);
 		}
 		break;
 	case CMD_PAGE_GET:
-		onuri(tab_history_get(s_tab.open, 0));
+		onuri(past_pos(&s_tab.open->past, 0));
 		break;
 	case CMD_PAGE_RAW:
 		cmd_run(s_pager, s_tab.open->raw);
@@ -372,11 +376,11 @@ onprompt(size_t siz, char *buf)
 		if (arg) {
 			uri = (i = atoi(arg)) ? link_get(i) : arg;
 		} else {
-			uri = tab_history_get(s_tab.open, 0);
+			uri = past_pos(&s_tab.open->past, 0);
 		}
 		tab_open(&s_tab);
 		if (onuri(uri)) {
-			tab_history_add(s_tab.open, uri);
+			past_push(&s_tab.open->past, uri);
 		}
 		break;
 	case CMD_TAB_CLOSE:
@@ -397,10 +401,10 @@ onprompt(size_t siz, char *buf)
 		WARN("TODO");
 		break;
 	case CMD_HIS_PREV:
-		onuri(tab_history_get(s_tab.open, -1));
+		onuri(past_pos(&s_tab.open->past, -1));
 		break;
 	case CMD_HIS_NEXT:
-		onuri(tab_history_get(s_tab.open, +1));
+		onuri(past_pos(&s_tab.open->past, +1));
 		break;
 	case CMD_GET_RAW:
 		copy(s_tab.open->raw, arg);
@@ -438,7 +442,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < argc; i++) {
 		tab_open(&s_tab);
 		if (onuri(argv[i])) {
-			tab_history_add(s_tab.open, argv[i]);
+			past_push(&s_tab.open->past, argv[i]);
 		}
 	}
 	if (!s_tab.n) {

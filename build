@@ -5,11 +5,21 @@ CC="cc"
 CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99"
 
 # Build libs
-cd lib && $CC $CFLAGS -c *.c && cd ..
+$CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
+$CC $CFLAGS -o lib/gph.o  -c lib/gph.c
+$CC $CFLAGS -o lib/nav.o  -c lib/nav.c
+$CC $CFLAGS -o lib/past.o -c lib/past.c
+$CC $CFLAGS -o lib/tab.o  -c lib/tab.c
+$CC $CFLAGS -o lib/uri.o  -c lib/uri.c
+$CC $CFLAGS -o lib/util.o -c lib/util.c
 
 # Build and run tests
-$CC $CFLAGS -o test/uri.t test/uri.t.c lib/uri.o && ./test/uri.t
-$CC $CFLAGS -o test/tab.t test/tab.t.c lib/tab.o lib/util.o && ./test/tab.t
+$CC $CFLAGS -o test/uri.t  test/uri.t.c  lib/uri.o
+./test/uri.t
+$CC $CFLAGS -o test/past.t test/past.t.c lib/past.o lib/uri.o
+./test/past.t
+$CC $CFLAGS -o test/tab.t  test/tab.t.c  lib/tab.o lib/util.o lib/past.o
+./test/tab.t
 
 # Build main program
 $CC $CFLAGS -o yupa main.c lib/*.o

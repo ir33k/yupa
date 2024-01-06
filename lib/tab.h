@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include "uri.h"
+#include "past.h"
 
 #define TAB_HSIZ 64             // Maximum tab history array capacity
 
@@ -32,9 +33,8 @@ struct tab_node {                       // Tab node in liked list
 	char    raw[FILENAME_MAX];      // Path to file with raw response
 	char    fmt[FILENAME_MAX];      // Path to file with formatted RAW
 	// Readonly
-	char    history[TAB_HSIZ][URI_SIZ]; // Browsing history circular buf
-	size_t  hi;                     // Index to current history item
-	struct tab_node *next;          // Next linked list node
+	struct past       past;         // Browsing history ring buffer
+	struct tab_node  *next;         // Next linked list node
 };
 
 // Add new empty tab and set it as current tab.
