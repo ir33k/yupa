@@ -97,12 +97,12 @@ item_label(enum type item)
 }
 
 void
-gph_fmt(FILE *body, FILE *fmt)
+gph_fmt(FILE *body, FILE *dst)
 {
 	int link=1;
 	char *bp, buf[1024], nav[8], label[16];
 	assert(body);
-	assert(fmt);
+	assert(dst);
 	while ((bp = fgets(buf, sizeof(buf), body))) {
 		bp[strcspn(bp, "\t")] = 0; // End string on first tab
 		*nav = 0;
@@ -117,7 +117,7 @@ gph_fmt(FILE *body, FILE *fmt)
 		case K_NON:
 			bp++;   // Skip item type character
 		}
-		fprintf(fmt, "%-*s%s%s\n", MARGIN, nav, label, bp);
+		fprintf(dst, "%-*s%s%s\n", MARGIN, nav, label, bp);
 	}
 }
 

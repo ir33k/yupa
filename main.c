@@ -3,20 +3,23 @@
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
-#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include "lib/arg.h"
 #include "lib/le.h"
 #include "lib/nav.h"
+#include "lib/net.h"
 #include "lib/tab.h"
 #include "lib/uri.h"
 #include "lib/util.h"
 // Protocols
 #include "lib/gmi.h"
 #include "lib/gph.h"
+
+#define PROTOCOL URI_GOPHER     // Default protocol
 
 static struct tab  s_tab={0};   // Browser tabs
 static char       *s_pager;     // Pager command
@@ -56,65 +59,6 @@ cmd_run(char *cmd, char *filename)
 	system(buf);
 }
 
-// Establish AF_INET internet SOCK_STREAM stream connection to HOST of
-// PORT.  Return socket file descriptor or 0 on error.
-static int
-tcp(char *host, int port)
-{
-	int i, sfd;
-	struct hostent *he;
-	struct sockaddr_in addr;
-	assert(host);
-	assert(port > 0);
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	if ((sfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-		WARN("socket %s %d:", host, port);
-		return 0;
-	}
-	if ((he = gethostbyname(host)) == 0) {
-		WARN("gethostbyname %s %d:", host, port);
-		return 0;
-	}
-	for (i = 0; he->h_addr_list[i]; i++) {
-		memcpy(&addr.sin_addr.s_addr, he->h_addr_list[i], sizeof(in_addr_t));
-		if (connect(sfd, (struct sockaddr*)&addr, sizeof(addr))) {
-			continue;
-		}
-		return sfd;	// Success
-	}
-	WARN("failed to connect with %s %d:", host, port);
-	return 0;
-}
-
-//
-// TODO(irek): I dislike this function.  Merging it with onuri?
-
-// Open connection to server under HOST with PORT and optional PATH.
-// Return socket file descriptor on success that is ready to read
-// server response.  Return 0 on error.
-static int
-req(char *host, int port, char *path)
-{
-	int sfd;
-	assert(host);
-	assert(port > 0);
-	if ((sfd = tcp(host, port)) < 0) {
-		return 0;
-	}
-	if (path) {
-		if (send(sfd, path, strlen(path), 0) == -1) {
-			WARN("send %s %d %s:", host, port, path);
-			return 0;
-		}
-	}
-	if (send(sfd, "\r\n", 2, 0) == -1) {
-		WARN("send %s %d %s:", host, port, path);
-		return 0;
-	}
-	return sfd;
-}
-
 //
 static int
 onuri(char *uri)
@@ -133,12 +77,9 @@ onuri(char *uri)
 	host = uri_host(uri);
 	port = uri_port(uri);
 	path = uri_path(uri);
-	if (!port) {
-		port = protocol ? protocol : URI_GOPHER;
-	}
-	if (!protocol) {
-		protocol = port;
-	}
+	if (!port) port = protocol;
+	if (!port) port = PROTOCOL;
+	if (!protocol) protocol = port;
 	switch (protocol) {
 	case URI_GOPHER:
 		if (path && path[1]) {
@@ -147,6 +88,8 @@ onuri(char *uri)
 		}
 		break;
 	case URI_GEMINI:
+		// TODO(irek): Should I do somethin in here?
+		break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:
@@ -160,7 +103,25 @@ onuri(char *uri)
 		     uri_protocol_str(s_tab.open->protocol));
 		return 0;
 	}
+	//////////////////////////////////////////////////////////////
+	//
+	// TOOD(irek): This whole "item" logic from Gopher is now leak
+	// into general logic used by other protocols.  I should moved
+	// it to gph.h somehow.
+	//
+	// In Gemini similar logic has to be handled on response not
+	// on request.  Hmm, maybe what I need is a function for each
+	// protocol that is executed before and after request?  Maybe
+	// each protocol should have it's own request and response
+	// functions.  For example protocol URI_FILE will not do any
+	// work on sockets.  So it also makes no sense to have tcp()
+	// function as part of the generic logic.
+	//
+	// Yea, I should do that.
+	//
+	//////////////////////////////////////////////////////////////
 	if (item == '7') {
+		// TODO(irek): Make sure there is a way to cancel.
 		fputs("enter search query: ", stdout);
 		fflush(stdout);
 		fgets(buf, sizeof(buf), stdin);
@@ -250,6 +211,8 @@ link_get(int index)
 		uri = gph_uri(raw, index);
 		break;
 	case URI_GEMINI:
+		// TODO(irek): The time has come.
+		break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:

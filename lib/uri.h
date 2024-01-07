@@ -22,7 +22,7 @@ enum uri_protocol {
 	URI_FINGER = 79,
 	URI_HTTP   = 80,
 	URI_HTTPS  = 443,
-	URI_GEMINI = 1965
+	URI_GEMINI = 1965,
 };
 
 // For given PROTOCOL return protocol name as string.

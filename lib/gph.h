@@ -4,8 +4,8 @@
 #define _GPH_H
 
 // Assuming that BODY is an open file with Gopher submenu, write
-// prettier formatted version to open FMT file.
-void gph_fmt(FILE *body, FILE *fmt);
+// prettier formatted version to open DST file.
+void gph_fmt(FILE *body, FILE *dst);
 
 
 // Search in BODY open file for the link under INDEX (1 == first

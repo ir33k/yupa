@@ -10,6 +10,7 @@ $CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
 $CC $CFLAGS -o lib/gph.o  -c lib/gph.c
 $CC $CFLAGS -o lib/le.o   -c lib/le.c
 $CC $CFLAGS -o lib/nav.o  -c lib/nav.c
+$CC $CFLAGS -o lib/net.o  -c lib/net.c
 $CC $CFLAGS -o lib/past.o -c lib/past.c
 $CC $CFLAGS -o lib/tab.o  -c lib/tab.c
 $CC $CFLAGS -o lib/uri.o  -c lib/uri.c
