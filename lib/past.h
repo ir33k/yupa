@@ -12,7 +12,8 @@ struct past {                   // History ring buffer
 	size_t  i;              // Index to current URI
 };
 
-//
+// Create new PAST browsing history with N slots of SIZ.  Function
+// assume successful allocations and kills program on failure.
 struct past *past_new(size_t n, size_t siz);
 
 // Add new URI to PAST history buffer at current index position.
@@ -23,7 +24,10 @@ void past_set(struct past *past, char *uri);
 // under new index.
 char *past_get(struct past *past, int offset);
 
-//
+// Print all PAST entries.
+void past_print(struct past *past);
+
+// Free PAST.
 void past_free(struct past *past);
 
 #endif // _PAST_H

@@ -2,6 +2,23 @@
 #include "../lib/le.h"
 #include "../lib/past.h"
 
+// Usefull functin for debugging printing content of whole PAST
+// internal buffer marking ucrrently indexed element.  Not used
+// outside of debugging sessins.
+#pragma GCC diagnostic ignored "-Wunused-function"
+static void
+past_dump(struct past *past)
+{
+	size_t i;
+	fputc('\n', stdout);
+	for (i=0; i < past->n; i++) {
+		printf("%lu: %s%s\n", i,
+		       i == past->i ? "> " : "  ",
+		       past->uri + i*past->siz);
+	}
+}
+#pragma GCC diagnostic pop
+
 TEST("past_set and past_get")
 {
 	struct past *past;
