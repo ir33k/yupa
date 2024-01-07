@@ -48,11 +48,10 @@ static enum kind
 item_kind(enum type item)
 {
 	switch (item) {
-	case T_TXT: case T_GPH: case T_CSO: case T_ERR:
-	case T_B16: case T_DOS: case T_UUE: case T_QRY:
-	case T_TEL: case T_BIN: case T_MIR: case T_GIF:
-	case T_IMG: case T_TN3: case T_BMP: case T_VID:
-	case T_SFX: case T_DOC: case T_URL: case T_PNG:
+	case T_TXT: case T_GPH: case T_CSO: case T_ERR: case T_B16:
+	case T_DOS: case T_UUE: case T_QRY: case T_TEL: case T_BIN:
+	case T_MIR: case T_GIF: case T_IMG: case T_TN3: case T_BMP:
+	case T_VID: case T_SFX: case T_DOC: case T_URL: case T_PNG:
 	case T_RTF: case T_WAV: case T_PDF: case T_XML:
 		return K_NAV;
 	case T_INF:
@@ -132,10 +131,10 @@ gph_uri(FILE *body, int index)
 	assert(index > 0);
 	while (fgets(buf, sizeof(buf), body)) {
 		switch (item_kind(*buf)) {
-		case K_EOF: return 0;
 		case K_NAV: break;
-		case K_NON:
+		case K_NON: continue;
 		case K_NUL: continue;
+		case K_EOF: return 0;
 		}
 		if (--index) {
 			continue;
@@ -144,10 +143,13 @@ gph_uri(FILE *body, int index)
 		sscanf(buf, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d",
 		       &c, path, host, &port);
 		if (c == T_URL) {
+			if (strlen(path) < 5) {
+				return 0;
+			}
 			strcpy(uri, path);
 			return uri + 4;
 		}
-#pragma GCC diagnostic ignored "-Wformat-truncation="
+#pragma GCC diagnostic ignored "-Wformat-truncation=" // Trust me bro
 		snprintf(uri, sizeof(uri), "gopher://%s:%d/%c%s",
 			 host, port, c, path);
 #pragma GCC diagnostic pop

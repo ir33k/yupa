@@ -400,10 +400,12 @@ onprompt(size_t siz, char *buf)
 		WARN("TODO");
 		break;
 	case CMD_HIS_PREV:
-		onuri(past_get(s_tab.open->past, -1));
+		uri = past_get(s_tab.open->past, -1);
+		onuri(uri);
 		break;
 	case CMD_HIS_NEXT:
-		onuri(past_get(s_tab.open->past, +1));
+		uri = past_get(s_tab.open->past, +1);
+		onuri(uri);
 		break;
 	case CMD_GET_RAW:
 		copy(s_tab.open->raw, arg);
@@ -413,10 +415,9 @@ onprompt(size_t siz, char *buf)
 		break;
 	case CMD_CANCEL:
 	case CMD_NUL:
-		break;
+		return;
 	default:
 		ERR("Unreachable");
-		break;
 	}
 	strcpy(last, buf);
 }
