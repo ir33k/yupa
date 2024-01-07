@@ -7,8 +7,6 @@
 #include "uri.h"
 #include "past.h"
 
-#define TAB_HSIZ 64             // Maximum tab history array capacity
-
 struct tab {
 	// Readonly
 	struct tab_node *head;  // Linked list head node
