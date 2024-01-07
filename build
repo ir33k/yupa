@@ -2,7 +2,8 @@
 set -ex # Stop on first error and log all commands
 
 CC="cc"
-CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99"
+CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
+LIBS="lib/*.o"
 
 # Build libs
 $CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
@@ -15,9 +16,9 @@ $CC $CFLAGS -o lib/uri.o  -c lib/uri.c
 $CC $CFLAGS -o lib/util.o -c lib/util.c
 
 # Build and run tests
-$CC $CFLAGS -o test/uri.t  test/uri.t.c  lib/*.o && ./test/uri.t
-$CC $CFLAGS -o test/past.t test/past.t.c lib/*.o && ./test/past.t
-$CC $CFLAGS -o test/tab.t  test/tab.t.c  lib/*.o && ./test/tab.t
+$CC $CFLAGS test/uri.t.c  $LIBS && ./a.out
+$CC $CFLAGS test/past.t.c $LIBS && ./a.out
+$CC $CFLAGS test/tab.t.c  $LIBS && ./a.out
 
 # Build main program
-$CC $CFLAGS -o yupa main.c lib/*.o
+$CC $CFLAGS -o yupa main.c $LIBS
