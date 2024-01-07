@@ -19,7 +19,6 @@ uri_protocol_str(enum uri_protocol protocol)
 	return "";
 }
 
-/* Get protocol from URI string. */
 int
 uri_protocol(char *uri)
 {
@@ -47,8 +46,6 @@ uri_protocol(char *uri)
 	return URI_NUL;
 }
 
-/* Get host from URI string.  Return NULL if not found.  Return
- * pointer to static string on success. */
 char *
 uri_host(char *uri)
 {
@@ -57,7 +54,7 @@ uri_host(char *uri)
 	size_t len;
 	assert(uri);
 	assert(strlen(uri) < URI_SIZ);
-	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; /* Skip protocol */
+	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; // Skip protocol
 	len = strlen(beg);
 	if (len == 0) {
 		return 0;
@@ -73,29 +70,24 @@ uri_host(char *uri)
 	return memcpy(buf, beg, len);
 }
 
-/* Get port from URI string.  Return 0 by default. */
 int
 uri_port(char *uri)
 {
 	char *beg;
 	assert(uri);
-	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; /* Skip protocol */
+	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; // Skip protocol
 	return (beg = strchr(beg, ':')) ? atoi(beg + 1) : 0;
 }
 
-/* Return pointer to first URI string path character.  Return NULL if
- * not found. */
 char *
 uri_path(char *uri)
 {
 	char *beg;
 	assert(uri);
-	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; /* Skip protocol */
+	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; // Skip protocol
 	return strchr(beg, '/');
 }
 
-/* Construct normalized URI in DST buffer from given URI parts, where
- * only PATH can be NULL. */
 void
 uri_normalize(char dst[URI_SIZ], int protocol, char *host,
 	      int port, char *path)
