@@ -99,8 +99,7 @@ tab_close(struct tab *tab, int index)
 		tab->open = 0;
 		return;
 	}
-	index = CLAMP(0, index, tab->n-1);
-	tab_goto(tab, index);
+	tab_goto(tab, CLAMP(0, tab->i, tab->n-1));
 }
 
 void
