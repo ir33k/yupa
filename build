@@ -5,14 +5,7 @@ CC="cc"
 CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -pedantic -std=c99 -ggdb"
 
 # Build libs
-$CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
-$CC $CFLAGS -o lib/gph.o  -c lib/gph.c
-$CC $CFLAGS -o lib/le.o   -c lib/le.c
-$CC $CFLAGS -o lib/nav.o  -c lib/nav.c
-$CC $CFLAGS -o lib/past.o -c lib/past.c
-$CC $CFLAGS -o lib/tab.o  -c lib/tab.c
-$CC $CFLAGS -o lib/uri.o  -c lib/uri.c
-$CC $CFLAGS -o lib/util.o -c lib/util.c
+cd lib && $CC $CFLAGS -c *.c && cd ..
 
 # Build and run tests
 $CC $CFLAGS -o test/uri.t  test/uri.t.c  lib/*.o && ./test/uri.t
