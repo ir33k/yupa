@@ -1,17 +1,5 @@
 // Tabs.
 
-// WIP / TODO / IDEAS ////////////////////////////////////////////////
-//
-// History implementation does not have to be specific about being
-// browsing history.  It's just a circular buffer with strings.  Also
-// I don't like that it is a part of tabs codebase.  I should extract
-// that.  This will be handy when implementing global history.  Could
-// be used for history of commands, like all commands or specific
-// commands but I don't need that.  Anyway it just shows how universal
-// this data structure is.
-//
-//////////////////////////////////////////////////////////////////////
-
 #ifndef _TAB_H
 #define _TAB_H
 
@@ -33,7 +21,7 @@ struct tab_node {                       // Tab node in liked list
 	char    raw[FILENAME_MAX];      // Path to file with raw response
 	char    fmt[FILENAME_MAX];      // Path to file with formatted RAW
 	// Readonly
-	struct past       past;         // Browsing history ring buffer
+	struct past      *past;         // Browsing history ring buffer
 	struct tab_node  *next;         // Next linked list node
 };
 

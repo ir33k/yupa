@@ -42,6 +42,7 @@ tab_new(struct tab *tab)
 	memset(new, 0, sizeof(*new));
 	tmpf("yupa.raw", new->raw);
 	tmpf("yupa.fmt", new->fmt);
+	new->past = past_new(64, URI_SIZ);
 	tab->n++;
 	if (!tab->head || !tab->open) {
 		tab->head = new;
@@ -92,6 +93,7 @@ tab_close(struct tab *tab, int index)
 	if (unlink(node->fmt) == -1) {
 		WARN("unlink '%s':", node->fmt);
 	}
+	past_free(node->past);
 	free(node);
 	if (!--tab->n) {
 		tab->open = 0;
@@ -112,6 +114,6 @@ tab_print(struct tab *tab)
 	for (i = 1, node = tab->head; node; node = node->next, i++) {
 		printf("\t%d: %s%s\n", i,
 		       i == tab->i+1 ? "> " : "  ",
-		       past_pos(&node->past, 0));
+		       past_get(node->past, 0));
 	}
 }

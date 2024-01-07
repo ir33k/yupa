@@ -1,6 +1,4 @@
 #include "walter.h"
-#define LOGERR_IMPLEMENTATION
-#include "../lib/le.h"
 #include "../lib/tab.h"
 
 TEST("tab_new")

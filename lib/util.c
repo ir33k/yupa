@@ -1,9 +1,12 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <pwd.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 #include "util.h"
 #include "le.h"
 

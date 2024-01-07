@@ -8,9 +8,8 @@
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-#define LOGERR_IMPLEMENTATION
-#include "lib/le.h"
 #include "lib/arg.h"
+#include "lib/le.h"
 #include "lib/nav.h"
 #include "lib/tab.h"
 #include "lib/uri.h"
@@ -339,17 +338,17 @@ onprompt(size_t siz, char *buf)
 		return; // Return to avoid defining CMD_REPEAT as last cmd
 	case CMD_URI:
 		if (onuri(buf)) {
-			past_push(&s_tab.open->past, buf);
+			past_set(s_tab.open->past, buf);
 		}
 		break;
 	case CMD_LINK:
 		uri = link_get(atoi(buf));
 		if (onuri(uri)) {
-			past_push(&s_tab.open->past, uri);
+			past_set(s_tab.open->past, uri);
 		}
 		break;
 	case CMD_PAGE_GET:
-		onuri(past_pos(&s_tab.open->past, 0));
+		onuri(past_get(s_tab.open->past, 0));
 		break;
 	case CMD_PAGE_RAW:
 		cmd_run(s_pager, s_tab.open->raw);
@@ -376,11 +375,11 @@ onprompt(size_t siz, char *buf)
 		if (arg) {
 			uri = (i = atoi(arg)) ? link_get(i) : arg;
 		} else {
-			uri = past_pos(&s_tab.open->past, 0);
+			uri = past_get(s_tab.open->past, 0);
 		}
 		tab_open(&s_tab);
 		if (onuri(uri)) {
-			past_push(&s_tab.open->past, uri);
+			past_set(s_tab.open->past, uri);
 		}
 		break;
 	case CMD_TAB_CLOSE:
@@ -401,10 +400,10 @@ onprompt(size_t siz, char *buf)
 		WARN("TODO");
 		break;
 	case CMD_HIS_PREV:
-		onuri(past_pos(&s_tab.open->past, -1));
+		onuri(past_get(s_tab.open->past, -1));
 		break;
 	case CMD_HIS_NEXT:
-		onuri(past_pos(&s_tab.open->past, +1));
+		onuri(past_get(s_tab.open->past, +1));
 		break;
 	case CMD_GET_RAW:
 		copy(s_tab.open->raw, arg);
@@ -442,7 +441,7 @@ main(int argc, char *argv[])
 	for (i = 0; i < argc; i++) {
 		tab_open(&s_tab);
 		if (onuri(argv[i])) {
-			past_push(&s_tab.open->past, argv[i]);
+			past_set(s_tab.open->past, argv[i]);
 		}
 	}
 	if (!s_tab.n) {
