@@ -387,7 +387,7 @@ onprompt(size_t siz, char *buf)
 			printf("Can't close last tab\n");
 			break;
 		}
-		tab_close(&s_tab, s_tab.i);
+		tab_close(&s_tab, arg ? atoi(arg)-1 : s_tab.i);
 		break;
 	case CMD_HIS_LIST:
 		// TODO(irek): It might be possible that when I

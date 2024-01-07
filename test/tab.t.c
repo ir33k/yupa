@@ -164,6 +164,24 @@ TEST("tab_close")
 	tab_close(&tab, tab.i);
 	OK(tab.n == 0);
 	OK(tab.i == 0);
+
+	tab_new(&tab);
+	tab_new(&tab);
+	tab_new(&tab);
+	OK(tab.n == 3);
+	OK(tab.i == 0);
+	tab_goto(&tab, 1);
+	OK(tab.n == 3);
+	OK(tab.i == 1);
+	tab_close(&tab, 2);
+	OK(tab.n == 2);
+	OK(tab.i == 1);
+	tab_close(&tab, 0);
+	OK(tab.n == 1);
+	OK(tab.i == 0);
+	tab_close(&tab, 0);
+	OK(tab.n == 0);
+	OK(tab.i == 0);
 }
 
 SKIP("tab_print")
