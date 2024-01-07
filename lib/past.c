@@ -5,7 +5,7 @@
 #include "past.h"
 
 #define URI_INDEX(past) ((past->i % past->n) * past->siz)
-#define URI_NEXT(past) (((past->i+1) % past->n) * past->siz)
+#define URI_OFFSET(past, offset) (((past->i+(offset)) % past->n) * past->siz)
 
 struct past *
 past_new(size_t n, size_t siz)
@@ -38,25 +38,21 @@ past_set(struct past *past, char *uri)
 	strncpy(past->uri + URI_INDEX(past), uri, past->siz);
 	// Make next history item empty to cut off old forward history
 	// every time the new item is being added.
-	past->uri[URI_NEXT(past)] = 0;
+	past->uri[URI_OFFSET(past, 1)] = 0;
 }
 
 char *
 past_get(struct past *past, int offset)
 {
 	assert(past);
-	if (offset == 0) {
+	if (!offset) {
 		return past->uri + URI_INDEX(past);
 	}
-	// TODO(irek): I expect that there is a bug when you loop over
-	// the HSIZ and then try to get back.  I'm not checking for
-	// the empty history entry.  Also when going forward I'm
-	// looking only at very next entry but value of OFFSET can be
-	// more then 1.
-	if (offset > 0 && !past->uri[URI_NEXT(past)]) {
+	if (offset < 0 && past->i < (size_t)(offset*-1)) {
 		return 0;
 	}
-	if (offset < 0 && !past->i) {
+	// TOOD(irek): Handle offset by more than 1?
+	if (!past->uri[URI_OFFSET(past, offset > 0 ? 1 : -1)]) {
 		return 0;
 	}
 	past->i += offset;

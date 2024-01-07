@@ -1,4 +1,5 @@
 #include "walter.h"
+#include "../lib/le.h"
 #include "../lib/past.h"
 
 TEST("past_set and past_get")
@@ -14,6 +15,7 @@ TEST("past_set and past_get")
 	past_set(past, "ccc");
 	SEQ(past_get(past, 0), "ccc");
 	SEQ(past_get(past, 0), "ccc");
+	OK(past->i == 2);
 	SEQ(past_get(past, -1), "bbb");
 	SEQ(past_get(past, 0), "bbb");
 	SEQ(past_get(past, -1), "aaa");
@@ -25,6 +27,15 @@ TEST("past_set and past_get")
 	SEQ(past_get(past, 0), "bbb");
 	SEQ(past_get(past, 1), "ccc");
 	OK(past_get(past, 1) == 0);
+	past_set(past, "ddd");
+	past_set(past, "eee");
+	OK(past_get(past, 1) == 0);
+	SEQ(past_get(past, 0), "eee");
+	SEQ(past_get(past, -1), "ddd");
+	SEQ(past_get(past, -1), "ccc");
+	OK(past_get(past, -1) == 0);
+	OK(past_get(past, -1) == 0);
+	SEQ(past_get(past, 0), "ccc");
 
 	past_free(past);
 }
