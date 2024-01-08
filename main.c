@@ -6,12 +6,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include "lib/arg.h"
 #include "lib/le.h"
 #include "lib/nav.h"
-#include "lib/net.h"
 #include "lib/tab.h"
 #include "lib/uri.h"
 #include "lib/util.h"
@@ -50,7 +48,7 @@ usage(void)
 
 // Get URI under INDEX link (1 based) from curently open tab.
 static char *
-link_get(int index)
+onlink(int index)
 {
 	enum uri protocol;
 	char *uri=0, *filename;
@@ -90,13 +88,18 @@ static int
 onuri(char *uri)
 {
 	enum uri protocol;
-	int sfd, port;
-	char buf[4096]={0}, *host, *path, *tmp, item='1', *show;
+	int port, err;
+	char *host, *path;
 	FILE *raw, *fmt;
-	ssize_t ssiz;
 	LOG("%s", uri);
 	if (!uri || !uri[0]) {
 		return 0;
+	}
+	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
+		ERR("fopen '%s' '%s':", uri, s_tab.open->raw);
+	}
+	if (!(fmt = fopen(s_tab.open->fmt, "w"))) {
+		ERR("fopen '%s' '%s':", uri, s_tab.open->fmt);
 	}
 	assert(strlen(uri) <= URI_SIZ);
 	protocol = uri_protocol(uri);
@@ -107,15 +110,8 @@ onuri(char *uri)
 	if (!port) port = PROTOCOL;
 	if (!protocol) protocol = port;
 	switch (protocol) {
-	case URI_GOPHER:
-		if (path && path[1]) {
-			item = path[1];
-			path += 2;
-		}
-		break;
-	case URI_GEMINI:
-		// TODO(irek): Should I do somethin in here?
-		break;
+	case URI_GOPHER: err = gph_req(raw, fmt, host, port, path); break;
+	case URI_GEMINI: err = gmi_req(raw, fmt, host, port, path); break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:
@@ -125,94 +121,21 @@ onuri(char *uri)
 	case URI_HTTPS:
 	case URI_NUL:
 	default:
-		WARN("Unsupported protocol %d %s", s_tab.open->protocol,
-		     uri_protocol_str(s_tab.open->protocol));
-		return 0;
-	}
-	//////////////////////////////////////////////////////////////
-	//
-	// TOOD(irek): This whole "item" logic from Gopher is now leak
-	// into general logic used by other protocols.  I should moved
-	// it to gph.h somehow.
-	//
-	// In Gemini similar logic has to be handled on response not
-	// on request.  Hmm, maybe what I need is a function for each
-	// protocol that is executed before and after request?  Maybe
-	// each protocol should have it's own request and response
-	// functions.  For example protocol URI_FILE will not do any
-	// work on sockets.  So it also makes no sense to have tcp()
-	// function as part of the generic logic.
-	//
-	// Yea, I should do that.
-	//
-	//////////////////////////////////////////////////////////////
-	if (item == '7') {
-		// TODO(irek): Make sure there is a way to cancel.
-		fputs("enter search query: ", stdout);
-		fflush(stdout);
-		fgets(buf, sizeof(buf), stdin);
-		buf[strlen(buf)-1] = 0;
-		if (!buf[0]) { // Empty search
-			return 0;
-		}
-		tmp = JOIN(path, "\t", buf);
-		path = tmp;
-	}
-	if ((sfd = req(host, port, path)) == 0) {
-		printf("Invalid URI %s\n", uri);
-		return 0;
-	}
-	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
-		ERR("fopen '%s' '%s':", uri, s_tab.open->raw);
-	}
-	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
-		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
-			ERR("fwrite %s:", uri);
-		}
-	}
-	if (ssiz < 0) {
-		ERR("recv %s:", uri);
-	}
-	if (close(sfd)) {
-		ERR("close %s %d:", uri, sfd);
-	}
-	// Set tab value only after successful request.
-	s_tab.open->protocol = protocol;
-	switch (item) {
-	case '0':
-		show = s_tab.open->raw;
-		break;
-	case '1':
-	case '7':
-		show = s_tab.open->fmt;
-		break;
-	default:
-		show = 0;
-	}
-	if (show == 0) {
-		// TODO(irek): Flow of closing this file is ugly.
-		// This probably could be refactored with some good
-		// old goto.
-		if (fclose(raw) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab.open->raw);
-		}
-		printf("Not a Gopher submenu and not a text file\n");
-		return 0;
-	}
-	if (show == s_tab.open->fmt) {
-		if (!(fmt = fopen(s_tab.open->fmt, "w"))) {
-			ERR("fopen %s %s:", uri, s_tab.open->fmt);
-		}
-		rewind(raw);
-		gph_fmt(raw, fmt);
-		if (fclose(fmt) == EOF) {
-			ERR("fclose %s %s:", uri, s_tab.open->fmt);
-		}
+		WARN("Unsupported protocol %d %s", protocol,
+		     uri_protocol_str(protocol));
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s %s:", uri, s_tab.open->raw);
+		ERR("fclose '%s' '%s':", uri, s_tab.open->raw);
 	}
-	cmd_run(s_pager, show);
+	if (fclose(fmt) == EOF) {
+		ERR("fclose '%s' '%s':", uri, s_tab.open->fmt);
+	}
+	if (err) {
+		printf("Request '%s' failed\n", uri);
+		return 0;
+	}
+	// TODO(irek): I don't know how to handle this anymore.
+	// cmd_run(s_pager, show);
 	return 1;
 }
 
@@ -255,7 +178,7 @@ onprompt(size_t siz, char *buf)
 		}
 		break;
 	case CMD_LINK:
-		uri = link_get(atoi(buf));
+		uri = onlink(atoi(buf));
 		if (onuri(uri)) {
 			past_set(s_tab.open->past, uri);
 		}
@@ -286,7 +209,7 @@ onprompt(size_t siz, char *buf)
 		// TODO(irek): Tab duplication should also copy
 		// history from current tab.
 		if (arg) {
-			uri = (i = atoi(arg)) ? link_get(i) : arg;
+			uri = (i = atoi(arg)) ? onlink(i) : arg;
 		} else {
 			uri = past_get(s_tab.open->past, 0);
 		}
@@ -310,7 +233,7 @@ onprompt(size_t siz, char *buf)
 		// like GOPHER.  Then openine history list will be
 		// just an opening a file and serving it as regular
 		// page in current tab.
-		WARN("TODO");
+		WARN("Not implemented");
 		break;
 	case CMD_HIS_PREV:
 		uri = past_get(s_tab.open->past, -1);
@@ -361,7 +284,7 @@ main(int argc, char *argv[])
 	if (!s_tab.n) {
 		tab_open(&s_tab);
 	}
-	while (1) {
+	while (1) { // Prompt
 		printf("yupa(%d/%d)> ", s_tab.i+1, s_tab.n);
 		if (!fgets(buf, sizeof(buf), stdin)) {
 			WARN("fgets:");

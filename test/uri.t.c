@@ -118,3 +118,9 @@ TEST("uri_path")
 	SEQ("/path", uri_path("gopher://host:70/path"));
 	SEQ("/path/to/file", uri_path("gopher://host:70/path/to/file"));
 }
+
+TEST("uri_normalize")
+{
+	SEQ(uri_normalize(URI_GOPHER, "name", URI_GOPHER, 0),
+		"gopher://name:70/");
+}

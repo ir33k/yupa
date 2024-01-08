@@ -44,9 +44,8 @@ int uri_port(char *uri);
 // not found.
 char *uri_path(char *uri);
 
-// Construct normalized URI in DST buffer from given URI parts, where
-// only PATH can be NULL.
-void uri_normalize(char dst[URI_SIZ], int protocol, char *host,
-		   int port, char *path);
+// Return pointer to static normalized URI string from PROTOCOL, HOST,
+// PORT and PATH where only PATH can be NULL.
+char *uri_normalize(int protocol, char *host, int port, char *path);
 
 #endif // _URI_H

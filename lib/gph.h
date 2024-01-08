@@ -3,11 +3,10 @@
 #ifndef _GPH_H
 #define _GPH_H
 
-//
-void gph_onreq();
+#include <stdio.h>
 
 //
-void gph_onres();
+int gph_req(FILE *raw, FILE *fmt, char *host, int port, char *path);
 
 // Assuming that BODY is an open file with Gopher submenu, write
 // prettier formatted version to open DST file.

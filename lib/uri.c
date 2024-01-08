@@ -88,16 +88,16 @@ uri_path(char *uri)
 	return strchr(beg, '/');
 }
 
-void
-uri_normalize(char dst[URI_SIZ], int protocol, char *host,
-	      int port, char *path)
+char *
+uri_normalize(int protocol, char *host, int port, char *path)
 {
-	assert(dst);
+	static char uri[URI_SIZ];
 	assert(host);
 	assert(port > 0);
 	if (!path) {
 		path = "/";
 	}
-	sprintf(dst, "%s://%s:%d%s",
+	snprintf(uri, sizeof(uri), "%s://%s:%d%s",
 		uri_protocol_str(protocol), host, port, path);
+	return uri;
 }
