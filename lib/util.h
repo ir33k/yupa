@@ -26,4 +26,10 @@ char *strrand(size_t len);
 // DST is a buffer where string path to create file will be stored.
 void tmpf(char *prefix, char dst[FILENAME_MAX]);
 
+// Execute CMD with FILENAME.
+void cmd_run(char *cmd, char *filename);
+
+// Copy SRC file to DST path.
+void copy(char *src, char *dst);
+
 #endif // _UTIL_H
