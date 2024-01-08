@@ -14,13 +14,13 @@ struct tab {
 	int              n, i;  // Number of tabs, index of open tab
 };
 
-struct tab_node {                       // Tab node in liked list
-	enum uri_protocol protocol;     // Current page URI protocol
-	char    raw[FILENAME_MAX];      // Path to file with raw response
-	char    fmt[FILENAME_MAX];      // Path to file with formatted RAW
+struct tab_node {               // Tab node in liked list
+	enum uri protocol;      // Current page URI protocol
+	char    raw[FILENAME_MAX]; // Path to file with raw response
+	char    fmt[FILENAME_MAX]; // Path to file with formatted RAW
 	// Readonly
-	struct past      *past;         // Browsing history ring buffer
-	struct tab_node  *next;         // Next linked list node
+	struct past     *past;  // Browsing history ring buffer
+	struct tab_node *next;  // Next linked list node
 };
 
 // Add new empty tab and set it as current tab.

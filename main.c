@@ -48,29 +48,24 @@ usage(void)
 	       , argv0);
 }
 
-//
+// Get URI under INDEX link (1 based) from curently open tab.
 static char *
 link_get(int index)
 {
-	char *uri = 0;
+	enum uri protocol;
+	char *uri=0, *filename;
 	FILE *raw;
-	if (index <= 0) {
+	if (index < 1) {
 		return 0;
 	}
-	if (s_tab.open->protocol != URI_GOPHER) {
-		WARN("Only gopher protocol is supported");
-		return 0;
+	protocol = s_tab.open->protocol;
+	filename = s_tab.open->raw;
+	if (!(raw = fopen(filename, "r"))) {
+		ERR("fopen %s:", filename);
 	}
-	if (!(raw = fopen(s_tab.open->raw, "r"))) {
-		ERR("fopen %s:", s_tab.open->raw);
-	}
-	switch (s_tab.open->protocol) {
-	case URI_GOPHER:
-		uri = gph_uri(raw, index);
-		break;
-	case URI_GEMINI:
-		// TODO(irek): The time has come.
-		break;
+	switch (protocol) {
+	case URI_GOPHER: uri = gph_uri(raw, index); break;
+	case URI_GEMINI: uri = gmi_uri(raw, index); break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:
@@ -80,11 +75,12 @@ link_get(int index)
 	case URI_HTTPS:
 	case URI_NUL:
 	default:
-		WARN("Unsupported protocol %d %s", s_tab.open->protocol,
-		     uri_protocol_str(s_tab.open->protocol));
+		WARN("Unsupported protocol %d '%s'",
+		     protocol,
+		     uri_protocol_str(protocol));
 	}
 	if (fclose(raw) == EOF) {
-		ERR("fclose %s:", s_tab.open->raw);
+		ERR("fclose %s:", filename);
 	}
 	return uri;
 }
@@ -93,7 +89,7 @@ link_get(int index)
 static int
 onuri(char *uri)
 {
-	enum uri_protocol protocol;
+	enum uri protocol;
 	int sfd, port;
 	char buf[4096]={0}, *host, *path, *tmp, item='1', *show;
 	FILE *raw, *fmt;

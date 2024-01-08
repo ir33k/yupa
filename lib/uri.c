@@ -2,7 +2,7 @@
 #include "uri.h"
 
 char *
-uri_protocol_str(enum uri_protocol protocol)
+uri_protocol_str(enum uri protocol)
 {
 	switch (protocol) {
 	case URI_NUL:    return "<NULL>";

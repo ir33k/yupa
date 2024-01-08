@@ -14,7 +14,7 @@
 // and port are essentially the same thing.  OFC you can have custom
 // port number but protocol for it will still be a number being the
 // default port number.
-enum uri_protocol {
+enum uri {
 	URI_NUL    = 0,         // For empty or unknown protocol
 	URI_FILE   = 1,         // Reading files from local drive
 	URI_ABOUT  = 2,         // For browser generated pages
@@ -28,7 +28,7 @@ enum uri_protocol {
 };
 
 // For given PROTOCOL return protocol name as string.
-char *uri_protocol_str(enum uri_protocol protocol);
+char *uri_protocol_str(enum uri protocol);
 
 // Get protocol default port from URI string.
 int uri_protocol(char *uri);

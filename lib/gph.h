@@ -3,10 +3,15 @@
 #ifndef _GPH_H
 #define _GPH_H
 
+//
+void gph_onreq();
+
+//
+void gph_onres();
+
 // Assuming that BODY is an open file with Gopher submenu, write
 // prettier formatted version to open DST file.
 void gph_fmt(FILE *body, FILE *dst);
-
 
 // Search in BODY open file for the link under INDEX (1 == first
 // link).  Return pointer to static string with normalized URI.
