@@ -1,3 +1,5 @@
+// URI (Universal Resource Identifier) lib to parse and build URI.
+
 #ifndef _URI_H
 #define _URI_H
 
