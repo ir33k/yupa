@@ -1,4 +1,4 @@
-// Everythin socket, tcp, internet related.
+// Everything socket, tcp, internet related.
 
 #ifndef _NET_H
 #define _NET_H

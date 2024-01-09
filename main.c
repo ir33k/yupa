@@ -46,7 +46,7 @@ usage(void)
 	       , argv0);
 }
 
-// Get URI under INDEX link (1 based) from curently open tab.
+// Get URI under INDEX link (1 based) from currently open tab.
 static char *
 onlink(int index)
 {
