@@ -3,7 +3,7 @@ set -ex # Stop on first error and log all commands
 
 CC="cc"
 CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
-LIBS="lib/*.o"
+LIBS="lib/*.o -lssl -lcrypto"
 
 # Build libs
 $CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
