@@ -1,7 +1,7 @@
 Yupa, WORK IN PROGRESS
 
 I'm activli working on it at the moment (2024.01.01 Mon 16:16) to have
-v1.0 for my personal usage but you never know with thos side projects.
+v1.0 for my personal usage but you never know with those side projects.
 I hope it will be finished soon as I would like to use it.
 
 MVP What I would like to have before calling this a v1.0?
@@ -16,7 +16,7 @@ For v2.0 I want to have Gemini support.
 
 - Gemini basic support (essentially what I have in gmi100).
 - History list.
-- Restoring previous brosing session.
+- Restoring previous browsing session.
 - Better error handling as many of them will just kill program.
 
 Test URIs:

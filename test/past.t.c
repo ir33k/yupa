@@ -2,7 +2,7 @@
 #include "../lib/le.h"
 #include "../lib/past.h"
 
-// Usefull functin for debugging printing content of whole PAST
+// Useful function for debugging printing content of whole PAST
 // internal buffer marking ucrrently indexed element.  Not used
 // outside of debugging sessins.
 #pragma GCC diagnostic ignored "-Wunused-function"

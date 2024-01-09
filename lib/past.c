@@ -11,7 +11,7 @@
 // Like URI_AT but for currently active item.
 #define URI_I(past) URI_AT((past), (past)->i)
 
-// Lik URI_AT but for currently active item moved by OFFSET.
+// Like URI_AT but for currently active item moved by OFFSET.
 #define URI_OF(past, offset) URI_AT((past), (past)->i+(offset))
 
 struct past *
@@ -54,7 +54,7 @@ char *
 past_get(struct past *past, int offset)
 {
 	assert(past);
-	// TOOD(irek): Handle offset by more than 1?
+	// TODO(irek): Handle offset by more than 1?
 	assert(offset == 0 || offset == -1 || offset == 1);
 	if (!offset) {
 		return past->uri + URI_I(past);

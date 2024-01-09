@@ -10,7 +10,7 @@
 
 #define URI_SIZ 1024            // Max size of URI
 
-// Protocols with cooresponding default ports.  In this lib protocol
+// Protocols with corresponding default ports.  In this lib protocol
 // and port are essentially the same thing.  OFC you can have custom
 // port number but protocol for it will still be a number being the
 // default port number.

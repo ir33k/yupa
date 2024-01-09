@@ -33,7 +33,7 @@ enum cmd {              // Possible commands input in nav prompt
 	CMD_TAB_CLOSE,  // Close current tab
 	//
 	CMD_SH_RAW,     // Run shell command on raw response body
-	CMD_SH_FMT,     // Run shell command on formatted respons
+	CMD_SH_FMT,     // Run shell command on formatted response
 };
 
 // Get command for BUF command string.  If BUF is empty or command
