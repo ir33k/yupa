@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 //
-int gmi_req(FILE *raw, FILE *fmt, char *host, int port, char *path);
+FILE *gmi_req(FILE *raw, FILE *fmt, char *uri);
 
 // Search in BODY open file for the link under INDEX (1 == first
 // link).  Return pointer to static string with normalized URI.

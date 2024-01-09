@@ -3,14 +3,12 @@
 #include "le.h"
 #include "gmi.h"
 
-int
-gmi_req(FILE *raw, FILE *fmt, char *host, int port, char *path)
+FILE *
+gmi_req(FILE *raw, FILE *fmt, char *uri)
 {
 	assert(raw);
 	assert(fmt);
-	assert(host);
-	(void)port;
-	(void)path;
+	assert(uri);
 	return 0;
 }
 

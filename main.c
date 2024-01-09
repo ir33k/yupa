@@ -88,30 +88,28 @@ static int
 onuri(char *uri)
 {
 	enum uri protocol;
-	int port, err;
-	char *host, *path;
-	FILE *raw, *fmt;
+	int port;
+	FILE *raw, *fmt, *show;
 	LOG("%s", uri);
 	if (!uri || !uri[0]) {
 		return 0;
 	}
+	assert(strlen(uri) <= URI_SIZ);
 	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
 		ERR("fopen '%s' '%s':", uri, s_tab.open->raw);
 	}
 	if (!(fmt = fopen(s_tab.open->fmt, "w"))) {
 		ERR("fopen '%s' '%s':", uri, s_tab.open->fmt);
 	}
-	assert(strlen(uri) <= URI_SIZ);
 	protocol = uri_protocol(uri);
-	host = uri_host(uri);
 	port = uri_port(uri);
-	path = uri_path(uri);
 	if (!port) port = protocol;
 	if (!port) port = PROTOCOL;
 	if (!protocol) protocol = port;
+	s_tab.open->protocol = protocol;
 	switch (protocol) {
-	case URI_GOPHER: err = gph_req(raw, fmt, host, port, path); break;
-	case URI_GEMINI: err = gmi_req(raw, fmt, host, port, path); break;
+	case URI_GOPHER: show = gph_req(raw, fmt, uri); break;
+	case URI_GEMINI: show = gmi_req(raw, fmt, uri); break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:
@@ -130,12 +128,12 @@ onuri(char *uri)
 	if (fclose(fmt) == EOF) {
 		ERR("fclose '%s' '%s':", uri, s_tab.open->fmt);
 	}
-	if (err) {
-		printf("Request '%s' failed\n", uri);
-		return 0;
+	if (show) {
+		cmd_run(s_pager,
+			show == fmt ?
+			s_tab.open->fmt :
+			s_tab.open->raw);
 	}
-	// TODO(irek): I don't know how to handle this anymore.
-	// cmd_run(s_pager, show);
 	return 1;
 }
 

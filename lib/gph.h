@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 //
-int gph_req(FILE *raw, FILE *fmt, char *host, int port, char *path);
+FILE *gph_req(FILE *raw, FILE *fmt, char *uri);
 
 // Assuming that BODY is an open file with Gopher submenu, write
 // prettier formatted version to open DST file.

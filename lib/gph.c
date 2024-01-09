@@ -101,17 +101,22 @@ item_label(enum type item)
 	return "???";
 }
 
-int
-gph_req(FILE *raw, FILE *fmt, char *host, int port, char *path)
+FILE *
+gph_req(FILE *raw, FILE *fmt, char *uri)
 {
-	int sfd;
-	char buf[4096], *uri, *tmp, item='1';
+	int sfd, port;
+	char buf[4096], *tmp, *host, *path, item='1';
 	FILE *show;
 	ssize_t ssiz;
 	assert(raw);
 	assert(fmt);
-	assert(host);
-	uri = uri_normalize(URI_GOPHER, host, port, path);
+	assert(uri);
+	host = uri_host(uri);
+	port = uri_port(uri);
+	path = uri_path(uri);
+	if (!port) {
+		port = URI_GOPHER;
+	}
 	if (path && path[1]) {
 		item = path[1];
 		path += 2;
@@ -129,7 +134,8 @@ gph_req(FILE *raw, FILE *fmt, char *host, int port, char *path)
 		path = tmp;
 	}
 	if ((sfd = req(host, port, path)) == 0) {
-		return 1;
+		printf("Request '%s' failed\n", uri);
+		return 0;
 	}
 	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
@@ -149,15 +155,13 @@ gph_req(FILE *raw, FILE *fmt, char *host, int port, char *path)
 	case '1':
 	case '7':
 		show = fmt;
+		rewind(raw);
+		gph_fmt(raw, fmt);
 		break;
 	default:
 		show = 0;
 	}
-	if (show == fmt) {
-		rewind(raw);
-		gph_fmt(raw, fmt);
-	}
-	return 0;
+	return show;
 }
 
 void
