@@ -8,6 +8,40 @@
 #include "uri.h"
 #include "util.h"
 
+// // From gmix/gmit.h project source file.
+// enum gmir_code {
+// 	GMIR_NUL          =  0, /* Unknown status code */
+// 	                        /* 1X INPUT */
+// 	GMIR_INPUT_TEXT   = 10, /* Regular input, search phrase */
+// 	GMIR_INPUT_PASS   = 11, /* Sensitive input, password */
+// 	                        /* 2X SUCCESS */
+// 	GMIR_OK           = 20, /* All good */
+// 	                        /* 3X Redirection */
+// 	GMIR_REDIR_TEMP   = 30, /* Temporary redirection */
+// 	GMIR_REDIR_PERM   = 31, /* Permanent redirection */
+// 	                        /* 4X TMP FAIL */
+// 	GMIR_WARN_TEMP    = 40, /* Temporary failure */
+// 	GMIR_WARN_OUT     = 41, /* Server unavailable */
+// 	GMIR_WARN_CGI     = 42, /* CGI error */
+// 	GMIR_WARN_PROX    = 43, /* Proxy error */
+// 	GMIR_WARN_LIMIT   = 44, /* Rate limiting, you have to wait */
+// 	                        /* 5X PERMANENT FAIL */
+// 	GMIR_ERR_PERM     = 50, /* Permanent failure */
+// 	GMIR_ERR_404      = 51, /* Not found */
+// 	GMIR_ERR_GONE     = 52, /* Resource no longer available */
+// 	GMIR_ERR_NOPROX   = 53, /* Proxy request refused */
+// 	GMIR_ERR_BAD      = 59, /* Bad requaest */
+// 	                        /* 6X CLIENT CERT */
+// 	GMIR_CERT_REQU    = 60, /* Client certificate required */
+// 	GMIR_CERT_UNAUTH  = 61, /* Certificate not authorised */
+// 	GMIR_CERT_INVALID = 62  /* Cerfiticate not valid */
+// };
+
+enum {
+	GMI_QUERY    = '1',
+	GMI_REDIRECT = '3',
+};
+
 //
 static void
 format(FILE *src, FILE *dst)
@@ -102,6 +136,21 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 		WARN("SSL_write");
 		return 0;
 	}
+	// Response header.
+	sz = SSL_read(ssl, buf, sizeof(buf)-1);
+	switch (buf[0]) {
+	case GMI_QUERY:
+		SSL_free(ssl);
+		return 0;
+	case GMI_REDIRECT:
+		// TODO(irek): Redirection can navigate to other
+		// protocols and because of that this logic should be
+		// handled in main program.  I have to redesign entire
+		// flow to make it possible.
+		SSL_free(ssl);
+		return 0;
+	}
+	// Response body.
 	while ((sz = SSL_read(ssl, buf, sizeof(buf)-1))) {
 		buf[sz] = 0;
 		fputs(buf, raw);
