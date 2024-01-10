@@ -8,6 +8,32 @@
 #include "uri.h"
 #include "util.h"
 
+static void
+format(FILE *src, FILE *dst)
+{
+	char buf[4096], *bp;
+	size_t len;
+	int link=0, partial=0;
+	assert(src);
+	assert(dst);
+	rewind(src);
+	while ((bp = fgets(buf, sizeof(buf), src))) {
+		len = strlen(bp);
+		if (partial) {
+			fputs(bp, dst);
+			// TODO(irek): Duplicated.
+			partial = len == 0 || bp[len-1] != '\n';
+			continue;
+		}
+		partial = len == 0 || bp[len-1] != '\n';
+		if (len > 1 && !strncmp(bp, "=>", 2)) {
+			// Link
+			fprintf(dst, "(%d)\t", ++link);
+		}
+		fputs(bp, dst);
+	}
+}
+
 FILE *
 gmi_req(FILE *raw, FILE *fmt, char *uri)
 {
@@ -56,25 +82,42 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 	while ((siz = SSL_read(ssl, buf, sizeof(buf)-1))) {
 		buf[siz] = 0;
 		fputs(buf, raw);
-		fputs(buf, fmt);
 	}
 	SSL_free(ssl);
 	show = fmt;
+	if (show == fmt) {
+		format(raw, fmt);
+	}
 	return show;
-}
-
-void
-gmi_fmt(FILE *body, FILE *dst)
-{
-	assert(body);
-	assert(dst);
 }
 
 char *
 gmi_uri(FILE *body, int index)
 {
+	static char uri[URI_SIZ];
+	char buf[4096], *bp;
+	size_t len;
+	int partial=0;
 	assert(body);
 	assert(index > 0);
-	WARN("Implement");
+	while ((bp = fgets(buf, sizeof(buf), body))) {
+		len = strlen(bp);
+		if (partial) {
+			// TODO(irek): Duplicated.
+			partial = len == 0 || bp[len-1] != '\n';
+			continue;
+		}
+		partial = len == 0 || bp[len-1] != '\n';
+		if (len > 1 && !strncmp(bp, "=>", 2)) {
+			index--;
+		}
+		if (index == 0) {
+			bp += 2;
+			while (*bp <= ' ') bp++;
+			bp[strcspn(bp, "\t\n ")] = 0;
+			strcpy(uri, bp);
+			return uri;
+		}
+	}
 	return 0;
 }

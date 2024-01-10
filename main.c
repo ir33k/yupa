@@ -80,6 +80,12 @@ onlink(int index)
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s:", filename);
 	}
+	// TODO(irek):Handle relative URIs.  I think it can be done
+	// globally for all protocols.  There are probably edge cases
+	// and differences in some of them but for now with Gopher and
+	// Gemini only can san safely go with that strategy.  If later
+	// I found out it's not possible then I can move it easily to
+	// function _uri() of each protocols.
 	return uri;
 }
 

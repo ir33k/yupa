@@ -101,6 +101,34 @@ item_label(enum type item)
 	return "???";
 }
 
+// Assuming that SRC is an open file with Gopher submenu, write
+// prettier formatted version to open DST file.
+static void
+format(FILE *src, FILE *dst)
+{
+	int link=1;
+	char *bp, buf[1024], nav[8], label[16];
+	assert(src);
+	assert(dst);
+	rewind(src);
+	while ((bp = fgets(buf, sizeof(buf), src))) {
+		bp[strcspn(bp, "\t")] = 0; // End string on first tab
+		*nav = 0;
+		*label = 0;
+		switch (item_kind(*bp)) {
+		case K_EOF: return;
+		case K_NUL: break;
+		case K_NAV:
+			snprintf(nav, sizeof(nav), "%d: ", link++);
+			snprintf(label, sizeof(label), "(%s) ", item_label(*bp));
+			// Fallthrough
+		case K_NON:
+			bp++;   // Skip item type character
+		}
+		fprintf(dst, "%-*s%s%s\n", MARGIN, nav, label, bp);
+	}
+}
+
 FILE *
 gph_req(FILE *raw, FILE *fmt, char *uri)
 {
@@ -155,38 +183,12 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 	case '1':
 	case '7':
 		show = fmt;
-		rewind(raw);
-		gph_fmt(raw, fmt);
+		format(raw, fmt);
 		break;
 	default:
 		show = 0;
 	}
 	return show;
-}
-
-void
-gph_fmt(FILE *body, FILE *dst)
-{
-	int link=1;
-	char *bp, buf[1024], nav[8], label[16];
-	assert(body);
-	assert(dst);
-	while ((bp = fgets(buf, sizeof(buf), body))) {
-		bp[strcspn(bp, "\t")] = 0; // End string on first tab
-		*nav = 0;
-		*label = 0;
-		switch (item_kind(*bp)) {
-		case K_EOF: return;
-		case K_NUL: break;
-		case K_NAV:
-			snprintf(nav, sizeof(nav), "%d: ", link++);
-			snprintf(label, sizeof(label), "(%s) ", item_label(*bp));
-			// Fallthrough
-		case K_NON:
-			bp++;   // Skip item type character
-		}
-		fprintf(dst, "%-*s%s%s\n", MARGIN, nav, label, bp);
-	}
 }
 
 char *
