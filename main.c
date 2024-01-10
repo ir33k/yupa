@@ -100,7 +100,7 @@ onuri(char *uri)
 	if (!uri || !uri[0]) {
 		return 0;
 	}
-	assert(strlen(uri) <= URI_SIZ);
+	assert(strlen(uri) <= URI_SZ);
 	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
 		ERR("fopen '%s' '%s':", uri, s_tab.open->raw);
 	}
@@ -145,9 +145,9 @@ onuri(char *uri)
 
 //
 static void
-onprompt(size_t siz, char *buf)
+onprompt(size_t sz, char *buf)
 {
-	// TODO(irek): I don't like passing the SIZ and the creating
+	// TODO(irek): I don't like passing the SZ and the creating
 	// LAST buffer with size that is potentially different.  This
 	// whole approach is fundamentally wrong.  I should use const
 	// value for both.
@@ -173,7 +173,7 @@ onprompt(size_t siz, char *buf)
 	case CMD_REPEAT:
 		if (*last) {
 			strcpy(buf, last);
-			onprompt(siz, buf);
+			onprompt(sz, buf);
 		}
 		return; // Return to avoid defining CMD_REPEAT as last cmd
 	case CMD_URI:
@@ -192,6 +192,9 @@ onprompt(size_t siz, char *buf)
 		break;
 	case CMD_PAGE_RAW:
 		cmd_run(s_pager, s_tab.open->raw);
+		break;
+	case CMD_PAGE_URI:
+		printf("%s\n", past_get(s_tab.open->past, 0));
 		break;
 	case CMD_TAB_GOTO:
 		if (arg && (i = atoi(arg))) {

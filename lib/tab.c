@@ -42,7 +42,7 @@ tab_new(struct tab *tab)
 	memset(new, 0, sizeof(*new));
 	tmpf("yupa.raw", new->raw);
 	tmpf("yupa.fmt", new->fmt);
-	new->past = past_new(64, URI_SIZ);
+	new->past = past_new(64, URI_SZ);
 	tab->n++;
 	if (!tab->head || !tab->open) {
 		tab->head = new;

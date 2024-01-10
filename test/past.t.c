@@ -14,7 +14,7 @@ past_dump(struct past *past)
 	for (i=0; i < past->n; i++) {
 		printf("%lu: %s%s\n", i,
 		       i == past->i ? "> " : "  ",
-		       past->uri + i*past->siz);
+		       past->uri + i*past->sz);
 	}
 }
 #pragma GCC diagnostic pop

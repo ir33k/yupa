@@ -23,17 +23,17 @@ int
 uri_protocol(char *uri)
 {
 	char *beg;
-	int siz;
+	int sz;
 	if (!uri) {
 		return URI_NUL;
 	}
 	if (!(beg = strstr(uri, "://"))) {
 		return URI_NUL;
 	}
-	if ((siz = beg - uri) <= 0) {
+	if ((sz = beg - uri) <= 0) {
 		return URI_NUL;
 	}
-#define _URI_IS(x) siz == strlen(x) && !strncasecmp(uri, x, siz)
+#define _URI_IS(x) sz == strlen(x) && !strncasecmp(uri, x, sz)
 	if (_URI_IS("gopher")) return URI_GOPHER;
 	if (_URI_IS("finger")) return URI_FINGER;
 	if (_URI_IS("gemini")) return URI_GEMINI;
@@ -49,11 +49,11 @@ uri_protocol(char *uri)
 char *
 uri_host(char *uri)
 {
-	static char buf[URI_SIZ];
+	static char buf[URI_SZ];
 	char *beg, *end;
 	size_t len;
 	assert(uri);
-	assert(strlen(uri) < URI_SIZ);
+	assert(strlen(uri) < URI_SZ);
 	beg = (beg = strstr(uri, "://")) ? beg + 3 : uri; // Skip protocol
 	len = strlen(beg);
 	if (len == 0) {
@@ -91,7 +91,7 @@ uri_path(char *uri)
 char *
 uri_normalize(int protocol, char *host, int port, char *path)
 {
-	static char uri[URI_SIZ];
+	static char uri[URI_SZ];
 	assert(host);
 	assert(port > 0);
 	if (!path) {

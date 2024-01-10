@@ -107,10 +107,15 @@ static void
 format(FILE *src, FILE *dst)
 {
 	int link=1;
-	char *bp, buf[1024], nav[8], label[16];
+	char *bp, buf[4096], nav[8], label[16];
 	assert(src);
 	assert(dst);
 	rewind(src);
+	// I'm not covering case with lines longer than sizeof(buf).
+	// Gopher convention is to have less than 70 or even 60 chars
+	// per line.  I should be safe with such big buffer as mine.
+	// Even for menu items with very long links and I don't care
+	// if it fails for some obscure Gopher hole.
 	while ((bp = fgets(buf, sizeof(buf), src))) {
 		bp[strcspn(bp, "\t")] = 0; // End string on first tab
 		*nav = 0;
@@ -135,7 +140,7 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 	int sfd, port;
 	char buf[4096], *tmp, *host, *path, item='1';
 	FILE *show;
-	ssize_t ssiz;
+	ssize_t ssz;
 	assert(raw);
 	assert(fmt);
 	assert(uri);
@@ -165,12 +170,12 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 		printf("Request '%s' failed\n", uri);
 		return 0;
 	}
-	while ((ssiz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
-		if (fwrite(buf, 1, ssiz, raw) != (size_t)ssiz) {
+	while ((ssz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
+		if (fwrite(buf, 1, ssz, raw) != (size_t)ssz) {
 			ERR("fwrite '%s':", uri);
 		}
 	}
-	if (ssiz < 0) {
+	if (ssz < 0) {
 		ERR("recv '%s':", uri);
 	}
 	if (close(sfd)) {
@@ -194,7 +199,7 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 char *
 gph_uri(FILE *body, int index)
 {
-	static char uri[URI_SIZ];
+	static char uri[URI_SZ];
 	char c, buf[4096], path[1024], host[1024];
 	int port;
 	assert(body);

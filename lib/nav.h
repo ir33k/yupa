@@ -17,6 +17,7 @@ enum cmd {              // Possible commands input in nav prompt
 	//
 	CMD_PAGE_GET,   // Get (reload) current page
 	CMD_PAGE_RAW,   // Show raw response body
+	CMD_PAGE_URI,   // Print current page URI
 	//
 	CMD_HIS_LIST,   // Print history list of current page
 	CMD_HIS_PREV,   // Goto previous browsing history page

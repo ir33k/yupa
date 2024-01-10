@@ -48,13 +48,13 @@ strrand(size_t len)
 		"ABCDEFGHIJKLMNOPRSTUWXYZ"
 		"abcdefghijklmnoprstuwxyz"
 		"0123456789";
-	static const size_t siz = sizeof(allow);
+	static const size_t sz = sizeof(allow);
 	static int seed=0;
 	static char str[32];
 	assert(len < sizeof(str));
 	srand(time(0) + seed++);
 	for (str[len]=0; len--;) {
-		str[len] = allow[rand() % siz];
+		str[len] = allow[rand() % sz];
 	}
 	return str;
 }
@@ -91,7 +91,7 @@ copy(char *src, char *dst)
 {
 	FILE *fd[2];
 	char buf[4096], *tmp;
-	size_t siz;
+	size_t sz;
 	assert(src && src[0]);
 	if (!dst) {
 		printf("Missing destination file path.\n");
@@ -107,8 +107,8 @@ copy(char *src, char *dst)
 		WARN("%s %s fopen(dst):", src, tmp);
 		goto clean;
 	}
-	while ((siz = fread(buf, 1, sizeof(buf), fd[0]))) {
-		if (fwrite(buf, 1, siz, fd[1]) != siz) {
+	while ((sz = fread(buf, 1, sizeof(buf), fd[0]))) {
+		if (fwrite(buf, 1, sz, fd[1]) != sz) {
 			WARN("%s %s fwrite:", src, tmp);
 		}
 	}

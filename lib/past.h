@@ -8,13 +8,13 @@
 struct past {                   // History ring buffer
 	// Readonly
 	char   *uri;            // Array of URIs
-	size_t  n, siz;         // Array items count and their size
+	size_t  n, sz;          // Array items count and their size
 	size_t  i;              // Index to current URI
 };
 
-// Create new PAST browsing history with N slots of SIZ.  Function
+// Create new PAST browsing history with N slots of SZ.  Function
 // assume successful allocations and kills program on failure.
-struct past *past_new(size_t n, size_t siz);
+struct past *past_new(size_t n, size_t sz);
 
 // Add new URI to PAST history buffer at current index position.
 // Entries beyond new entry are no longer available after that.

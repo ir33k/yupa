@@ -6,7 +6,7 @@
 
 // Return index to PAST->URI ring buffer based on N max number of
 // items and SIZ items size.
-#define URI_AT(past, i) (((i) % (past)->n) * (past)->siz)
+#define URI_AT(past, i) (((i) % (past)->n) * (past)->sz)
 
 // Like URI_AT but for currently active item.
 #define URI_I(past) URI_AT((past), (past)->i)
@@ -15,22 +15,22 @@
 #define URI_OF(past, offset) URI_AT((past), (past)->i+(offset))
 
 struct past *
-past_new(size_t n, size_t siz)
+past_new(size_t n, size_t sz)
 {
 	struct past *past;
-	size_t uri_siz = sizeof(char) * n * siz;
+	size_t uri_sz = sizeof(char) * n * sz;
 	assert(n > 0);
-	assert(siz > 0);
+	assert(sz > 0);
 	if (!(past = malloc(sizeof(*past)))) {
 		ERR("malloc:");
 	}
 	memset(past, 0, sizeof(*past));
 	past->n = n;
-	past->siz = siz;
-	if (!(past->uri = malloc(uri_siz))) {
+	past->sz = sz;
+	if (!(past->uri = malloc(uri_sz))) {
 		ERR("malloc:");
 	}
-	memset(past->uri, 0, uri_siz);
+	memset(past->uri, 0, uri_sz);
 	return past;
 }
 
@@ -44,7 +44,7 @@ past_set(struct past *past, char *uri)
 	if (past->uri[URI_I(past)]) {
 		past->i++;
 	}
-	strncpy(past->uri + URI_I(past), uri, past->siz);
+	strncpy(past->uri + URI_I(past), uri, past->sz);
 	// Make next history item empty to cut off old forward history
 	// every time the new item is being added.
 	past->uri[URI_OF(past, 1)] = 0;

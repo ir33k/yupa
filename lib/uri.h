@@ -8,7 +8,7 @@
 #include <string.h>
 #include <strings.h>
 
-#define URI_SIZ 1024            // Max size of URI
+#define URI_SZ 1024             // Max size of URI
 
 // Protocols with corresponding default ports.  In this lib protocol
 // and port are essentially the same thing.  OFC you can have custom

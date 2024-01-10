@@ -8,27 +8,50 @@
 #include "uri.h"
 #include "util.h"
 
+//
 static void
 format(FILE *src, FILE *dst)
 {
 	char buf[4096], *bp;
 	size_t len;
-	int link=0, partial=0;
+	int link=0, partial=0, pre=0;
 	assert(src);
 	assert(dst);
 	rewind(src);
+	// TODO(irek): I want to do a more detailed formatting of
+	// Gemini output but for, now and probably for a long time,
+	// formatting of just the links will be enough.
 	while ((bp = fgets(buf, sizeof(buf), src))) {
 		len = strlen(bp);
-		if (partial) {
-			fputs(bp, dst);
-			// TODO(irek): Duplicated.
-			partial = len == 0 || bp[len-1] != '\n';
+		if (len == 0) {
 			continue;
 		}
-		partial = len == 0 || bp[len-1] != '\n';
-		if (len > 1 && !strncmp(bp, "=>", 2)) {
-			// Link
-			fprintf(dst, "(%d)\t", ++link);
+		if (partial) {
+			fputs(bp, dst);
+			partial = bp[len-1] != '\n';
+			continue;
+		}
+		partial = bp[len-1] != '\n';
+		if (!strncmp(bp, "```", 3)) {
+			pre = !pre;
+		}
+		if (pre) {
+			fputs(bp, dst);
+			continue;
+		}
+		if (!strncmp(bp, "=>", 2)) {
+			// Link URI
+			bp += 2;
+			bp += strspn(bp, " \t\n");
+			len = strcspn(bp, " \t\n\0");
+			fprintf(dst, "%d:\t%.*s\n", ++link, (int)len, bp);
+			// Link description
+			bp += len;
+			bp += strspn(bp, " \t\n");
+			if (*bp) {
+				fprintf(dst, "\t%s", bp);
+			}
+			continue;
 		}
 		fputs(bp, dst);
 	}
@@ -38,7 +61,7 @@ FILE *
 gmi_req(FILE *raw, FILE *fmt, char *uri)
 {
 	char buf[4096], *tmp, *host;
-	int port, sfd, siz;
+	int port, sfd, sz;
 	FILE *show;
         SSL_CTX *ctx;
         SSL *ssl=0;
@@ -79,8 +102,8 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 		WARN("SSL_write");
 		return 0;
 	}
-	while ((siz = SSL_read(ssl, buf, sizeof(buf)-1))) {
-		buf[siz] = 0;
+	while ((sz = SSL_read(ssl, buf, sizeof(buf)-1))) {
+		buf[sz] = 0;
 		fputs(buf, raw);
 	}
 	SSL_free(ssl);
@@ -94,28 +117,40 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 char *
 gmi_uri(FILE *body, int index)
 {
-	static char uri[URI_SIZ];
+	static char uri[URI_SZ];
 	char buf[4096], *bp;
 	size_t len;
-	int partial=0;
+	int partial=0, pre=0;
 	assert(body);
 	assert(index > 0);
+	// TODO(irek): This pattern recognision is the same for
+	// format() and this function.  Could be extracted to keep
+	// loginc in sync.
 	while ((bp = fgets(buf, sizeof(buf), body))) {
 		len = strlen(bp);
-		if (partial) {
-			// TODO(irek): Duplicated.
-			partial = len == 0 || bp[len-1] != '\n';
+		if (len == 0) {
 			continue;
 		}
-		partial = len == 0 || bp[len-1] != '\n';
-		if (len > 1 && !strncmp(bp, "=>", 2)) {
+		if (partial) {
+			partial = bp[len-1] != '\n';
+			continue;
+		}
+		partial = bp[len-1] != '\n';
+		if (!strncmp(bp, "```", 3)) {
+			pre = !pre;
+		}
+		if (pre) {
+			continue;
+		}
+		if (!strncmp(bp, "=>", 2)) {
 			index--;
 		}
 		if (index == 0) {
 			bp += 2;
-			while (*bp <= ' ') bp++;
-			bp[strcspn(bp, "\t\n ")] = 0;
-			strcpy(uri, bp);
+			bp += strspn(bp, " \t\n");
+			len = MIN(sizeof(uri)-1, strcspn(bp, "\t\n "));
+			strncpy(uri, bp, len);
+			uri[len] = 0;
 			return uri;
 		}
 	}
