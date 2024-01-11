@@ -94,8 +94,9 @@ static int
 onuri(char *uri)
 {
 	enum uri protocol;
+	enum net_res res;
 	int port;
-	FILE *raw, *fmt, *show;
+	FILE *raw, *fmt;
 	LOG("%s", uri);
 	if (!uri || !uri[0]) {
 		return 0;
@@ -114,8 +115,8 @@ onuri(char *uri)
 	if (!protocol) protocol = port;
 	s_tab.open->protocol = protocol;
 	switch (protocol) {
-	case URI_GOPHER: show = gph_req(raw, fmt, uri); break;
-	case URI_GEMINI: show = gmi_req(raw, fmt, uri); break;
+	case URI_GOPHER: res = gph_req(raw, fmt, uri); break;
+	case URI_GEMINI: res = gmi_req(raw, fmt, uri); break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:
@@ -134,13 +135,16 @@ onuri(char *uri)
 	if (fclose(fmt) == EOF) {
 		ERR("fclose '%s' '%s':", uri, s_tab.open->fmt);
 	}
-	if (show) {
-		cmd_run(s_pager,
-			show == fmt ?
-			s_tab.open->fmt :
-			s_tab.open->raw);
+	switch (res) {
+	case NET_NUL: return 1; // Nothing to do
+	case NET_ERR: return 0;
+	case NET_RAW: cmd_run(s_pager, s_tab.open->raw); return 1;
+	case NET_FMT: cmd_run(s_pager, s_tab.open->fmt); return 1;
+	case NET_BIN: return 1; // TODO
+	case NET_URI: return 1; // TODO
 	}
-	return 1;
+	ERR("unreachable, unknown result: %d", res);
+	return 0;
 }
 
 //

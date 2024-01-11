@@ -3,13 +3,9 @@
 #ifndef _GPH_H
 #define _GPH_H
 
-#include <stdio.h>
+#include "net.h"
 
-//
-FILE *gph_req(FILE *raw, FILE *fmt, char *uri);
-
-// Search in BODY open file for the link under INDEX (1 == first
-// link).  Return pointer to static string with normalized URI.
-char *gph_uri(FILE *body, int index);
+net_req_t gph_req;
+net_uri_t gph_uri;
 
 #endif // _GPH_H

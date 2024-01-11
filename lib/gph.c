@@ -134,12 +134,11 @@ format(FILE *src, FILE *dst)
 	}
 }
 
-FILE *
+enum net_res
 gph_req(FILE *raw, FILE *fmt, char *uri)
 {
 	int sfd, port;
 	char buf[4096], *tmp, *host, *path, item='1';
-	FILE *show;
 	ssize_t ssz;
 	assert(raw);
 	assert(fmt);
@@ -155,20 +154,19 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 		path += 2;
 	}
 	if (item == '7') {
-		// TODO(irek): Make sure that there is a way to cancel.
 		fputs("enter search query: ", stdout);
 		fflush(stdout);
 		fgets(buf, sizeof(buf), stdin);
 		buf[strlen(buf)-1] = 0;
 		if (!buf[0]) { // Empty search
-			return 0;
+			return NET_NUL;
 		}
 		tmp = JOIN(path, "\t", buf);
 		path = tmp;
 	}
-	if ((sfd = req(host, port, path)) == 0) {
+	if ((sfd = net_req(host, port, path)) == 0) {
 		printf("Request '%s' failed\n", uri);
-		return 0;
+		return NET_ERR;
 	}
 	while ((ssz = recv(sfd, buf, sizeof(buf), 0)) > 0) {
 		if (fwrite(buf, 1, ssz, raw) != (size_t)ssz) {
@@ -183,17 +181,13 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 	}
 	switch (item) {
 	case '0':
-		show = raw;
-		break;
+		return NET_RAW;
 	case '1':
 	case '7':
-		show = fmt;
 		format(raw, fmt);
-		break;
-	default:
-		show = 0;
+		return NET_FMT;
 	}
-	return show;
+	return NET_BIN;
 }
 
 char *

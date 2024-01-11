@@ -5,7 +5,7 @@
 #include "net.h"
 
 int
-tcp(char *host, int port)
+net_tcp(char *host, int port)
 {
 	int i, sfd;
 	struct hostent *he;
@@ -34,12 +34,12 @@ tcp(char *host, int port)
 }
 
 int
-req(char *host, int port, char *path)
+net_req(char *host, int port, char *path)
 {
 	int sfd;
 	assert(host);
 	assert(port > 0);
-	if ((sfd = tcp(host, port)) < 0) {
+	if ((sfd = net_tcp(host, port)) < 0) {
 		return 0;
 	}
 	if (path && send(sfd, path, strlen(path), 0) == -1) {

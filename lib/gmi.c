@@ -91,12 +91,11 @@ format(FILE *src, FILE *dst)
 	}
 }
 
-FILE *
+enum net_res
 gmi_req(FILE *raw, FILE *fmt, char *uri)
 {
-	char buf[4096], *tmp, *host;
+	char buf[4096], head[1024], *tmp, *host;
 	int port, sfd, sz;
-	FILE *show;
         SSL_CTX *ctx;
         SSL *ssl=0;
 	assert(raw);
@@ -109,58 +108,61 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 	}
 	if (!(ctx = SSL_CTX_new(TLS_client_method()))) {
 		WARN("SSL_CTX_new");
-		return 0;
+		return NET_ERR;
 	}
-	if (!(sfd = tcp(host, port))) {
+	if (!(sfd = net_tcp(host, port))) {
 		printf("Request '%s' failed\n", uri);
-		return 0;
+		return NET_ERR;
 	}
         if ((ssl = SSL_new(ctx)) == 0) {
 		WARN("SSL_new");
-		return 0;
+		return NET_ERR;
 	}
         if (!SSL_set_tlsext_host_name(ssl, host)) {
 		WARN("SSL_set_tlsext");
-		return 0;
+		return NET_ERR;
 	}
         if (!SSL_set_fd(ssl, sfd)) {
 		WARN("SSL_set_fd");
-		return 0;
+		return NET_ERR;
 	}
         if (SSL_connect(ssl) < 1) {
 		WARN("SSL_connect");
-		return 0;
+		return NET_ERR;
 	}
 	tmp = JOIN(uri, "\r\n");
         if (SSL_write(ssl, tmp, strlen(tmp)) < 1) {
 		WARN("SSL_write");
-		return 0;
+		return NET_ERR;
 	}
 	// Response header.
-	sz = SSL_read(ssl, buf, sizeof(buf)-1);
-	switch (buf[0]) {
+	SSL_read(ssl, head, sizeof(head));
+	switch (head[0]) {
 	case GMI_QUERY:
 		SSL_free(ssl);
-		return 0;
+		return NET_URI; // TODO(irek)
 	case GMI_REDIRECT:
 		// TODO(irek): Redirection can navigate to other
 		// protocols and because of that this logic should be
 		// handled in main program.  I have to redesign entire
 		// flow to make it possible.
 		SSL_free(ssl);
-		return 0;
+		return NET_URI;
 	}
-	// Response body.
 	while ((sz = SSL_read(ssl, buf, sizeof(buf)-1))) {
 		buf[sz] = 0;
 		fputs(buf, raw);
 	}
 	SSL_free(ssl);
-	show = fmt;
-	if (show == fmt) {
-		format(raw, fmt);
+	// TODO(irek): At this point I should have mime type parser.
+	if (strncmp(head+3, "text/", 5)) {
+		return NET_BIN;
 	}
-	return show;
+	if (strncmp(head+3, "text/gemini", 11)) {
+		format(raw, fmt);
+		return NET_FMT;
+	}
+	return NET_RAW;
 }
 
 char *
