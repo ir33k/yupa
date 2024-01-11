@@ -146,6 +146,17 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 	}
 	switch (head[0]) {
 	case GMI_QUERY:
+		// TODO(irek): The main problem that I'm facing at the
+		// moment is memory management of URI string.  It's
+		// all over the place.  It's either an pointer to
+		// prompt buffer or to static string from gph_uri or
+		// gmi_uri functions.  Hard to tell.  Or maybe it's
+		// not a problem as up to this point this value was
+		// readonly?  If I keep it this way then it's fine?
+		// Maybe it's fine but I don't like that it's hard to
+		// tell where the pointer is pointing to.  Otherwise
+		// handling both GMI_QUERY and GMI_REDIRECT is very
+		// easy.
 		SSL_free(ssl);
 		return NET_URI; // TODO(irek)
 	case GMI_REDIRECT:
