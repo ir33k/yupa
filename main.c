@@ -1,5 +1,5 @@
 #define NAME    "Yupa"
-#define VERSION "v1.3"
+#define VERSION "v1.8"
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
