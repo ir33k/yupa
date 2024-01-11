@@ -48,4 +48,7 @@ char *uri_path(char *uri);
 // PORT and PATH where only PATH can be NULL.
 char *uri_normalize(int protocol, char *host, int port, char *path);
 
+// Return non 0 value if is an absolute path.
+int uri_abs(char *uri);
+
 #endif // _URI_H

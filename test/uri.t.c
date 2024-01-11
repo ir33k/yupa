@@ -123,4 +123,23 @@ TEST("uri_normalize")
 {
 	SEQ(uri_normalize(URI_GOPHER, "name", URI_GOPHER, 0),
 		"gopher://name:70/");
+	SEQ(uri_normalize(URI_GOPHER, "name", 0, 0),
+		"gopher://name:70/");
+	SEQ(uri_normalize(URI_HTTP, "name", 0, 0),
+		"http://name:80/");
+	SEQ(uri_normalize(URI_HTTP, "name", 0, "path"),
+		"http://name:80/path");
+	SEQ(uri_normalize(URI_HTTP, "name", 8080, "/path"),
+		"http://name:8080/path");
+}
+
+TEST("uri_abs")
+{
+	OK(uri_abs("gopher://host"));
+	OK(uri_abs("http://host"));
+	OK(uri_abs("gemini://host"));
+	OK(uri_abs("ftp://host"));
+	OK(!uri_abs("host"));
+	OK(!uri_abs("/path"));
+	OK(!uri_abs("?query"));
 }

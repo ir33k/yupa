@@ -93,11 +93,22 @@ uri_normalize(int protocol, char *host, int port, char *path)
 {
 	static char uri[URI_SZ];
 	assert(host);
-	assert(port > 0);
 	if (!path) {
-		path = "/";
+		path = "";
 	}
-	snprintf(uri, sizeof(uri), "%s://%s:%d%s",
+	if (*path == '/') {
+		path++;
+	}
+	if (!port) {
+		port = protocol;
+	}
+	snprintf(uri, sizeof(uri), "%s://%s:%d/%s",
 		uri_protocol_str(protocol), host, port, path);
 	return uri;
+}
+
+int
+uri_abs(char *uri)
+{
+	return uri && strstr(uri, "://");
 }

@@ -51,7 +51,7 @@ static char *
 onlink(int index)
 {
 	enum uri protocol;
-	char *uri=0, *filename;
+	char *uri=0, *old, *filename;
 	FILE *raw;
 	if (index < 1) {
 		return 0;
@@ -80,13 +80,18 @@ onlink(int index)
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s:", filename);
 	}
-	// TODO(irek):Handle relative URIs.  I think it can be done
-	// globally for all protocols.  There are probably edge cases
-	// and differences in some of them but for now with Gopher and
-	// Gemini only can san safely go with that strategy.  If later
-	// I found out it's not possible then I can move it easily to
-	// function _uri() of each protocols.
-	return uri;
+	if (uri_abs(uri)) {
+		return uri;     // Absolute URI
+	}
+	// Handle relative URI.
+	old = past_get(s_tab.open->past, 0);
+	LOG("'%s'", uri);
+	LOG("'%s'", uri_path(old));
+	if (*uri != '/') {
+		uri = JOIN(uri_path(old), uri);
+	}
+	LOG("'%s'", uri);
+	return uri_normalize(protocol, uri_host(old), uri_port(old), uri);
 }
 
 //
@@ -128,6 +133,7 @@ onuri(char *uri)
 	default:
 		WARN("Unsupported protocol %d %s", protocol,
 		     uri_protocol_str(protocol));
+		res = NET_ERR;
 	}
 	if (fclose(raw) == EOF) {
 		ERR("fclose '%s' '%s':", uri, s_tab.open->raw);
