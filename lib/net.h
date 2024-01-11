@@ -8,8 +8,8 @@
 enum net_res {          // Protocol request response type
 	NET_NUL = 0,    // Empty result, nothing has happen
 	NET_ERR,        // Request failed, URL invalid or host broken
-	NET_RAW,        // Show RAW body response
-	NET_FMT,        // Show FMT formatted response
+	NET_RAW,        // Show RAW body text response
+	NET_FMT,        // Show FMT formatted text response
 	NET_BIN,        // Request resulted in non printable binary data
 	NET_URI,        // Request resulted in new URI, redirect or query
 };

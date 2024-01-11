@@ -93,8 +93,8 @@ onlink(int index)
 static int
 onuri(char *uri)
 {
-	enum uri protocol;
 	enum net_res res;
+	enum uri protocol;
 	int port;
 	FILE *raw, *fmt;
 	LOG("%s", uri);

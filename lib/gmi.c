@@ -95,6 +95,7 @@ enum net_res
 gmi_req(FILE *raw, FILE *fmt, char *uri)
 {
 	char buf[4096], head[1024], *tmp, *host;
+	size_t i;
 	int port, sfd, sz;
         SSL_CTX *ctx;
         SSL *ssl=0;
@@ -136,7 +137,13 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 		return NET_ERR;
 	}
 	// Response header.
-	SSL_read(ssl, head, sizeof(head));
+	for (i=0; i < sizeof(head)-1; i++) {
+		if (!SSL_read(ssl, head+i, 1) ||
+		    head[i] == '\r') {
+			head[i] = 0;
+			break;
+		}
+	}
 	switch (head[0]) {
 	case GMI_QUERY:
 		SSL_free(ssl);
@@ -154,15 +161,14 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 		fputs(buf, raw);
 	}
 	SSL_free(ssl);
-	// TODO(irek): At this point I should have mime type parser.
-	if (strncmp(head+3, "text/", 5)) {
-		return NET_BIN;
-	}
-	if (strncmp(head+3, "text/gemini", 11)) {
+	if (!strncmp(head+3, "text/gemini", 11)) {
 		format(raw, fmt);
 		return NET_FMT;
 	}
-	return NET_RAW;
+	if (!strncmp(head+3, "text/", 5)) {
+		return NET_RAW;
+	}
+	return NET_BIN;
 }
 
 char *
