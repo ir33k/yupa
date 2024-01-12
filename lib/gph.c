@@ -135,14 +135,15 @@ format(FILE *src, FILE *dst)
 }
 
 enum net_res
-gph_req(FILE *raw, FILE *fmt, char *uri)
+gph_req(FILE *raw, FILE *fmt, char *uri, char *new)
 {
 	int sfd, port;
-	char buf[4096], *tmp, *host, *path, item='1';
+	char buf[4096], *host, *path, item='1';
 	ssize_t ssz;
 	assert(raw);
 	assert(fmt);
 	assert(uri);
+	assert(new);
 	host = uri_host(uri);
 	port = uri_port(uri);
 	path = uri_path(uri);
@@ -161,8 +162,9 @@ gph_req(FILE *raw, FILE *fmt, char *uri)
 		if (!buf[0]) { // Empty search
 			return NET_NUL;
 		}
-		tmp = JOIN(path, "\t", buf);
-		path = tmp;
+		snprintf(new, URI_SZ, "gopher://%s:%d/1/%s",
+			 host, port, JOIN(path, "\t", buf));
+		return NET_URI;
 	}
 	if ((sfd = net_req(host, port, path)) == 0) {
 		printf("Request '%s' failed\n", uri);

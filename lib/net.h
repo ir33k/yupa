@@ -15,9 +15,10 @@ enum net_res {          // Protocol request response type
 };
 
 // Request content of URI.  Write unmodified response body to RAW open
-// file and if NET_RMT was returned then formatted response was also
-// written to FMT file.
-typedef enum net_res (net_req_t)(FILE *raw, FILE *fmt, char *uri);
+// file.  If NET_RMT was returned then formatted response was written
+// to FMT file.  If NET_URI was returned then NEW buffer will contain
+// URL that should be visited new (redirection or query).
+typedef enum net_res (net_req_t)(FILE *raw, FILE *fmt, char *uri, char *new);
 
 // Search in BODY open file for the link under INDEX (1 == first
 // link).  Return pointer to static string with normalized URI.

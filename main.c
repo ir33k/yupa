@@ -51,7 +51,7 @@ static char *
 onlink(int index)
 {
 	enum uri protocol;
-	char *uri=0, *old, *filename;
+	char *uri=0, *filename;
 	FILE *raw;
 	if (index < 1) {
 		return 0;
@@ -73,33 +73,22 @@ onlink(int index)
 	case URI_HTTPS:
 	case URI_NUL:
 	default:
-		WARN("Unsupported protocol %d '%s'",
-		     protocol,
+		WARN("Unsupported protocol %d '%s'", protocol,
 		     uri_protocol_str(protocol));
 	}
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s:", filename);
 	}
-	if (uri_abs(uri)) {
-		return uri;     // Absolute URI
-	}
-	// Handle relative URI.
-	old = past_get(s_tab.open->past, 0);
-	LOG("'%s'", uri);
-	LOG("'%s'", uri_path(old));
-	if (*uri != '/') {
-		uri = JOIN(uri_path(old), uri);
-	}
-	LOG("'%s'", uri);
-	return uri_normalize(protocol, uri_host(old), uri_port(old), uri);
+	return uri;
 }
 
 //
 static int
-onuri(char *uri)
+onuri(char *uri, int save)
 {
 	enum net_res res;
 	enum uri protocol;
+	char *old, new[URI_SZ];
 	int port;
 	FILE *raw, *fmt;
 	LOG("%s", uri);
@@ -107,6 +96,14 @@ onuri(char *uri)
 		return 0;
 	}
 	assert(strlen(uri) <= URI_SZ);
+	if (!uri_abs(uri)) {    // Relative URI.
+		old = past_get(s_tab.open->past, 0);
+		if (*uri != '/') {
+			uri = JOIN(uri_path(old), uri);
+		}
+		uri = uri_norm(s_tab.open->protocol, uri_host(old),
+			       uri_port(old), uri);
+	}
 	if (!(raw = fopen(s_tab.open->raw, "w+"))) {
 		ERR("fopen '%s' '%s':", uri, s_tab.open->raw);
 	}
@@ -118,10 +115,13 @@ onuri(char *uri)
 	if (!port) port = protocol;
 	if (!port) port = PROTOCOL;
 	if (!protocol) protocol = port;
+	if (save) {
+		past_set(s_tab.open->past, uri);
+	}
 	s_tab.open->protocol = protocol;
 	switch (protocol) {
-	case URI_GOPHER: res = gph_req(raw, fmt, uri); break;
-	case URI_GEMINI: res = gmi_req(raw, fmt, uri); break;
+	case URI_GOPHER: res = gph_req(raw, fmt, uri, new); break;
+	case URI_GEMINI: res = gmi_req(raw, fmt, uri, new); break;
 	case URI_FILE:
 	case URI_ABOUT:
 	case URI_FTP:
@@ -142,15 +142,14 @@ onuri(char *uri)
 		ERR("fclose '%s' '%s':", uri, s_tab.open->fmt);
 	}
 	switch (res) {
-	case NET_NUL: return 1; // Nothing to do
+	case NET_NUL: break;    // Nothing to do
 	case NET_ERR: return 0;
-	case NET_RAW: cmd_run(s_pager, s_tab.open->raw); return 1;
-	case NET_FMT: cmd_run(s_pager, s_tab.open->fmt); return 1;
-	case NET_BIN: return 1; // TODO
-	case NET_URI: return 1; // TODO
+	case NET_RAW: cmd_run(s_pager, s_tab.open->raw); break;
+	case NET_FMT: cmd_run(s_pager, s_tab.open->fmt); break;
+	case NET_BIN: break;    // TODO
+	case NET_URI: return onuri(new, 1);
 	}
-	ERR("unreachable, unknown result: %d", res);
-	return 0;
+	return 1;
 }
 
 //
@@ -187,24 +186,20 @@ onprompt(size_t sz, char *buf)
 		}
 		return; // Return to avoid defining CMD_REPEAT as last cmd
 	case CMD_URI:
-		if (onuri(buf)) {
-			past_set(s_tab.open->past, buf);
-		}
+		onuri(buf, 1);
 		break;
 	case CMD_LINK:
 		uri = onlink(atoi(buf));
-		if (onuri(uri)) {
-			past_set(s_tab.open->past, uri);
-		}
+		onuri(uri, 1);
 		break;
 	case CMD_PAGE_GET:
-		onuri(past_get(s_tab.open->past, 0));
+		onuri(s_tab.open->past->uri, 0);
 		break;
 	case CMD_PAGE_RAW:
 		cmd_run(s_pager, s_tab.open->raw);
 		break;
 	case CMD_PAGE_URI:
-		printf("%s\n", past_get(s_tab.open->past, 0));
+		printf("%s\n", s_tab.open->past->uri);
 		break;
 	case CMD_TAB_GOTO:
 		if (arg && (i = atoi(arg))) {
@@ -228,12 +223,10 @@ onprompt(size_t sz, char *buf)
 		if (arg) {
 			uri = (i = atoi(arg)) ? onlink(i) : arg;
 		} else {
-			uri = past_get(s_tab.open->past, 0);
+			uri = s_tab.open->past->uri;
 		}
 		tab_open(&s_tab);
-		if (onuri(uri)) {
-			past_set(s_tab.open->past, uri);
-		}
+		onuri(uri, 1);
 		break;
 	case CMD_TAB_CLOSE:
 		if (s_tab.n <= 1) {
@@ -254,11 +247,11 @@ onprompt(size_t sz, char *buf)
 		break;
 	case CMD_HIS_PREV:
 		uri = past_get(s_tab.open->past, -1);
-		onuri(uri);
+		onuri(uri, 0);
 		break;
 	case CMD_HIS_NEXT:
 		uri = past_get(s_tab.open->past, +1);
-		onuri(uri);
+		onuri(uri, 0);
 		break;
 	case CMD_GET_RAW:
 		copy(s_tab.open->raw, arg);
@@ -294,9 +287,7 @@ main(int argc, char *argv[])
 	s_pager = (env = getenv("PAGER")) ? env : "less -XI";
 	for (i = 0; i < argc; i++) {
 		tab_open(&s_tab);
-		if (onuri(argv[i])) {
-			past_set(s_tab.open->past, argv[i]);
-		}
+		onuri(argv[i], 1);
 	}
 	if (!s_tab.n) {
 		tab_open(&s_tab);

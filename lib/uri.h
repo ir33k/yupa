@@ -46,7 +46,7 @@ char *uri_path(char *uri);
 
 // Return pointer to static normalized URI string from PROTOCOL, HOST,
 // PORT and PATH where only PATH can be NULL.
-char *uri_normalize(int protocol, char *host, int port, char *path);
+char *uri_norm(int protocol, char *host, int port, char *path);
 
 // Return non 0 value if is an absolute path.
 int uri_abs(char *uri);

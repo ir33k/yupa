@@ -119,18 +119,18 @@ TEST("uri_path")
 	SEQ("/path/to/file", uri_path("gopher://host:70/path/to/file"));
 }
 
-TEST("uri_normalize")
+TEST("uri_norm")
 {
-	SEQ(uri_normalize(URI_GOPHER, "name", URI_GOPHER, 0),
-		"gopher://name:70/");
-	SEQ(uri_normalize(URI_GOPHER, "name", 0, 0),
-		"gopher://name:70/");
-	SEQ(uri_normalize(URI_HTTP, "name", 0, 0),
-		"http://name:80/");
-	SEQ(uri_normalize(URI_HTTP, "name", 0, "path"),
-		"http://name:80/path");
-	SEQ(uri_normalize(URI_HTTP, "name", 8080, "/path"),
-		"http://name:8080/path");
+	SEQ(uri_norm(URI_GOPHER, "name", URI_GOPHER, 0),
+	    "gopher://name:70/");
+	SEQ(uri_norm(URI_GOPHER, "name", 0, 0),
+	    "gopher://name:70/");
+	SEQ(uri_norm(URI_HTTP, "name", 0, 0),
+	    "http://name:80/");
+	SEQ(uri_norm(URI_HTTP, "name", 0, "path"),
+	    "http://name:80/path");
+	SEQ(uri_norm(URI_HTTP, "name", 8080, "/path"),
+	    "http://name:8080/path");
 }
 
 TEST("uri_abs")

@@ -92,7 +92,7 @@ format(FILE *src, FILE *dst)
 }
 
 enum net_res
-gmi_req(FILE *raw, FILE *fmt, char *uri)
+gmi_req(FILE *raw, FILE *fmt, char *uri, char *new)
 {
 	char buf[4096], head[1024], *tmp, *host;
 	size_t i;
@@ -102,6 +102,7 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 	assert(raw);
 	assert(fmt);
 	assert(uri);
+	assert(new);
 	host = uri_host(uri);
 	port = uri_port(uri);
 	if (!port) {
@@ -139,7 +140,7 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 	// Response header.
 	for (i=0; i < sizeof(head)-1; i++) {
 		if (!SSL_read(ssl, head+i, 1) ||
-		    head[i] == '\r') {
+		    head[i] == '\n') {
 			head[i] = 0;
 			break;
 		}
@@ -160,11 +161,8 @@ gmi_req(FILE *raw, FILE *fmt, char *uri)
 		SSL_free(ssl);
 		return NET_URI; // TODO(irek)
 	case GMI_REDIRECT:
-		// TODO(irek): Redirection can navigate to other
-		// protocols and because of that this logic should be
-		// handled in main program.  I have to redesign entire
-		// flow to make it possible.
 		SSL_free(ssl);
+		strcpy(new, head+3);
 		return NET_URI;
 	}
 	while ((sz = SSL_read(ssl, buf, sizeof(buf)-1))) {

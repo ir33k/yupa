@@ -89,7 +89,7 @@ uri_path(char *uri)
 }
 
 char *
-uri_normalize(int protocol, char *host, int port, char *path)
+uri_norm(int protocol, char *host, int port, char *path)
 {
 	static char uri[URI_SZ];
 	assert(host);
