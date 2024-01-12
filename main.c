@@ -1,5 +1,5 @@
 #define NAME    "Yupa"
-#define VERSION "v1.8"
+#define VERSION "v2.0"
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
@@ -91,7 +91,6 @@ onuri(char *uri, int save)
 	char *old, new[URI_SZ];
 	int port;
 	FILE *raw, *fmt;
-	LOG("%s", uri);
 	if (!uri || !uri[0]) {
 		return 0;
 	}
@@ -146,7 +145,7 @@ onuri(char *uri, int save)
 	case NET_ERR: return 0;
 	case NET_RAW: cmd_run(s_pager, s_tab.open->raw); break;
 	case NET_FMT: cmd_run(s_pager, s_tab.open->fmt); break;
-	case NET_BIN: break;    // TODO
+	case NET_BIN: break;    // TODO(irek): Hmm what to do for binary files?
 	case NET_URI: return onuri(new, 1);
 	}
 	return 1;
