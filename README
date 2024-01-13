@@ -9,3 +9,24 @@ Build and run:
 	$ ./yupa URI            # Run with optional URI
 	yupa(1/1)> h            # Get help
 	yupa(1/1)> q            # Quit
+
+Changelog:
+
+	2024.01.13 Sat 07:07	v3.0
+
+	1. Basic support for file:// protocol.
+
+	2024.01.12 Fri 19:27	v2.0
+
+	1. Basic support for gemini:// protocol.
+	2. Support relative URIs.
+	3. Support redirections.
+	4. Fix typos in comments by Kian-Meng Ang <kianmeng@cpan.org>.
+
+	2024.01.03 Wed 01:21	v1.0
+
+	1. Initial release.
+	2. Support gopher:// protocol.
+	3. Interactive command menu navigation.
+	4. Tabs.
+	5. Browsing history.
