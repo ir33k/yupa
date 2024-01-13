@@ -12,7 +12,6 @@ uri_protocol_str(enum uri protocol)
 	case URI_HTTPS:  return "https";
 	case URI_HTTP:   return "http";
 	case URI_FILE:   return "file";
-	case URI_ABOUT:  return "about";
 	case URI_SSH:    return "ssh";
 	case URI_FTP:    return "ftp";
 	}
@@ -40,7 +39,6 @@ uri_protocol(char *uri)
 	if (_URI_IS("https"))  return URI_HTTPS;
 	if (_URI_IS("http"))   return URI_HTTP;
 	if (_URI_IS("file"))   return URI_FILE;
-	if (_URI_IS("about"))  return URI_ABOUT;
 	if (_URI_IS("ssh"))    return URI_SSH;
 	if (_URI_IS("ftp"))    return URI_FTP;
 	return URI_NUL;
@@ -92,7 +90,9 @@ char *
 uri_norm(int protocol, char *host, int port, char *path)
 {
 	static char uri[URI_SZ];
-	assert(host);
+	if (!host) {
+		host = "";
+	}
 	if (!path) {
 		path = "";
 	}

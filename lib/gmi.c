@@ -42,9 +42,8 @@ enum {
 	GMI_REDIRECT = '3',
 };
 
-//
-static void
-format(FILE *src, FILE *dst)
+void
+gmi_fmt(FILE *src, FILE *dst)
 {
 	char buf[4096], *bp;
 	size_t len;
@@ -171,7 +170,7 @@ gmi_req(FILE *raw, FILE *fmt, char *uri, char *new)
 	}
 	SSL_free(ssl);
 	if (!strncmp(head+3, "text/gemini", 11)) {
-		format(raw, fmt);
+		gmi_fmt(raw, fmt);
 		return NET_FMT;
 	}
 	if (!strncmp(head+3, "text/", 5)) {
@@ -190,7 +189,7 @@ gmi_uri(FILE *body, int index)
 	assert(body);
 	assert(index > 0);
 	// TODO(irek): This pattern recognision is the same for
-	// format() and this function.  Could be extracted to keep
+	// gmi_fmt() and this function.  Could be extracted to keep
 	// loginc in sync.
 	while ((bp = fgets(buf, sizeof(buf), body))) {
 		len = strlen(bp);

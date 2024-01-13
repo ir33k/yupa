@@ -14,16 +14,6 @@ enum net_res {          // Protocol request response type
 	NET_URI,        // Request resulted in new URI, redirect or query
 };
 
-// Request content of URI.  Write unmodified response body to RAW open
-// file.  If NET_RMT was returned then formatted response was written
-// to FMT file.  If NET_URI was returned then NEW buffer will contain
-// URL that should be visited new (redirection or query).
-typedef enum net_res (net_req_t)(FILE *raw, FILE *fmt, char *uri, char *new);
-
-// Search in BODY open file for the link under INDEX (1 == first
-// link).  Return pointer to static string with normalized URI.
-typedef char *(net_uri_t)(FILE *body, int index);
-
 // Establish AF_INET internet SOCK_STREAM stream connection to HOST of
 // PORT.  Return socket file descriptor or 0 on error.
 int net_tcp(char *host, int port);

@@ -1,5 +1,5 @@
 #define NAME    "Yupa"
-#define VERSION "v2.0"
+#define VERSION "v3.0"
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
@@ -14,6 +14,7 @@
 #include "lib/uri.h"
 #include "lib/util.h"
 // Protocols
+#include "lib/fsp.h"
 #include "lib/gmi.h"
 #include "lib/gph.h"
 
@@ -58,14 +59,14 @@ onlink(int index)
 	}
 	protocol = s_tab.open->protocol;
 	filename = s_tab.open->raw;
+	uri = past_get(s_tab.open->past, 0);
 	if (!(raw = fopen(filename, "r"))) {
 		ERR("fopen %s:", filename);
 	}
 	switch (protocol) {
 	case URI_GOPHER: uri = gph_uri(raw, index); break;
 	case URI_GEMINI: uri = gmi_uri(raw, index); break;
-	case URI_FILE:
-	case URI_ABOUT:
+	case URI_FILE:   uri = fsp_uri(uri, raw, index); break;
 	case URI_FTP:
 	case URI_SSH:
 	case URI_FINGER:
@@ -75,6 +76,7 @@ onlink(int index)
 	default:
 		WARN("Unsupported protocol %d '%s'", protocol,
 		     uri_protocol_str(protocol));
+		uri = 0;
 	}
 	if (fclose(raw) == EOF) {
 		ERR("fclose %s:", filename);
@@ -121,8 +123,7 @@ onuri(char *uri, int save)
 	switch (protocol) {
 	case URI_GOPHER: res = gph_req(raw, fmt, uri, new); break;
 	case URI_GEMINI: res = gmi_req(raw, fmt, uri, new); break;
-	case URI_FILE:
-	case URI_ABOUT:
+	case URI_FILE:   res = fsp_req(raw, fmt, uri); break;
 	case URI_FTP:
 	case URI_SSH:
 	case URI_FINGER:

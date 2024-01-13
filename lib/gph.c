@@ -101,10 +101,8 @@ item_label(enum type item)
 	return "???";
 }
 
-// Assuming that SRC is an open file with Gopher submenu, write
-// prettier formatted version to open DST file.
-static void
-format(FILE *src, FILE *dst)
+void
+gph_fmt(FILE *src, FILE *dst)
 {
 	int link=1;
 	char *bp, buf[4096], nav[8], label[16];
@@ -186,7 +184,7 @@ gph_req(FILE *raw, FILE *fmt, char *uri, char *new)
 		return NET_RAW;
 	case '1':
 	case '7':
-		format(raw, fmt);
+		gph_fmt(raw, fmt);
 		return NET_FMT;
 	}
 	return NET_BIN;

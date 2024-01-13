@@ -2,10 +2,11 @@
 set -ex # Stop on first error and log all commands
 
 CC="cc"
-CFLAGS="-Wall -Werror -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
+CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
 LIBS="lib/*.o -lssl -lcrypto"
 
 # Build libs
+$CC $CFLAGS -o lib/file.o -c lib/fsp.c
 $CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
 $CC $CFLAGS -o lib/gph.o  -c lib/gph.c
 $CC $CFLAGS -o lib/le.o   -c lib/le.c

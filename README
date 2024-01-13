@@ -1,2 +1,3 @@
 Yupa the CLI web browser with tabs for text protocols.
 Currently supporting only basics of Gopher and Gemini.
+With ability to open .gph and .gmi files from local drive.

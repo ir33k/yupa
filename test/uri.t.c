@@ -10,7 +10,6 @@ TEST("uri_protocol_str")
 	SEQ("https",	uri_protocol_str(URI_HTTPS));
 	SEQ("http",	uri_protocol_str(URI_HTTP));
 	SEQ("file",	uri_protocol_str(URI_FILE));
-	SEQ("about",	uri_protocol_str(URI_ABOUT));
 	SEQ("ssh",	uri_protocol_str(URI_SSH));
 	SEQ("ftp",	uri_protocol_str(URI_FTP));
 }
@@ -31,7 +30,6 @@ TEST("uri_protocol")
 	OK(URI_HTTPS	== uri_protocol("https://test"));
 	OK(URI_HTTP	== uri_protocol("http://test"));
 	OK(URI_FILE	== uri_protocol("file://"));
-	OK(URI_ABOUT	== uri_protocol("about://"));
 	OK(URI_SSH	== uri_protocol("ssh://"));
 	OK(URI_FTP	== uri_protocol("ftp://"));
 }

@@ -17,7 +17,6 @@
 enum uri {
 	URI_NUL    = 0,         // For empty or unknown protocol
 	URI_FILE   = 1,         // Reading files from local drive
-	URI_ABOUT  = 2,         // For browser generated pages
 	URI_FTP    = 21,
 	URI_SSH    = 22,
 	URI_GOPHER = 70,
