@@ -1,5 +1,5 @@
 #define NAME    "Yupa"
-#define VERSION "v3.0"
+#define VERSION "v3.1"
 #define AUTHOR  "irek@gabr.pl"
 
 #include <assert.h>
@@ -27,7 +27,8 @@ char              *argv0;       // First program arg, for arg.h
 static const char *s_help =
 	NAME " " VERSION " by " AUTHOR "\n"
 	"\n"
-	"Gopher protocol CLI browser with tabs and browsing history.\n"
+	"Multi protocol CLI browser with tabs and browsing history.\n"
+	"Supports basics of gopher://, gemini:// and file:// protocols.\n"
 	"Browse by inserting absolute URI or link index from current page.\n"
 	"Press RETURN to open navigation menu or insert command upfront.\n"
 	"Prompt indicate (current_tab_number/number_of_all_tabs).\n"
