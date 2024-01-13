@@ -143,7 +143,7 @@ gmi_req(FILE *raw, FILE *fmt, char *uri, char *new)
 	for (i=0; i < sizeof(head)-1; i++) {
 		if (!SSL_read(ssl, head+i, 1) ||
 		    head[i] == '\n') {
-			head[i] = 0;
+			head[i-1] = 0;
 			break;
 		}
 	}

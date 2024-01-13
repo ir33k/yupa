@@ -12,6 +12,11 @@ Build and run:
 
 Changelog:
 
+	2024.01.14 Sun 01:00	v3.1
+
+	1. Update internal help message.
+	2. Fix bug with using relative Gemini link after redirection.
+
 	2024.01.13 Sat 07:07	v3.0
 
 	1. Basic support for file:// protocol.
