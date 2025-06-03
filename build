@@ -1,9 +1,13 @@
 #!/usr/bin/env sh
-set -ex # Stop on first error and log all commands
+set -e # Stop on first error
 
 CC="cc"
 CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
 LIBS="lib/*.o -lssl -lcrypto"
+
+$CC $CFLAGS -o yupa yupa.c -lssl -lcrypto
+
+exit 0	# Exit early to avoid compailing old versoin
 
 # Build libs
 $CC $CFLAGS -o lib/file.o -c lib/fsp.c
