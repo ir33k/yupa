@@ -3,28 +3,10 @@ set -e # Stop on first error
 
 CC="cc"
 CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
-LIBS="lib/*.o -lssl -lcrypto"
 
-$CC $CFLAGS -o yupa yupa.c -lssl -lcrypto
-
-exit 0	# Exit early to avoid compailing old versoin
-
-# Build libs
-$CC $CFLAGS -o lib/file.o -c lib/fsp.c
-$CC $CFLAGS -o lib/gmi.o  -c lib/gmi.c
-$CC $CFLAGS -o lib/gph.o  -c lib/gph.c
-$CC $CFLAGS -o lib/le.o   -c lib/le.c
-$CC $CFLAGS -o lib/nav.o  -c lib/nav.c
-$CC $CFLAGS -o lib/net.o  -c lib/net.c
-$CC $CFLAGS -o lib/past.o -c lib/past.c
-$CC $CFLAGS -o lib/tab.o  -c lib/tab.c
-$CC $CFLAGS -o lib/uri.o  -c lib/uri.c
-$CC $CFLAGS -o lib/util.o -c lib/util.c
-
-# Build and run tests
-$CC $CFLAGS test/uri.t.c  $LIBS && ./a.out
-$CC $CFLAGS test/past.t.c $LIBS && ./a.out
-$CC $CFLAGS test/tab.t.c  $LIBS && ./a.out
-
-# Build main program
-$CC $CFLAGS -o yupa main.c $LIBS
+$CC $CFLAGS -c uri.c
+$CC $CFLAGS -c fetch.c
+$CC $CFLAGS -c gmi.c
+$CC $CFLAGS -c gph.c
+$CC $CFLAGS -c html.c
+$CC $CFLAGS -o yupa *.o main.c -lssl -lcrypto
