@@ -7,6 +7,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "util.h"
 #include "uri.h"
 #include "fetch.h"
 #include "gmi.h"
@@ -16,8 +17,6 @@
 #define CRLF            "\r\n"
 #define TMP_RES_RAW     "/tmp/yupa.res.raw"
 #define TMP_RES_TXT     "/tmp/yupa.res.txt"
-
-#define SIZE(array) (int)((sizeof array) / (sizeof (array)[0]))
 
 static const char *help = "usage: %s URI";
 
@@ -99,10 +98,10 @@ run(char *uri)
 	switch (protocol) {
 	case GOPHER:
 		/* First part of the path holds resource type */
-		if (path)
-			assert(strlen(path) > 2);
+		if (path && strlen(path) > 2)
+			path += 2;
 
-		snprintf(msg, sizeof msg, "%s", path ? path+2 : "");
+		snprintf(msg, sizeof msg, "%s", path ? path : "");
 		break;
 	case GEMINI:
 		snprintf(msg, sizeof msg, "gemini://%s%s",
@@ -138,13 +137,10 @@ run(char *uri)
 	if (why)
 		err(1, "Error: %s", why);
 
-	/* TODO(irek): At this point I should parse reponse header,
+	/* TODO(irek): At this point I should parse response header,
 	 * response code, or response metadata depending on protocol.
 	 * It's important because depending on response or in case of
 	 * Gopher depending on request parsing is optional. */
-	/* NOTE(irek): At this point we know that our response is not
-	 * a binary so we can safely null terminate the response. */
-	fwrite("\0", 1, 1, res);
 
 	str = fmalloc(res);
 
