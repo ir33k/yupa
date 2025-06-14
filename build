@@ -7,6 +7,7 @@ CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-depreca
 $CC $CFLAGS -c util.c
 $CC $CFLAGS -c uri.c
 $CC $CFLAGS -c fetch.c
+$CC $CFLAGS -c link.c
 $CC $CFLAGS -c gmi.c
 $CC $CFLAGS -c gph.c
 $CC $CFLAGS -c html.c

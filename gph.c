@@ -2,10 +2,12 @@
 #include <string.h>
 #include "gph.h"
 #include "util.h"
+#include "link.h"
 
-#define MARGIN 4        /* Left margin of FMT formatted Gopher hole */
+#define MARGIN 4        /* Left margin */
 
 static char *navlabel(char);
+char *navlink(char *line);
 
 char *
 navlabel(char item)
@@ -44,26 +46,40 @@ navlabel(char item)
 	return "";
 }
 
+char *
+navlink(char *line)
+{
+        static char buf[4096];
+        char item, path[1024], host[1024];
+        int port;
+
+        sscanf(line, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d", &item, path, host, &port);
+        snprintf(buf, sizeof buf, "gopher://%s:%d/%c%s", host, port, item, path);
+
+        return buf;
+}
+
 void
 gph_print(char *in, FILE *out)
 {
 	char *line, nav[16], *label;
-	int i;
+	unsigned i, n;
 
-	i = 0;
 	while ((line = online(&in))) {
-		if (line[0] == '.')
+		if (line[0] == '.')	/* Gopher EOF mark */
 			break;
 
 		nav[0] = 0;
 		label = navlabel(line[0]);
+
+		if (label[0]) {
+                        i = link_store(navlink(line));
+			snprintf(nav, sizeof nav, "%u: ", i);
+                }
+
 		line++;
+                n = strcspn(line, "\t");
 
-		if (label[0])
-			snprintf(nav, sizeof nav, "%d: ", ++i);
-
-		line[strcspn(line, "\t")] = 0;	/* End string on first tab */
-
-		fprintf(out, "%-*s%s%s\n", MARGIN, nav, label, line);
+		fprintf(out, "%-*s%s%.*s\n", MARGIN, nav, label, n, line);
 	}
 }

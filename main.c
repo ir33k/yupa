@@ -10,6 +10,7 @@
 #include "util.h"
 #include "uri.h"
 #include "fetch.h"
+#include "link.h"
 #include "gmi.h"
 #include "gph.h"
 #include "html.h"
@@ -80,9 +81,10 @@ get_body(int protocol, char *res)
 void
 run(char *uri)
 {
-	char *why, *host, *path, msg[4096], *str, *body;
+	char *why, *host, *path, msg[4096], *str, *body, *link;
 	int protocol, port, ssl=0;
 	FILE *res;
+	unsigned i;
 
 	protocol = uri_protocol(uri);
 	port = uri_port(uri);
@@ -149,12 +151,19 @@ run(char *uri)
 
 	body = get_body(protocol, str);
 
+	link_clear();
+	link_store(uri);
+
 	switch (protocol) {
 	case GOPHER: gph_print(body, stdout); break;
 	case GEMINI: gmi_print(body, stdout); break;
 	case HTTP:
 	case HTTPS: html_print(body, stdout); break;
 	}
+
+	fprintf(stdout, "\n");
+	for (i=0; (link = link_get(i)); i++)
+		fprintf(stdout, "[%d] %s\n", i, link);
 
 	free(str);
 }
