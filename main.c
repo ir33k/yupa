@@ -25,7 +25,7 @@ static void run(char *uri);
 void
 run(char *uri)
 {
-	char *why, *host, *path, msg[4096], *link;
+	char *why, *host, *path, msg[4096], *buf, *link;
 	int protocol, port, ssl=0;
 	FILE *res;
 	unsigned i;
@@ -77,26 +77,25 @@ run(char *uri)
 	if (why)
 		err(1, "Error: %s", why);
 
-	/* TODO(irek): At this point I should parse response header,
-	 * response code, or response metadata depending on protocol.
-	 * It's important because depending on response or in case of
-	 * Gopher depending on request parsing is optional. */
-
-	link_clear();
-	link_store(uri);
-	rewind(res);
-
-	switch (protocol) {
-	case GOPHER: gph_print(res, stdout); break;
-	case GEMINI: gmi_print(res, stdout); break;
-	case HTTP:
-	case HTTPS: html_print(res, stdout); break;
-	}
+	buf = fmalloc(res);
 
 	if (fclose(res))
 		err(1, "flose(%s)", TMP_RES);
 
+	link_clear();
+	link_store(uri);
+
+	switch (protocol) {
+	case GOPHER: gph_print(buf, stdout); break;
+	case GEMINI: gmi_print(buf, stdout); break;
+	case HTTP:
+	case HTTPS: html_print(buf, stdout); break;
+	}
+
+	free(buf);
+
 	fprintf(stdout, "\n");
+	fprintf(stdout, "index\tlink\n");
 	for (i=0; (link = link_get(i)); i++)
 		fprintf(stdout, "%u\t%s\n", i, link);
 }

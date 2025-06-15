@@ -60,24 +60,24 @@ navlink(char *line)
 }
 
 void
-gph_print(FILE *in, FILE *out)
+gph_print(char *res, FILE *out)
 {
-	char buf[4096], nav[16], *label;
+	char *line, nav[16], *label;
 	unsigned i, n;
 
-        while (fgets(buf, sizeof buf, in)) {
-		if (buf[0] == '.')	/* Gopher EOF mark */
+	while ((line = eachline(&res))) {
+		if (line[0] == '.')	/* Gopher EOF mark */
 			break;
 
 		nav[0] = 0;
-		label = navlabel(buf[0]);
+		label = navlabel(line[0]);
 
 		if (label[0]) {
-                        i = link_store(navlink(buf));
-			snprintf(nav, sizeof nav, "%u: ", i);
+                        i = link_store(navlink(line));
+			snprintf(nav, sizeof nav, "%u ", i);
                 }
 
-                n = strcspn(buf, "\t");
-		fprintf(out, "%-*s%s%.*s\n", MARGIN, nav, label, n, buf+1);
+                n = strcspn(line, "\t");
+		fprintf(out, "%-*s%s%.*s\n", MARGIN, nav, label, n, line+1);
 	}
 }

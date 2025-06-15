@@ -52,6 +52,25 @@ eachline(char **str)
 }
 
 char *
+eachword(char **str)
+{
+	char *word;
+
+	if (!**str)
+		return 0;
+
+	word = *str;
+
+	while (**str && **str != ' ' && **str != '\t') (*str)++;
+	if (**str) {
+		**str = 0;
+		(*str)++;
+	}
+
+	return word;
+}
+
+char *
 triml(char *str)
 {
 	while (*str && *str <= ' ') str++;

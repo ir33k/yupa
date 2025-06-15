@@ -5,6 +5,8 @@
 #include "link.h"
 #include "gmi.h"
 
+#define MARGIN 4
+
 /*
 From gmix/gmit.h project source file.
 	GMIR_NUL          =  0, // Unknown status code
@@ -49,33 +51,44 @@ linklabel(char *line)
 }
 
 void
-gmi_print(FILE *in, FILE *out)
+gmi_print(char *res, FILE *out)
 {
-	char *buf, *bp, *line, *label;
-	unsigned i, n;
+	char *line, *word, *label, *env;
+	unsigned i, n, w, maxw=0;
 
-	/* NOTE(irek): In Gemini it's common to have very long lines,
-	 * it's safer to load entire file to memory rather than going
-	 * line by line with buffer of some predefined size. */
-	buf = fmalloc(in);
-	bp = buf;
+	env = getenv("YUPAWIDTH");
+	if (env)
+		maxw = atoi(env);
+
+	if (maxw <= 10)
+		maxw = 76;
 
 	/* Skip header line */
-	eachline(&bp);
+	eachline(&res);
 
-	while ((line = eachline(&bp))) {
+	while ((line = eachline(&res))) {
 		if (!strncmp(line, "=>", 2)) {
 			line = triml(line +2);
 			label = linklabel(line);
 			n = strcspn(line, "\t ");
 			line[n] = 0;
 			i = link_store(line);
-			fprintf(out, "%-*u %s\n", 3, i, label ? label : line);
+			fprintf(out, "%-*u %s\n", MARGIN-1, i, label ? label : line);
 			continue;
 		}
 
-		fprintf(out, "    %s\n", line);
+		fprintf(out, "%-*s", MARGIN, "");
+		w = MARGIN;
+		while ((word = eachword(&line))) {
+			n = strlen(word) +1;
+			if (w + n > maxw) {
+				fprintf(out, "\n");
+				fprintf(out, "%-*s", MARGIN, "");
+				w = MARGIN;
+			}
+			fprintf(out, "%s ", word);
+			w += n;
+		}
+		fprintf(out, "\n");
 	}
-
-	free(buf);
 }
