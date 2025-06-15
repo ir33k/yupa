@@ -2,7 +2,7 @@
 set -e # Stop on first error
 
 CC="cc"
-CFLAGS="-Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
+CFLAGS="-Wno-missing-braces -Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
 
 $CC $CFLAGS -c util.c
 $CC $CFLAGS -c uri.c

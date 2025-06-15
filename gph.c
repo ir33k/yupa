@@ -74,7 +74,7 @@ gph_print(char *res, FILE *out)
 
 		if (label[0]) {
                         i = link_store(navlink(line));
-			snprintf(nav, sizeof nav, "%u ", i);
+			snprintf(nav, sizeof nav, ":%u ", i);
                 }
 
                 n = strcspn(line, "\t");
