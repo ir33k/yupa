@@ -163,7 +163,7 @@ run(char *uri)
 
 	fprintf(stdout, "\n");
 	for (i=0; (link = link_get(i)); i++)
-		fprintf(stdout, "[%d] %s\n", i, link);
+		fprintf(stdout, "%u\t%s\n", i, link);
 
 	free(str);
 }

@@ -12,12 +12,20 @@ online(char **str)
 
 	while (**str && **str != '\n' && **str != '\r') (*str)++;
 	if (**str) {
+		if (**str == '\r') {
+			**str = 0;
+			(*str)++;
+		}
 		**str = 0;
 		(*str)++;
-
-		if (**str == '\n')	/* Handle \r\n case */
-			(*str)++;
 	}
 
 	return line;
+}
+
+char *
+triml(char *str)
+{
+	while (*str && *str <= ' ') str++;
+	return str;
 }
