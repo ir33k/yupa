@@ -27,7 +27,7 @@ run(char *uri)
 {
 	char *why, *host, *path, msg[4096], *buf, *link;
 	int protocol, port, ssl=0;
-	FILE *res;
+	FILE *fp;
 	unsigned i;
 
 	protocol = uri_protocol(uri);
@@ -68,36 +68,45 @@ run(char *uri)
 		break;
 	}
 
-	res = fopen(TMP_RES, "w+");
-	if (!res)
+	fp = fopen(TMP_RES, "w+");
+	if (!fp)
 		errx(1, "fopen(%s)", TMP_RES);
 
-	why = fetch(host, port, ssl, msg, res);
+	why = fetch(host, port, ssl, msg, fp);
 
 	if (why)
 		err(1, "Error: %s", why);
 
-	buf = fmalloc(res);
+	buf = fmalloc(fp);
 
-	if (fclose(res))
+	if (fclose(fp))
 		err(1, "flose(%s)", TMP_RES);
 
 	link_clear();
 	link_store(uri);
 
+	fp = fopen(TMP_OUT, "w");
+	if (!fp)
+		errx(1, "fopen(%s)", TMP_OUT);
+
 	switch (protocol) {
-	case GOPHER: gph_print(buf, stdout); break;
-	case GEMINI: gmi_print(buf, stdout); break;
+	case GOPHER: gph_print(buf, fp); break;
+	case GEMINI: gmi_print(buf, fp); break;
 	case HTTP:
-	case HTTPS: html_print(buf, stdout); break;
+	case HTTPS: html_print(buf, fp); break;
 	}
 
 	free(buf);
 
-	fprintf(stdout, "\n");
-	fprintf(stdout, "index\tlink\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "index\tlink\n");
 	for (i=0; (link = link_get(i)); i++)
-		fprintf(stdout, "%u\t%s\n", i, link);
+		fprintf(fp, "%u\t%s\n", i, link);
+
+	if (fclose(fp))
+		err(1, "flose(%s)", TMP_OUT);
+
+	system("cat "TMP_OUT);
 }
 
 int
