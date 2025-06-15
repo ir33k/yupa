@@ -239,7 +239,8 @@ parse(char *str)
 #endif
 
 void
-html_print(char *in, FILE *out)
+html_print(FILE *in, FILE *out)
 {
-	fprintf(out, "HTML:\n%s\n", in);
+	(void)in;
+	(void)out;
 }

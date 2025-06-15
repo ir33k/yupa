@@ -1,2 +1,2 @@
 /* HTML parser and printer */
-void html_print(char *in, FILE *out);
+void html_print(FILE *in, FILE *out);

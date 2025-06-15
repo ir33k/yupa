@@ -1,7 +1,35 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <err.h>
 #include "util.h"
 
 char *
-online(char **str)
+fmalloc(FILE *fp)
+{
+	char *pt;
+	long n, m;
+
+	if (fseek(fp, 0, SEEK_END))
+		err(1, "fmalloc fseek");
+
+	n = ftell(fp);
+	pt = malloc(n +1);
+	if (!pt)
+		err(1, "fmalloc malloc(%ld)", n);
+
+	rewind(fp);
+
+	m = fread(pt, 1, n, fp);
+	pt[m+1] = 0;
+
+	if (m != n)
+		errx(1, "fmalloc failed to read entire file");
+
+	return pt;
+}
+
+char *
+eachline(char **str)
 {
 	char *line;
 

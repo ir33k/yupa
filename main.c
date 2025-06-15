@@ -15,73 +15,17 @@
 #include "gph.h"
 #include "html.h"
 
-#define CRLF            "\r\n"
-#define TMP_RES_RAW     "/tmp/yupa.res.raw"
-#define TMP_RES_TXT     "/tmp/yupa.res.txt"
+#define TMP_RES     "/tmp/yupa.res"
+#define TMP_OUT     "/tmp/yupa.out"
 
 static const char *help = "usage: %s URI";
 
-static char *fmalloc(FILE *);
-static char *get_body(int protocol, char *response);
 static void run(char *uri);
-
-char *
-fmalloc(FILE *fp)
-{
-	char *pt;
-	long n, m;
-
-	if (fseek(fp, 0, SEEK_END))
-		err(1, "fmalloc fseek");
-
-	n = ftell(fp);
-	pt = malloc(n +1);
-	if (!pt)
-		err(1, "fmalloc malloc(%ld)", n);
-
-	rewind(fp);
-
-	m = fread(pt, 1, n, fp);
-	pt[m+1] = 0;
-
-	if (m != n)
-		errx(1, "fmalloc failed to read entire file");
-
-	return pt;
-}
-
-char *
-get_body(int protocol, char *res)
-{
-	char *body;
-
-	body = res;
-
-	/* Skip response headers if present depending of protocol to find body beginning */
-	switch (protocol) {
-	case HTTP:
-	case HTTPS:
-		body = strstr(res, CRLF CRLF);
-		if (body)
-			body += strlen(CRLF)*2;
-		break;
-	case GEMINI:
-		body = strstr(res, CRLF);
-		if (body)
-			body += 2;
-		break;
-	}
-
-	if (!body)
-		body = res;
-
-	return body;
-}
 
 void
 run(char *uri)
 {
-	char *why, *host, *path, msg[4096], *str, *body, *link;
+	char *why, *host, *path, msg[4096], *link;
 	int protocol, port, ssl=0;
 	FILE *res;
 	unsigned i;
@@ -124,15 +68,9 @@ run(char *uri)
 		break;
 	}
 
-	fprintf(stderr, "protoc	%d\n", protocol);
-	fprintf(stderr, "host	%s\n", host);
-	fprintf(stderr, "port	%d\n", port);
-	fprintf(stderr, "ssl	%d\n", ssl);
-	fprintf(stderr, "msg	%s\n", msg);
-
-	res = fopen(TMP_RES_RAW, "w+");
+	res = fopen(TMP_RES, "w+");
 	if (!res)
-		errx(1, "fopen(%s)", TMP_RES_RAW);
+		errx(1, "fopen(%s)", TMP_RES);
 
 	why = fetch(host, port, ssl, msg, res);
 
@@ -144,28 +82,23 @@ run(char *uri)
 	 * It's important because depending on response or in case of
 	 * Gopher depending on request parsing is optional. */
 
-	str = fmalloc(res);
-
-	if (fclose(res))
-		err(1, "flose(%s)", TMP_RES_RAW);
-
-	body = get_body(protocol, str);
-
 	link_clear();
 	link_store(uri);
+	rewind(res);
 
 	switch (protocol) {
-	case GOPHER: gph_print(body, stdout); break;
-	case GEMINI: gmi_print(body, stdout); break;
+	case GOPHER: gph_print(res, stdout); break;
+	case GEMINI: gmi_print(res, stdout); break;
 	case HTTP:
-	case HTTPS: html_print(body, stdout); break;
+	case HTTPS: html_print(res, stdout); break;
 	}
+
+	if (fclose(res))
+		err(1, "flose(%s)", TMP_RES);
 
 	fprintf(stdout, "\n");
 	for (i=0; (link = link_get(i)); i++)
 		fprintf(stdout, "%u\t%s\n", i, link);
-
-	free(str);
 }
 
 int

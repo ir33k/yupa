@@ -30,7 +30,7 @@ secure(int sfd, char *host, char *msg, FILE *out)
 	 * after last function usage but this is not a big deal.  It's
 	 * more important to avoid memory leak and this is a very
 	 * simple and elegant way of doing that in C where normally it
-	 * would be a mess with those many return statements. */
+	 * would be a mess with many return statements. */
 	SSL_CTX_free(ctx);
 	ctx = 0;
 	SSL_free(ssl);

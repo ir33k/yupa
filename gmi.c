@@ -1,8 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include "gmi.h"
 #include "util.h"
 #include "link.h"
+#include "gmi.h"
 
 /*
 From gmix/gmit.h project source file.
@@ -48,12 +49,21 @@ linklabel(char *line)
 }
 
 void
-gmi_print(char *in, FILE *out)
+gmi_print(FILE *in, FILE *out)
 {
-	char *line, *label;
+	char *buf, *bp, *line, *label;
 	unsigned i, n;
 
-	while ((line = online(&in))) {
+	/* NOTE(irek): In Gemini it's common to have very long lines,
+	 * it's safer to load entire file to memory rather than going
+	 * line by line with buffer of some predefined size. */
+	buf = fmalloc(in);
+	bp = buf;
+
+	/* Skip header line */
+	eachline(&bp);
+
+	while ((line = eachline(&bp))) {
 		if (!strncmp(line, "=>", 2)) {
 			line = triml(line +2);
 			label = linklabel(line);
@@ -66,4 +76,6 @@ gmi_print(char *in, FILE *out)
 
 		fprintf(out, "    %s\n", line);
 	}
+
+	free(buf);
 }

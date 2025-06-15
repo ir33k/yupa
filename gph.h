@@ -1,2 +1,2 @@
 /* Gopher parser and printer */
-void gph_print(char *in, FILE *out);
+void gph_print(FILE *in, FILE *out);
