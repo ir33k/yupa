@@ -38,6 +38,7 @@ From gmix/gmit.h project source file.
 */
 
 static char *linklabel(char *line);
+static unsigned getmaxw();
 static void printwrap(char *str, char *prefix, FILE *out);
 static void underline(char *str, char mark, FILE *out);
 
@@ -78,24 +79,37 @@ linklabel(char *line)
 	return triml(line +n);
 }
 
+unsigned
+getmaxw()
+{
+	static unsigned maxw=0;
+	int num;
+	char *env;
+
+	if (maxw)
+		return maxw;
+
+	env = getenv("YUPAMAXW");
+	if (env)
+		num = atoi(env);
+
+	if (num <= 10)
+		num = 76;
+
+	maxw = (unsigned)num;
+
+	return maxw;
+}
+
 void
 printwrap(char *str, char *prefix, FILE *out)
 {
-	static int maxw=0;
-	char *word, *env;
-	int n, w, indent;
-
-	if (!maxw) {
-		env = getenv("YUPAMAXW");
-		if (env)
-			maxw = atoi(env);
-
-		if (maxw <= 10)
-			maxw = 76;
-	}
+	char *word;
+	unsigned n, w, maxw, indent;
 
 	fprintf(out, "%-*s%s", MARGIN, "", prefix);
 
+	maxw = getmaxw();
 	indent = strlen(prefix);
 	w = MARGIN;
 
@@ -115,9 +129,13 @@ printwrap(char *str, char *prefix, FILE *out)
 void
 underline(char *str, char mark, FILE *out)
 {
-	unsigned n;
+	unsigned n, maxw;
 
+	maxw = getmaxw();
 	n = strlen(str);
+
+	if (n > maxw)
+		n = maxw;
 
 	fprintf(out, "\n");
 	fprintf(out, "%-*s%s\n", MARGIN, "", str);
@@ -155,8 +173,8 @@ Listitem(char **res, char *line, FILE *out)
 
 	/* NOTE(irek): Gemini supports only unordered list but only
 	 * because that syntax is simpler.  Ordered lists are more
-	 * usefull, numbers help refer to specific point.  So I'm
-	 * turning unordered list to ordered list.  Sue me. */
+	 * useful, numbers help refer to specific points.  So I'm
+	 * turning unordered list into ordered list.  Sue me. */
 
 	/* NOTE(irek): It's possible that someone made ordered list by
 	 * hand prefixing each list item with a number.  In that case
@@ -168,15 +186,12 @@ Listitem(char **res, char *line, FILE *out)
 	i = isdigit(*line) ? 0 : 1;
 
 	while (1) {
-		/* Unordered list */
-		if (!i) {
+		if (i) {	/* Ordered list */
+			snprintf(prefix, sizeof prefix, "%u) ", i++);
+			printwrap(line, prefix, out);
+		} else {	/* Unordered list */
 			printwrap(line, "* ", out);
-			break;
 		}
-
-		/* Ordered list */
-		snprintf(prefix, sizeof prefix, "%u) ", i++);
-		printwrap(line, prefix, out);
 
 		if (strncmp(*res, "* ", 2))
 			break;
