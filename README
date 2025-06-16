@@ -1,16 +1,25 @@
-Yupa the CLI web browser with tabs for text protocols.
-Currently supporting only basics of Gopher and Gemini.
-With ability to open .gph and .gmi files from local drive.
+Yupa the CLI web browser for multiple web protocols.
+
+
+			   WORK IN PROGRESS
+
+	     Working on v4, making Yupa from scratch with
+		 different mindset and design goals.
+				   
+
 
 Build and run:
 
 	$ ./build               # Compile and run tests
 	$ ./yupa -h             # Print usage instruction
 	$ ./yupa URI            # Run with optional URI
-	yupa(1/1)> h            # Get help
-	yupa(1/1)> q            # Quit
 
 Changelog:
+
+	2025-06-15 Sun 11:43	v4.0
+
+	1. Redesign whole thing, focus on basics, try to make HTML work.
+	2. Remove notion of tabs, work with only one page.
 
 	2024.01.14 Sun 01:00	v3.1
 

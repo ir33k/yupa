@@ -1,4 +1,8 @@
+#define NAME "yupa"
+#define VERSION "v4.0"
+
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -14,21 +18,49 @@
 #include "gmi.h"
 #include "gph.h"
 #include "html.h"
+#include "main.h"
 
 #define TMP_RES     "/tmp/yupa.res"
 #define TMP_OUT     "/tmp/yupa.out"
 
-static const char *help = "usage: %s URI";
+char *envpager = "less -XI";
+unsigned envmargin = 4;
+unsigned envwidth = 76;
 
+static void usage(char *argv0);
+static char *loadpage(char *);
+static char *oncmd(char);
 static void run(char *uri);
 
 void
-run(char *uri)
+usage(char *argv0)
 {
-	char *why, *host, *path, msg[4096], *buf, *link;
+	printf("usage: %s [options] [URI]\n"
+		"\n"
+		"options:\n"
+		"	-v	Print program version\n"
+		"	-h	Print this help message\n"
+		"\n"
+		"URI:\n"
+		"	Optional initial URI\n"
+		"\n"
+		"env:\n"
+		"	YUPAPAGER	Pager program (%s)\n"
+		"	YUPAMARGIN	Left margin (%d)\n"
+		"	YUPAWIDTH	Max width (%d)\n",
+	       argv0, envpager, envmargin, envwidth);
+}
+
+char *
+loadpage(char *uri)
+{
+	char *why, *host, *path, buf[4096], *pt, *link;
 	int protocol, port, ssl=0;
 	FILE *fp;
 	unsigned i;
+
+	if (!uri)
+		return "No URI";
 
 	protocol = uri_protocol(uri);
 	port = uri_port(uri);
@@ -47,37 +79,42 @@ run(char *uri)
 		if (path && strlen(path) > 2)
 			path += 2;
 
-		snprintf(msg, sizeof msg, "%s", path ? path : "");
+		snprintf(buf, sizeof buf, "%s", path ? path : "");
 		break;
 	case GEMINI:
-		snprintf(msg, sizeof msg, "gemini://%s%s",
+		snprintf(buf, sizeof buf, "gemini://%s%s",
 			 host, path ? path : "/");
 		ssl = 1;
 		break;
 	case HTTP:
-		snprintf(msg, sizeof msg, "GET http://%s%s HTTP/1.0",
+		snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
 			 host, path ? path : "/");
 		break;
 	case HTTPS:
-		snprintf(msg, sizeof msg, "GET %s HTTP/1.0\nHost: %s",
+		snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
 			 path ? path : "/", host);
 		ssl = 1;
 		break;
 	default:
-		errx(1, "Unknown protocol");
-		break;
+		return "Unknown protocol";
 	}
+
+	fprintf(stderr, "protocol: %d\n", protocol);
+	fprintf(stderr, "port: %d\n", port);
+	fprintf(stderr, "host: %s\n", host);
+	fprintf(stderr, "path: %s\n", path);
+	fprintf(stderr, "msg: %s\n", buf);
 
 	fp = fopen(TMP_RES, "w+");
 	if (!fp)
-		errx(1, "fopen(%s)", TMP_RES);
+		err(1, "fopen(%s)", TMP_RES);
 
-	why = fetch(host, port, ssl, msg, fp);
+	why = fetch(host, port, ssl, buf, fp);
 
 	if (why)
-		err(1, "Error: %s", why);
+		return why;
 
-	buf = fmalloc(fp);
+	pt = fmalloc(fp);
 
 	if (fclose(fp))
 		err(1, "flose(%s)", TMP_RES);
@@ -87,16 +124,16 @@ run(char *uri)
 
 	fp = fopen(TMP_OUT, "w");
 	if (!fp)
-		errx(1, "fopen(%s)", TMP_OUT);
+		err(1, "fopen(%s)", TMP_OUT);
 
 	switch (protocol) {
-	case GOPHER: gph_print(buf, fp); break;
-	case GEMINI: gmi_print(buf, fp); break;
+	case GOPHER: gph_print(pt, fp); break;
+	case GEMINI: gmi_print(pt, fp); break;
 	case HTTP:
-	case HTTPS: html_print(buf, fp); break;
+	case HTTPS: html_print(pt, fp); break;
 	}
 
-	free(buf);
+	free(pt);
 
 	fprintf(fp, "\n");
 	fprintf(fp, "index\tlink\n");
@@ -106,18 +143,83 @@ run(char *uri)
 	if (fclose(fp))
 		err(1, "flose(%s)", TMP_OUT);
 
-	system("cat "TMP_OUT);
+	snprintf(buf, sizeof buf, "%s %s", envpager, TMP_OUT);
+	system(buf);
+
+	return 0;
+}
+
+char *
+oncmd(char cmd)
+{
+	switch (cmd) {
+	case 'q': case 'Q':
+		exit(0);
+	}
+	return "unknown command";
+}
+
+void
+run(char *uri)
+{
+	char buf[4096], *pt, *why=0;
+
+	if (uri)
+		why = loadpage(uri);
+
+	while (1) {
+		if (why)
+			printf(NAME": %s\n", why);
+
+		printf(NAME"> ");
+		pt = fgets(buf, sizeof buf, stdin);
+		pt = triml(pt);
+		trimr(pt);
+
+		if (isdigit(pt[0]))
+			why = loadpage(link_get(atoi(pt)));
+		else if (strstr(pt, "://"))
+			why = loadpage(pt);
+		else
+			why = oncmd(pt[0]);
+	}
 }
 
 int
 main(int argc, char **argv)
 {
-	char *uri;
+	int opt, n;
+	char *uri=0, *env;
 
-	if (argc < 2)
-		errx(0, help, argv[0]);
+	env = getenv("YUPAPAGER");
+	if (env)
+		envpager = env;
 
-	uri = argv[1];
+	env = getenv("YUPAMARGIN");
+	n = env ? atoi(env) : 0;
+	if (n >= 0)
+		envmargin = (unsigned)n;
+
+	env = getenv("YUPAWIDTH");
+	n = env ? atoi(env) : 0;
+	if (n > (int)envmargin+4)
+		envwidth = (unsigned)n;
+
+	while ((opt = getopt(argc, argv, "vh")) != -1)
+		switch (opt) {
+		case 'v':
+			puts(VERSION);
+			return 0;
+		case 'h':
+			usage(argv[0]);
+			return 0;
+		default:
+			usage(argv[0]);
+			return 1;
+		}
+
+	if (argc - optind > 0)
+		uri = argv[argc-optind];
 
 	run(uri);
 

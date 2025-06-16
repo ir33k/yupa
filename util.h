@@ -4,3 +4,4 @@ char *fmalloc(FILE *);
 char *eachline(char **);
 char *eachword(char **);
 char *triml(char *);
+void trimr(char *);

@@ -11,4 +11,5 @@ $CC $CFLAGS -c link.c
 $CC $CFLAGS -c gmi.c
 $CC $CFLAGS -c gph.c
 $CC $CFLAGS -c html.c
-$CC $CFLAGS -o yupa *.o main.c -lssl -lcrypto
+$CC $CFLAGS -c main.c
+$CC $CFLAGS -o yupa *.o -lssl -lcrypto

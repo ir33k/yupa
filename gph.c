@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include <string.h>
-#include "gph.h"
 #include "util.h"
 #include "link.h"
-
-#define MARGIN 4        /* Left margin */
+#include "main.h"
+#include "gph.h"
 
 static char *navlabel(char);
 char *navlink(char *line);
@@ -18,7 +17,7 @@ navlabel(char item)
 	case '1': return "(GPH) ";        /* Gopher submenu */
 	case '2': return "(CSO) ";        /* CSO protocol */
 	case '3': return "(ERROR) ";      /* Error code returned by server */
-	case '4': return "(BINHEX) ";     /* BinHex-encoded file (for Macintosh) */
+	case '4': return "(BINHEX) ";     /* BinHex-encoded file, for Macintosh */
 	case '5': return "(DOS) ";        /* DOS file */
 	case '6': return "(UUENCODED) ";  /* uuencoded file */
 	case '7': return "(SEARCH) ";     /* Gopher full-text search */
@@ -35,9 +34,9 @@ navlabel(char item)
 	/* Non-canonical */
 	case 'd': return "(DOC) ";        /* Doc. Seen used alongside PDF's and .DOC's */
 	case 'h': return "(HTML) ";       /* HTML file */
-	case 'p': return "(PNG) ";        /* Image file "(especially the png format)" */
-	case 'r': return "(RTF) ";        /* Document rtf file ("rich text format") */
-	case 's': return "(WAV) ";        /* Sound file (especially the WAV format) */
+	case 'p': return "(PNG) ";        /* Image file ,especially the png format */
+	case 'r': return "(RTF) ";        /* Document rtf file, rich text format */
+	case 's': return "(WAV) ";        /* Sound file, especially the WAV format */
 	case 'P': return "(PDF) ";        /* document pdf file */
 	case 'X': return "(XML) ";        /* document xml file */
 	}
@@ -66,7 +65,7 @@ gph_print(char *res, FILE *out)
 	unsigned i, n;
 
 	while ((line = eachline(&res))) {
-		if (line[0] == '.')	/* Gopher EOF mark */
+		if (line[0] == '.')	/* Gopher EOF mark, ed style */
 			break;
 
 		nav[0] = 0;
@@ -74,10 +73,10 @@ gph_print(char *res, FILE *out)
 
 		if (label[0]) {
                         i = link_store(navlink(line));
-			snprintf(nav, sizeof nav, ":%u ", i);
+			snprintf(nav, sizeof nav, "%u> ", i);
                 }
 
                 n = strcspn(line, "\t");
-		fprintf(out, "%-*s%s%.*s\n", MARGIN, nav, label, n, line+1);
+		fprintf(out, "%-*s%s%.*s\n", envmargin, nav, label, n, line+1);
 	}
 }

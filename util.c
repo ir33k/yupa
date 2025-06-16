@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <err.h>
 #include "util.h"
 
@@ -75,4 +76,12 @@ triml(char *str)
 {
 	while (*str && *str <= ' ') str++;
 	return str;
+}
+
+void
+trimr(char *str)
+{
+	unsigned u;
+	u = strlen(str);
+	while (u && str[--u] <= ' ') str[u] = 0;
 }

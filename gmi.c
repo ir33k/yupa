@@ -4,9 +4,8 @@
 #include <string.h>
 #include "util.h"
 #include "link.h"
+#include "main.h"
 #include "gmi.h"
-
-#define MARGIN 4
 
 /*
 From gmix/gmit.h project source file.
@@ -38,7 +37,6 @@ From gmix/gmit.h project source file.
 */
 
 static char *linklabel(char *line);
-static unsigned getmaxw();
 static void printwrap(char *str, char *prefix, FILE *out);
 static void underline(char *str, char mark, FILE *out);
 
@@ -51,74 +49,50 @@ static void Heading1	(char **, char *, FILE *);
 static void Heading2	(char **, char *, FILE *);
 static void Heading3	(char **, char *, FILE *);
 static void Preformat	(char **, char *, FILE *);
+static void Empty	(char **, char *, FILE *);
 static void Text	(char **, char *, FILE *);
 
 /* gemini://geminiprotocol.net/docs/gemtext.gmi */
 static struct {
 	const char *prefix;
+	unsigned n;
 	printer_t printer;
 } markup[] = {
-	"=>",	Link,
-	"* ",	Listitem,
-	">",	Blockquote,
-	"# ",	Heading1,
-	"## ",	Heading2,
-	"### ",	Heading3,
-	"```",	Preformat,
+	"=>",	2, Link,
+	"* ",	2, Listitem,
+	">",	1, Blockquote,
+	"# ",	2, Heading1,
+	"## ",	3, Heading2,
+	"### ",	4, Heading3,
+	"```",	3, Preformat,
+	"",	1, Empty,
+	"",	0, Text,
 };
 
 char *
 linklabel(char *line)
 {
-	unsigned n;
-	n = strcspn(line, "\t ");
-
-	if (!line[n])
-		return 0;
-
-	return triml(line +n);
-}
-
-unsigned
-getmaxw()
-{
-	static unsigned maxw=0;
-	int num;
-	char *env;
-
-	if (maxw)
-		return maxw;
-
-	env = getenv("YUPAMAXW");
-	if (env)
-		num = atoi(env);
-
-	if (num <= 10)
-		num = 76;
-
-	maxw = (unsigned)num;
-
-	return maxw;
+	unsigned n = strcspn(line, "\t ");
+	return line[n] ? triml(line +n) : 0;
 }
 
 void
 printwrap(char *str, char *prefix, FILE *out)
 {
 	char *word;
-	unsigned n, w, maxw, indent;
+	unsigned n, w, indent;
 
-	fprintf(out, "%-*s%s", MARGIN, "", prefix);
+	fprintf(out, "%-*s%s", envmargin, "", prefix);
 
-	maxw = getmaxw();
 	indent = strlen(prefix);
-	w = MARGIN;
+	w = envmargin;
 
 	while ((word = eachword(&str))) {
 		n = strlen(word) +1;
-		if (w + n > maxw) {
+		if (w + n > envwidth) {
 			fprintf(out, "\n");
-			fprintf(out, "%-*s", MARGIN + indent, "");
-			w = MARGIN;
+			fprintf(out, "%-*s", envmargin + indent, "");
+			w = envmargin;
 		}
 		fprintf(out, "%s ", word);
 		w += n;
@@ -129,17 +103,16 @@ printwrap(char *str, char *prefix, FILE *out)
 void
 underline(char *str, char mark, FILE *out)
 {
-	unsigned n, maxw;
+	unsigned n;
 
-	maxw = getmaxw();
 	n = strlen(str);
 
-	if (n > maxw)
-		n = maxw;
+	if (n > (envwidth - envmargin))
+		n = envwidth - envmargin;
 
 	fprintf(out, "\n");
-	fprintf(out, "%-*s%s\n", MARGIN, "", str);
-	fprintf(out, "%-*s", MARGIN, "");
+	printwrap(str, "", out);
+	fprintf(out, "%-*s", envmargin, "");
 
 	while (n--)
 		fprintf(out, "%c", mark);
@@ -150,7 +123,7 @@ underline(char *str, char mark, FILE *out)
 void
 Link(char **res, char *line, FILE *out)
 {
-	char *label;
+	char *label, prefix[16];
 	unsigned i, n;
 
 	(void)res;
@@ -160,7 +133,8 @@ Link(char **res, char *line, FILE *out)
 	line[n] = 0;
 	i = link_store(line);
 
-	fprintf(out, ":%-*u %s\n", MARGIN-2, i, label ? label : line);
+	snprintf(prefix, sizeof prefix, "%u> ", i);
+	fprintf(out, "%-*s%s\n", envmargin, prefix, label ? label : line);
 }
 
 void
@@ -225,8 +199,12 @@ Heading2(char **res, char *line, FILE *out)
 void
 Heading3(char **res, char *line, FILE *out)
 {
+	char buf[4096];
+
 	(void)res;
-	fprintf(out, "%-*s### %s\n", MARGIN, "", line);
+
+	snprintf(buf, sizeof buf, "%s ###", line);
+	printwrap(buf, "### ", out);
 }
 
 void
@@ -245,6 +223,18 @@ Preformat(char **res, char *line, FILE *out)
 }
 
 void
+Empty(char **res, char *line, FILE *out)
+{
+	(void)line;
+
+	fprintf(out, "\n");
+
+	/* NOTE(irek): Avoid multiple empty lines. */
+	while ((**res) == '\n')
+		eachline(res);
+}
+
+void
 Text(char **res, char *line, FILE *out)
 {
 	(void)res;
@@ -255,22 +245,18 @@ void
 gmi_print(char *res, FILE *out)
 {
 	char *line;
-	unsigned i, n;
+	unsigned i;
 
 	/* Skip header line */
 	eachline(&res);
 
 	while ((line = eachline(&res))) {
 		for (i=0; i<SIZE(markup); i++) {
-			n = strlen(markup[i].prefix);
-			if (!strncmp(line, markup[i].prefix, n)) {
-				line = triml(line +n);
+			if (!strncmp(line, markup[i].prefix, markup[i].n)) {
+				line = triml(line + strlen(markup[i].prefix));
 				(*markup[i].printer)(&res, line, out);
 				break;
 			}
 		}
-
-		if (i == SIZE(markup))
-			Text(&res, line, out);
 	}
 }
