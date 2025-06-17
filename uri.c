@@ -121,10 +121,10 @@ uri_normalize(char *link, char *base)
 
 	/* NOTE(irek): Protocol, and by extension the prefix, should
 	 * always be defined.  Without it it's not possible for the
-	 * link to be normalized.  Usually protocol is always present
-	 * thanks to base URI but it's still possible that first link
-	 * typed by user will not have it and there will be no port
-	 * either to guess the protocol. */
+	 * link to be normalized.  Usually protocol is present thanks
+	 * to base URI but it's still possible that first link typed
+	 * by user will not have it and there will be no port to guess
+	 * the protocol. */
 	if (!prefix)
 		return 0;
 

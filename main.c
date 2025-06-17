@@ -53,10 +53,9 @@ usage(char *argv0)
 char *
 loadpage(char *uri)
 {
-	char *why, *host, *path, buf[4096], *pt, *link;
+	char *why, *host, *path, buf[4096], *pt;
 	int protocol, port, ssl=0;
 	FILE *fp;
-	unsigned i;
 
 	if (!uri)
 		return "No URI";
@@ -128,13 +127,9 @@ loadpage(char *uri)
 	case HTTP:
 	case HTTPS: html_print(pt, fp); break;
 	}
+	fprintf(fp, "\n");
 
 	free(pt);
-
-	fprintf(fp, "\n");
-	fprintf(fp, "Links:\n");
-	for (i=0; (link = link_get(i)); i++)
-		fprintf(fp, "%u\t%s\n", i, link);
 
 	if (fclose(fp))
 		err(1, "flose(%s)", TMP_OUT);
@@ -149,6 +144,7 @@ void
 run(char *uri)
 {
 	char buf[4096], *why=0, *link;
+	int i;
 
 	if (uri)
 		why = loadpage(uri);
@@ -162,11 +158,23 @@ run(char *uri)
 		trimr(buf);
 
 		if (isdigit(buf[0])) {
-			link = link_get(atoi(buf));
+			i = atoi(buf);
+			link = link_get(i);
 		} else {
 			switch (buf[0]) {
 			case 'q': case 'Q':
 				exit(0);
+			case 'l': case 'L':
+				if (buf[1]) {
+					i = atoi(buf+1);
+					link = link_get(i);
+					printf("%s\n", link);
+				} else {
+					// TODO(irek): Use pager
+					for (i=0; (link = link_get(i)); i++)
+						printf("%u\t%s\n", i, link);
+				}
+				continue;
 			}
 			link = buf;
 		}
