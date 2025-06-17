@@ -23,13 +23,12 @@
 #define TMP_RES     "/tmp/yupa.res"
 #define TMP_OUT     "/tmp/yupa.out"
 
-char *envpager = "less -XI";
+static char *envpager = "less -XI";
 unsigned envmargin = 4;
 unsigned envwidth = 76;
 
 static void usage(char *argv0);
 static char *loadpage(char *);
-static char *oncmd(char);
 static void run(char *uri);
 
 void
@@ -66,9 +65,6 @@ loadpage(char *uri)
 	port = uri_port(uri);
 	host = uri_host(uri);
 	path = uri_path(uri);
-
-	if (!protocol)
-		protocol = port;
 
 	if (!port)
 		port = protocol;
@@ -136,7 +132,7 @@ loadpage(char *uri)
 	free(pt);
 
 	fprintf(fp, "\n");
-	fprintf(fp, "index\tlink\n");
+	fprintf(fp, "Links:\n");
 	for (i=0; (link = link_get(i)); i++)
 		fprintf(fp, "%u\t%s\n", i, link);
 
@@ -149,20 +145,10 @@ loadpage(char *uri)
 	return 0;
 }
 
-char *
-oncmd(char cmd)
-{
-	switch (cmd) {
-	case 'q': case 'Q':
-		exit(0);
-	}
-	return "unknown command";
-}
-
 void
 run(char *uri)
 {
-	char buf[4096], *pt, *why=0;
+	char buf[4096], *why=0, *link;
 
 	if (uri)
 		why = loadpage(uri);
@@ -172,16 +158,20 @@ run(char *uri)
 			printf(NAME": %s\n", why);
 
 		printf(NAME"> ");
-		pt = fgets(buf, sizeof buf, stdin);
-		pt = triml(pt);
-		trimr(pt);
+		fgets(buf, sizeof buf, stdin);
+		trimr(buf);
 
-		if (isdigit(pt[0]))
-			why = loadpage(link_get(atoi(pt)));
-		else if (strstr(pt, "://"))
-			why = loadpage(pt);
-		else
-			why = oncmd(pt[0]);
+		if (isdigit(buf[0])) {
+			link = link_get(atoi(buf));
+		} else {
+			switch (buf[0]) {
+			case 'q': case 'Q':
+				exit(0);
+			}
+			link = buf;
+		}
+		uri = uri_normalize(link, link_get(0));
+		why = loadpage(uri);
 	}
 }
 
@@ -197,7 +187,7 @@ main(int argc, char **argv)
 
 	env = getenv("YUPAMARGIN");
 	n = env ? atoi(env) : 0;
-	if (n >= 0)
+	if (n > 0)
 		envmargin = (unsigned)n;
 
 	env = getenv("YUPAWIDTH");

@@ -1,8 +1,32 @@
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
 #include "util.h"
+
+char *
+tellmy(char *fmt, ...)
+{
+	static char buf[2][4096];
+	static int i=0;
+	va_list ap;
+
+	/* NOTE(irek): Thanks to double buffering it's safe to chain
+	 * this function without overwriting previous BUF.  With that
+	 * it's possible to create errors stack.
+	 *
+	 *	why = tellmy("First error code %d", 42);
+	 *	why = tellmy("Second error\n%s", why);
+	 *	why = tellmy("Thirs error\n%s", why);
+	 */
+	i = !i;
+	va_start(ap, fmt);
+	vsnprintf(buf[i], sizeof buf[0], fmt, ap);
+	va_end(ap);
+
+	return buf[i];
+}
 
 char *
 fmalloc(FILE *fp)

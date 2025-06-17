@@ -18,11 +18,10 @@ unsigned
 link_store(char *uri)
 {
 	if (count+1 >= capacity) {
-		capacity += 64;
+		capacity += 32;
 		links = realloc(links, sizeof(char *) * capacity);
-
 		if (!links)
-			err(1, "link_store realloc");
+			err(1, "link_store realloc \"%s\"", uri);
 	}
 	links[count++] = strdup(uri);
 	return count -1;
@@ -31,8 +30,5 @@ link_store(char *uri)
 char *
 link_get(unsigned i)
 {
-	if (i >= count)
-		return 0;
-
-	return links[i];
+	return i >= count ? 0 : links[i];
 }

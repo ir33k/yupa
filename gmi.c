@@ -251,12 +251,14 @@ gmi_print(char *res, FILE *out)
 	eachline(&res);
 
 	while ((line = eachline(&res))) {
-		for (i=0; i<SIZE(markup); i++) {
-			if (!strncmp(line, markup[i].prefix, markup[i].n)) {
-				line = triml(line + strlen(markup[i].prefix));
-				(*markup[i].printer)(&res, line, out);
+		/* NOTE(irek): -1 is used to skip check for last
+		 * markup.  With that last element becomes the default
+		 * which is Text. */
+		for (i=0; i<SIZE(markup)-1; i++)
+			if (!strncmp(line, markup[i].prefix, markup[i].n))
 				break;
-			}
-		}
+
+		line = triml(line + strlen(markup[i].prefix));
+		(*markup[i].printer)(&res, line, out);
 	}
 }

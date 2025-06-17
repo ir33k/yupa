@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <openssl/ssl.h>
+#include "util.h"
 #include "fetch.h"
 
 #define CRLF "\r\n"
@@ -30,7 +31,8 @@ secure(int sfd, char *host, char *msg, FILE *out)
 	 * after last function usage but this is not a big deal.  It's
 	 * more important to avoid memory leak and this is a very
 	 * simple and elegant way of doing that in C where normally it
-	 * would be a mess with many return statements. */
+	 * would be a mess with many return statements.  I use the
+	 * same trick for sfd in fetch(). */
 	SSL_CTX_free(ctx);
 	ctx = 0;
 	SSL_free(ssl);
@@ -43,7 +45,7 @@ secure(int sfd, char *host, char *msg, FILE *out)
 		return "Failed to create SSL instance";
 
 	if (!SSL_set_tlsext_host_name(ssl, host))
-		return "Failed to TLS set hostname";
+		return tellmy("Failed to TLS set hostname \"%s\"", host);
 
 	if (!SSL_set_fd(ssl, sfd))
 		return "Failed to set SSL sfd";
@@ -86,8 +88,8 @@ plain(int sfd, char *msg, FILE *out)
 char *
 fetch(char *host, int port, int ssl, char *msg, FILE *out)
 {
-	char *why;
-	int i, sfd;
+	static int sfd=-1;
+	int i;
 	struct hostent *he;
 	struct sockaddr_in addr;
 
@@ -95,11 +97,14 @@ fetch(char *host, int port, int ssl, char *msg, FILE *out)
 	assert(port > 0);
 	assert(msg);
 
+	if (sfd >= 0 && close(sfd))
+		return "Failed to close socket";
+
 	if ((sfd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
 		return "Failed to open socket";
 
 	if ((he = gethostbyname(host)) == 0)
-		return "Failed to get hostname";
+		return tellmy("Failed to get hostname \"%s\"", host);
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
@@ -111,19 +116,9 @@ fetch(char *host, int port, int ssl, char *msg, FILE *out)
 	}
 
 	if (!he->h_addr_list[i])
-		return "Failed to connect, invalid port?";
+		return tellmy("Failed to connect, invalid port %d?", port);
 
-	if (ssl) {
-		why = secure(sfd, host, msg, out);
-	} else {
-		why = plain(sfd, msg, out);
-	}
-
-	if (close(sfd))
-		return "Failed to close socket";
-
-	if (why)
-		return why;
-
-	return 0;
+	return ssl ?
+		secure(sfd, host, msg, out) :
+		plain(sfd, msg, out);
 }

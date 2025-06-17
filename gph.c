@@ -52,6 +52,8 @@ navlink(char *line)
         char item, path[1024], host[1024];
         int port;
 
+        /* TODO(irek): How Gopher handles links without item type and path?
+         * For example link to root hostname page. */
         sscanf(line, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d", &item, path, host, &port);
         snprintf(buf, sizeof buf, "gopher://%s:%d/%c%s", host, port, item, path);
 
