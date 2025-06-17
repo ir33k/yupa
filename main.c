@@ -212,6 +212,5 @@ main(int argc, char **argv)
 		uri = argv[argc-optind];
 
 	run(uri);
-
 	return 0;
 }

@@ -93,6 +93,9 @@ uri_normalize(char *link, char *base)
 	int protocol, port;
 	char *host, *path, *prefix;
 
+	if (!base)
+		base = "";
+
 	if (link[0] == '/') {	/* Link is an absolute path */
 		protocol = uri_protocol(base);
 		port = uri_port(base);
@@ -111,9 +114,19 @@ uri_normalize(char *link, char *base)
 		path = uri_path(buf);
 	}
 
-	/* Thanks to base uri the protocol should always be present. */
-	assert(protocol);
+	if (!protocol)
+		protocol = port;
+
 	prefix = protocol_str(protocol);
+
+	/* NOTE(irek): Protocol, and by extension the prefix, should
+	 * always be defined.  Without it it's not possible for the
+	 * link to be normalized.  Usually protocol is always present
+	 * thanks to base URI but it's still possible that first link
+	 * typed by user will not have it and there will be no port
+	 * either to guess the protocol. */
+	if (!prefix)
+		return 0;
 
 	if (!port)
 		port = protocol;
