@@ -33,8 +33,9 @@ unsigned envwidth = 76;
 static void usage(char *argv0);
 static char *join(char *, char *);
 static char *loadpage(char *);
+static void onprompt(char *);
 static char *oncmd(char *);
-static void run(char *uri);
+static void run(char *);
 
 void
 usage(char *argv0)
@@ -117,7 +118,7 @@ loadpage(char *uri)
 
 	fp = fopen(join(envtmp, "/res"), "w+");
 	if (!fp)
-		err(1, "fopen(res)");
+		err(1, "fopen(/res)");
 
 	why = fetch(host, port, ssl, buf, fp);
 
@@ -127,7 +128,7 @@ loadpage(char *uri)
 	pt = fmalloc(fp);
 
 	if (fclose(fp))
-		err(1, "flose(res)");
+		err(1, "flose(/res)");
 
 	link_clear();
 	link_store(uri);
@@ -135,16 +136,16 @@ loadpage(char *uri)
 
 	fp = fopen(join(envtmp, "/uri"), "w");
 	if (!fp)
-		err(1, "fopen(uri)");
+		err(1, "fopen(/uri)");
 
 	fprintf(fp, "%s", uri);
 
 	if (fclose(fp))
-		err(1, "flose(out)");
+		err(1, "flose(/uri)");
 
 	fp = fopen(join(envtmp, "/body"), "w");
 	if (!fp)
-		err(1, "fopen(body)");
+		err(1, "fopen(/body)");
 
 	switch (protocol) {
 	case GOPHER: gph_print(pt, fp); break;
@@ -157,7 +158,7 @@ loadpage(char *uri)
 	free(pt);
 
 	if (fclose(fp))
-		err(1, "flose(out)");
+		err(1, "flose(/body)");
 
 	snprintf(buf, sizeof buf, "%s %s", envpager, join(envtmp, "/body"));
 	system(buf);
@@ -165,11 +166,38 @@ loadpage(char *uri)
 	return 0;
 }
 
+void
+onprompt(char *str)
+{
+	static char last[4096]={0};
+	char *why=0, *link, *uri;
+
+	if (!str[0])
+		str = last;
+
+	if (isdigit(str[0]))
+		link = link_get(atoi(str));
+	else
+		link = oncmd(triml(str));
+
+	strcpy(last, str);
+
+	if (!link)
+		return;
+
+	uri = uri_normalize(link, link_get(0));
+	why = loadpage(uri);
+
+	if (why)
+		printf(NAME": %s\n", why);
+}
+
 char *
 oncmd(char *cmd)
 {
-	char *arg, *link;
+	char buf[4096], *arg, *link;
 	int i;
+	FILE *fp;
 
 	if (!cmd[0])
 		return 0;
@@ -203,16 +231,31 @@ oncmd(char *cmd)
 		}
 		break;
 	case '$':
-		printf("$ cmd\n");
+		system(arg);
 		break;
 	case '!':
-		printf("! cmd\n");
+		snprintf(buf, sizeof buf, "%s %s", arg, join(envtmp, "/body"));
+		system(buf);
 		break;
 	case '|':
-		printf("| cmd\n");
+		snprintf(buf, sizeof buf, "<%s %s", join(envtmp, "/body"), arg);
+		system(buf);
 		break;
 	case '%':
-		printf("%% cmd\n");
+		snprintf(buf, sizeof buf, "%s >%s", arg, join(envtmp, "/out"));
+		system(buf);
+
+		fp = fopen(join(envtmp, "/out"), "r");
+		if (!fp)
+			err(1, "fopen(/out)");
+
+		fgets(buf, sizeof buf, fp);
+
+		if (fclose(fp))
+			err(1, "flose(/out)");
+
+		trimr(buf);
+		onprompt(triml(buf));
 		break;
 	default:
 		return cmd;	/* CMD is probably a relative URI */
@@ -224,40 +267,16 @@ oncmd(char *cmd)
 void
 run(char *uri)
 {
-	char buf[2][4096]={0}, *why=0, *link;
-	int i=0, last=0;
+	char buf[4096];
 
 	if (uri)
-		uri = uri_normalize(uri, 0);
-
-	if (uri)
-		why = loadpage(uri);
+		onprompt(uri);
 
 	while (1) {
-		if (why)
-			printf(NAME": %s\n", why);
-
-		why = 0;
 		printf(NAME"> ");
-		fgets(buf[i], sizeof buf[0], stdin);
-		trimr(buf[i]);
-
-		if (!buf[i][0])
-			i = last;
-
-		if (isdigit(buf[i][0]))
-			link = link_get(atoi(buf[i]));
-		else
-			link = oncmd(triml(buf[i]));
-
-		last = i;
-		i = !i;
-
-		if (!link)
-			continue;
-
-		uri = uri_normalize(link, link_get(0));
-		why = loadpage(uri);
+		fgets(buf, sizeof buf, stdin);
+		trimr(buf);
+		onprompt(buf);
 	}
 }
 
