@@ -211,12 +211,11 @@ run(char *uri)
 {
 	char buf[4096], *why=0, *link;
 
-	uri = uri_normalize(uri, 0);
+	if (uri)
+		uri = uri_normalize(uri, 0);
+
 	if (uri)
 		why = loadpage(uri);
-
-	/* TODO(irek): Run last CMD when input prompt is empty.
-	 * If there was not last command then print help. */
 
 	while (1) {
 		if (why)

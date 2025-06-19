@@ -6,6 +6,7 @@
 #include "uri.h"
 
 static int starts_with(char *str, char *prefix);
+static void skip(char *str, unsigned n);
 static char *protocol_str(int);
 
 int
@@ -13,6 +14,17 @@ starts_with(char *str, char *prefix)
 {
 	unsigned n = strlen(prefix);
 	return n > strlen(str) ? 0 : !strncasecmp(str, prefix, n);
+}
+
+void
+skip(char *str, unsigned n)
+{
+	unsigned i;
+
+	for (i=0; str[n]; i++, n++)
+		str[i] = str[n];
+
+	str[i] = 0;
 }
 
 char *
@@ -91,7 +103,7 @@ uri_normalize(char *link, char *base)
 {
 	static char buf[4096];
 	int protocol, port;
-	char *host, *path, *prefix;
+	char *host, *path, *prefix, *pt, *tmp;
 
 	if (!base)
 		base = "";
@@ -133,6 +145,30 @@ uri_normalize(char *link, char *base)
 
 	if (!path)
 		path = "";
+
+	/* Resolve "//" "." and ".." */
+	if (path[0]) {
+		while ((pt = strstr(path, "//")))
+			path = pt + 1;
+
+		while ((pt = strstr(path, ".."))) {
+			if (pt == path)
+				break;
+
+			tmp = pt-1;
+			if (*tmp == '/')
+				tmp--;
+
+			while (tmp > path && *tmp != '/')
+				tmp--;
+
+			skip(tmp, (pt-tmp) + 2);
+		}
+
+		pt = path;
+		while ((pt = strstr(pt, "/.")))
+			skip(pt, 2);
+	}
 
 	snprintf(buf, sizeof buf, "%s://%s:%d%s", prefix, host, port, path);
 	return buf;
