@@ -15,6 +15,7 @@
 #include "uri.h"
 #include "fetch.h"
 #include "link.h"
+#include "undo.h"
 #include "gmi.h"
 #include "gph.h"
 #include "html.h"
@@ -29,6 +30,7 @@ unsigned envwidth = 76;
 
 static void usage(char *argv0);
 static char *loadpage(char *);
+static char *oncmd(char *);
 static void run(char *uri);
 
 void
@@ -116,6 +118,7 @@ loadpage(char *uri)
 
 	link_clear();
 	link_store(uri);
+	undo_add(uri);
 
 	fp = fopen(TMP_OUT, "w");
 	if (!fp)
@@ -140,14 +143,80 @@ loadpage(char *uri)
 	return 0;
 }
 
+char *
+oncmd(char *cmd)
+{
+	static char last[4096]={0};
+	char *arg, *link;
+	int i;
+
+	cmd = triml(cmd);
+
+	if (!cmd[0])
+		cmd = last;
+
+	if (!cmd[0])
+		return 0;
+
+	arg = triml(cmd+1);
+	
+	switch (cmd[0]) {
+	case 'q':
+		exit(0);
+	case 'b':
+		i = atoi(arg);
+		return undo_go(i ? i : -1);
+	case 'f':
+		i = atoi(arg);
+		return undo_go(i ? i : 1);
+	case 'i':
+		if (arg[0]) {
+			if (arg[0] >= 'A' && arg[0] <= 'Z') {
+				printf("bind %c\n", arg[0]);
+			} else {
+				i = atoi(arg);
+				printf("%s\n", link_get(i));
+			}
+		} else {
+			// TODO(irek): Use pager
+			printf("Links:\n");
+			for (i=0; (link = link_get(i)); i++)
+				printf("%u\t%s\n", i, link);
+
+			printf("Binds:\n");
+		}
+		break;
+	case '$':
+		printf("$ cmd\n");
+		break;
+	case '!':
+		printf("! cmd\n");
+		break;
+	case '|':
+		printf("| cmd\n");
+		break;
+	case '%':
+		printf("%% cmd\n");
+		break;
+	default:
+		return cmd;	/* CMD is probably a relative URI */
+	}
+
+	strcpy(last, cmd);
+	return 0;
+}
+
 void
 run(char *uri)
 {
 	char buf[4096], *why=0, *link;
-	int i;
 
+	uri = uri_normalize(uri, 0);
 	if (uri)
 		why = loadpage(uri);
+
+	/* TODO(irek): Run last CMD when input prompt is empty.
+	 * If there was not last command then print help. */
 
 	while (1) {
 		if (why)
@@ -157,27 +226,16 @@ run(char *uri)
 		fgets(buf, sizeof buf, stdin);
 		trimr(buf);
 
-		if (isdigit(buf[0])) {
-			i = atoi(buf);
-			link = link_get(i);
-		} else {
-			switch (buf[0]) {
-			case 'q': case 'Q':
-				exit(0);
-			case 'l': case 'L':
-				if (buf[1]) {
-					i = atoi(buf+1);
-					link = link_get(i);
-					printf("%s\n", link);
-				} else {
-					// TODO(irek): Use pager
-					for (i=0; (link = link_get(i)); i++)
-						printf("%u\t%s\n", i, link);
-				}
-				continue;
-			}
-			link = buf;
+		if (isdigit(buf[0]))
+			link = link_get(atoi(buf));
+		else
+			link = oncmd(buf);
+
+		if (!link) {
+			why = 0;
+			continue;
 		}
+
 		uri = uri_normalize(link, link_get(0));
 		why = loadpage(uri);
 	}

@@ -18,7 +18,7 @@ unsigned
 link_store(char *uri)
 {
 	if (count+1 >= capacity) {
-		capacity += 32;
+		capacity = capacity ? capacity*2 : 32;
 		links = realloc(links, sizeof(char *) * capacity);
 		if (!links)
 			err(1, "link_store realloc \"%s\"", uri);
