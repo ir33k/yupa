@@ -31,6 +31,7 @@ char *
 protocol_str(int protocol)
 {
 	switch (protocol) {
+	case LOCAL: return "file";
 	case HTTP: return "http";
 	case HTTPS: return "https";
 	case GEMINI: return "gemini";
@@ -43,6 +44,7 @@ int
 uri_protocol(char *uri)
 {
 	assert(uri);
+	if (starts_with(uri, "file://")) return LOCAL;
 	if (starts_with(uri, "http://")) return HTTP;
 	if (starts_with(uri, "https://")) return HTTPS;
 	if (starts_with(uri, "gemini://")) return GEMINI;

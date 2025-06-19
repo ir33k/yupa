@@ -1,10 +1,8 @@
 /* Extract parts of URI string */
 
-enum { HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
+enum { LOCAL=1, HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
 
-/* TODO(irek): I'm not sure what should be the default, maybe make it
- * an environment variable? */
-#define URI_DEFAULT_PROTOCOL GEMINI
+#define URI_DEFAULT_PROTOCOL LOCAL
 
 int uri_protocol(char *uri);
 char *uri_host(char *uri);

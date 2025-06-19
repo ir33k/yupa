@@ -1,4 +1,3 @@
-#define _XOPEN_SOURCE 500	/* For strdup */
 #include <err.h>
 #include <stdlib.h>
 #include <string.h>

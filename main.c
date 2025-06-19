@@ -27,6 +27,7 @@
 #include "gmi.h"
 #include "gph.h"
 #include "html.h"
+#include "cache.h"
 #include "main.h"
 
 char envtmp[] = "/tmp/"NAME"XXXXXX";
@@ -89,6 +90,10 @@ loadpage(char *uri)
 	if (!port)
 		port = protocol;
 
+	pt = cache_get(uri);
+	if (pt) {
+	}
+
 	switch (protocol) {
 	case GOPHER:
 		/* First part of the path holds resource type */
@@ -115,29 +120,29 @@ loadpage(char *uri)
 		return "Unknown protocol";
 	}
 
-	fprintf(stderr, "protocol: %d\n", protocol);
-	fprintf(stderr, "port: %d\n", port);
-	fprintf(stderr, "host: %s\n", host);
-	fprintf(stderr, "path: %s\n", path);
-	fprintf(stderr, "msg: %s\n", buf);
+	if (protocol == LOCAL) {
+		snprintf(buf, sizeof buf, "cp %s %s", path, join(envtmp, "/res"));
+		system(buf);
+	} else {
+		fp = fopen(join(envtmp, "/res"), "w+");
+		if (!fp)
+			err(1, "fopen(/res)");
 
-	fp = fopen(join(envtmp, "/res"), "w+");
-	if (!fp)
-		err(1, "fopen(/res)");
+		why = fetch(host, port, ssl, buf, fp);
 
-	why = fetch(host, port, ssl, buf, fp);
+		if (why)
+			return why;
 
-	if (why)
-		return why;
+		pt = fmalloc(fp);
 
-	pt = fmalloc(fp);
-
-	if (fclose(fp))
-		err(1, "flose(/res)");
+		if (fclose(fp))
+			err(1, "flose(/res)");
+	}
 
 	link_clear();
 	link_store(uri);
 	undo_add(uri);
+	cache_add(uri, join(envtmp, "/res"));
 
 	fp = fopen(join(envtmp, "/uri"), "w");
 	if (!fp)
@@ -325,6 +330,8 @@ main(int argc, char **argv)
 	if (setenv("YUPATMP", envtmp, 1))
 		err(1, "setenv(YUPATMP)");
 
+	mkdir(join(envtmp, "/cache"), 0755);
+
 	env = getenv("YUPAHOME");
 	if (env)
 		envhome = env;
@@ -338,9 +345,16 @@ main(int argc, char **argv)
 	if (setenv("YUPAHOME", envhome, 1))
 		err(1, "setenv(YUPAHOME)");
 
+	env = getenv("PAGER");
+	if (env)
+		envpager = env;
+
 	env = getenv("YUPAPAGER");
 	if (env)
 		envpager = env;
+
+	if (setenv("YUPAPAGER", envpager, 1))
+		err(1, "setenv(YUPAPAGER)");
 
 	env = getenv("YUPAMARGIN");
 	n = env ? atoi(env) : 0;
