@@ -1,17 +1,21 @@
 #define NAME "yupa"
 #define VERSION "v4.0"
 
-#define _POSIX_C_SOURCE 200809L	/* For mkdtemp */
+#define _POSIX_C_SOURCE	200809L	/* For mkdtemp */
 
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <getopt.h>
+#include <limits.h>
+#include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include "util.h"
@@ -26,7 +30,7 @@
 #include "main.h"
 
 char envtmp[] = "/tmp/"NAME"XXXXXX";
-char *envhome = "~/."NAME;
+char *envhome = 0;
 char *envpager = "less -XI";
 unsigned envmargin = 4;
 unsigned envwidth = 76;
@@ -206,12 +210,14 @@ oncmd(char *cmd)
 	arg = triml(cmd+1);
 
 	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
-		str = bind(cmd[0], arg[0] ? arg : 0);
-
-		if (!str || arg[0])
-			return 0;
-
-		onprompt(str);
+		if (arg[0]) {
+			bind_set(cmd[0], arg);
+		} else {
+			str = bind_get(cmd[0]);
+			if (!str)
+				return 0;
+			onprompt(str);
+		}
 		return 0;
 	}
 	
@@ -226,20 +232,35 @@ oncmd(char *cmd)
 		return undo_go(i ? i : 1);
 	case 'i':
 		if (arg[0]) {
-			if (arg[0] >= 'A' && arg[0] <= 'Z') {
-				printf("bind %c\n", arg[0]);
-			} else {
-				i = atoi(arg);
-				printf("%s\n", link_get(i));
-			}
-		} else {
-			// TODO(irek): Use pager
-			printf("Links:\n");
-			for (i=0; (str = link_get(i)); i++)
-				printf("%u\t%s\n", i, str);
+			if (arg[0] >= 'A' && arg[0] <= 'Z')
+				str = bind_get(arg[0]);
+			else
+				str = link_get(atoi(arg));
 
-			printf("Binds:\n");
+			if (str)
+				printf("%s\n", str);
+
+			break;
 		}
+
+		fp = fopen(join(envtmp, "/info"), "w");
+		if (!fp)
+			err(1, "fopen(/info)");
+
+		for (i=0; (str = link_get(i)); i++)
+			fprintf(fp, "%u\t%s\n", i, str);
+
+		for (i='A'; i<='Z'; i++) {
+			str = bind_get(i);
+			if (str)
+				fprintf(fp, "%c\t%s\n", i, str);
+		}
+
+		if (fclose(fp))
+			err(1, "flose(/info)");
+
+		snprintf(buf, sizeof buf, "%s %s", envpager, join(envtmp, "/info"));
+		system(buf);
 		break;
 	case '$':
 		system(arg);
@@ -296,6 +317,7 @@ main(int argc, char **argv)
 {
 	int opt, n;
 	char *uri=0, *env;
+	struct passwd *pw;
 
 	if (!mkdtemp(envtmp))
 		err(1, "mkdtemp");
@@ -306,6 +328,15 @@ main(int argc, char **argv)
 	env = getenv("YUPAHOME");
 	if (env)
 		envhome = env;
+
+	if (!envhome) {
+		pw = getpwuid(getuid());
+		envhome = strdup(join(pw ? pw->pw_dir : "", "/."NAME));
+	}
+	mkdir(envhome, 0755);
+
+	if (setenv("YUPAHOME", envhome, 1))
+		err(1, "setenv(YUPAHOME)");
 
 	env = getenv("YUPAPAGER");
 	if (env)
@@ -333,6 +364,8 @@ main(int argc, char **argv)
 			usage(argv[0]);
 			return 1;
 		}
+
+	bind_load(join(envhome, "/binds"));
 
 	if (argc - optind > 0)
 		uri = argv[argc-optind];

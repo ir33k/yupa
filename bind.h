@@ -4,5 +4,6 @@ Binds are uppercase characters in range from A to Z
 that hold any string value.
 */
 
-/* Return bind value when str is null, otherwise set value. */
-char *bind(char bind, char *str);
+void bind_set(char, char *str);
+char *bind_get(char);
+void bind_load(char *path);
