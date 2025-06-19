@@ -9,6 +9,7 @@ $CC $CFLAGS -c uri.c
 $CC $CFLAGS -c fetch.c
 $CC $CFLAGS -c link.c
 $CC $CFLAGS -c undo.c
+$CC $CFLAGS -c bind.c
 $CC $CFLAGS -c gmi.c
 $CC $CFLAGS -c gph.c
 $CC $CFLAGS -c html.c

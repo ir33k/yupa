@@ -19,6 +19,7 @@
 #include "fetch.h"
 #include "link.h"
 #include "undo.h"
+#include "bind.h"
 #include "gmi.h"
 #include "gph.h"
 #include "html.h"
@@ -172,7 +173,7 @@ onprompt(char *str)
 	static char last[4096]={0};
 	char *why=0, *link, *uri;
 
-	if (!str[0])
+	if (!str || !str[0])
 		str = last;
 
 	if (isdigit(str[0]))
@@ -195,7 +196,7 @@ onprompt(char *str)
 char *
 oncmd(char *cmd)
 {
-	char buf[4096], *arg, *link;
+	char buf[4096], *arg, *str;
 	int i;
 	FILE *fp;
 
@@ -203,6 +204,16 @@ oncmd(char *cmd)
 		return 0;
 
 	arg = triml(cmd+1);
+
+	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
+		str = bind(cmd[0], arg[0] ? arg : 0);
+
+		if (!str || arg[0])
+			return 0;
+
+		onprompt(str);
+		return 0;
+	}
 	
 	switch (cmd[0]) {
 	case 'q':
@@ -224,8 +235,8 @@ oncmd(char *cmd)
 		} else {
 			// TODO(irek): Use pager
 			printf("Links:\n");
-			for (i=0; (link = link_get(i)); i++)
-				printf("%u\t%s\n", i, link);
+			for (i=0; (str = link_get(i)); i++)
+				printf("%u\t%s\n", i, str);
 
 			printf("Binds:\n");
 		}
