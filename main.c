@@ -1,10 +1,13 @@
 #define NAME "yupa"
 #define VERSION "v4.0"
 
+#define _POSIX_C_SOURCE 200809L	/* For mkdtemp */
+
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <getopt.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,14 +24,14 @@
 #include "html.h"
 #include "main.h"
 
-#define TMP_RES     "/tmp/yupa.res"
-#define TMP_OUT     "/tmp/yupa.out"
-
-static char *envpager = "less -XI";
+char envtmp[] = "/tmp/"NAME"XXXXXX";
+char *envhome = "~/."NAME;
+char *envpager = "less -XI";
 unsigned envmargin = 4;
 unsigned envwidth = 76;
 
 static void usage(char *argv0);
+static char *join(char *, char *);
 static char *loadpage(char *);
 static char *oncmd(char *);
 static void run(char *uri);
@@ -46,10 +49,20 @@ usage(char *argv0)
 		"	Optional initial URI\n"
 		"\n"
 		"env:\n"
-		"	YUPAPAGER	Pager program (%s)\n"
-		"	YUPAMARGIN	Left margin (%d)\n"
-		"	YUPAWIDTH	Max width (%d)\n",
-	       argv0, envpager, envmargin, envwidth);
+		"	YUPATMP         Runtime tmp dir with session files (%s)\n"
+		"	YUPAHOME        Dir with persistent user data (%s)\n"
+		"	YUPAPAGER       Pager program (%s)\n"
+		"	YUPAMARGIN      Left margin (%d)\n"
+		"	YUPAWIDTH       Max width (%d)\n",
+	       argv0, envtmp, envhome, envpager, envmargin, envwidth);
+}
+
+char *
+join(char *a, char *b)
+{
+	static char buf[4096];
+	snprintf(buf, sizeof buf, "%s%s", a, b);
+	return buf;
 }
 
 char *
@@ -102,9 +115,9 @@ loadpage(char *uri)
 	fprintf(stderr, "path: %s\n", path);
 	fprintf(stderr, "msg: %s\n", buf);
 
-	fp = fopen(TMP_RES, "w+");
+	fp = fopen(join(envtmp, "/res"), "w+");
 	if (!fp)
-		err(1, "fopen(%s)", TMP_RES);
+		err(1, "fopen(res)");
 
 	why = fetch(host, port, ssl, buf, fp);
 
@@ -114,15 +127,24 @@ loadpage(char *uri)
 	pt = fmalloc(fp);
 
 	if (fclose(fp))
-		err(1, "flose(%s)", TMP_RES);
+		err(1, "flose(res)");
 
 	link_clear();
 	link_store(uri);
 	undo_add(uri);
 
-	fp = fopen(TMP_OUT, "w");
+	fp = fopen(join(envtmp, "/uri"), "w");
 	if (!fp)
-		err(1, "fopen(%s)", TMP_OUT);
+		err(1, "fopen(uri)");
+
+	fprintf(fp, "%s", uri);
+
+	if (fclose(fp))
+		err(1, "flose(out)");
+
+	fp = fopen(join(envtmp, "/body"), "w");
+	if (!fp)
+		err(1, "fopen(body)");
 
 	switch (protocol) {
 	case GOPHER: gph_print(pt, fp); break;
@@ -135,9 +157,9 @@ loadpage(char *uri)
 	free(pt);
 
 	if (fclose(fp))
-		err(1, "flose(%s)", TMP_OUT);
+		err(1, "flose(out)");
 
-	snprintf(buf, sizeof buf, "%s %s", envpager, TMP_OUT);
+	snprintf(buf, sizeof buf, "%s %s", envpager, join(envtmp, "/body"));
 	system(buf);
 
 	return 0;
@@ -146,14 +168,8 @@ loadpage(char *uri)
 char *
 oncmd(char *cmd)
 {
-	static char last[4096]={0};
 	char *arg, *link;
 	int i;
-
-	cmd = triml(cmd);
-
-	if (!cmd[0])
-		cmd = last;
 
 	if (!cmd[0])
 		return 0;
@@ -202,14 +218,14 @@ oncmd(char *cmd)
 		return cmd;	/* CMD is probably a relative URI */
 	}
 
-	strcpy(last, cmd);
 	return 0;
 }
 
 void
 run(char *uri)
 {
-	char buf[4096], *why=0, *link;
+	char buf[2][4096]={0}, *why=0, *link;
+	int i=0, last=0;
 
 	if (uri)
 		uri = uri_normalize(uri, 0);
@@ -221,19 +237,24 @@ run(char *uri)
 		if (why)
 			printf(NAME": %s\n", why);
 
+		why = 0;
 		printf(NAME"> ");
-		fgets(buf, sizeof buf, stdin);
-		trimr(buf);
+		fgets(buf[i], sizeof buf[0], stdin);
+		trimr(buf[i]);
 
-		if (isdigit(buf[0]))
-			link = link_get(atoi(buf));
+		if (!buf[i][0])
+			i = last;
+
+		if (isdigit(buf[i][0]))
+			link = link_get(atoi(buf[i]));
 		else
-			link = oncmd(buf);
+			link = oncmd(triml(buf[i]));
 
-		if (!link) {
-			why = 0;
+		last = i;
+		i = !i;
+
+		if (!link)
 			continue;
-		}
 
 		uri = uri_normalize(link, link_get(0));
 		why = loadpage(uri);
@@ -245,6 +266,16 @@ main(int argc, char **argv)
 {
 	int opt, n;
 	char *uri=0, *env;
+
+	if (!mkdtemp(envtmp))
+		err(1, "mkdtemp");
+
+	if (setenv("YUPATMP", envtmp, 1))
+		err(1, "setenv(YUPATMP)");
+
+	env = getenv("YUPAHOME");
+	if (env)
+		envhome = env;
 
 	env = getenv("YUPAPAGER");
 	if (env)
