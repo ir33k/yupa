@@ -45,7 +45,7 @@ fmalloc(FILE *fp)
 	rewind(fp);
 
 	m = fread(pt, 1, n, fp);
-	pt[m+1] = 0;
+	pt[m] = 0;
 
 	if (m != n)
 		errx(1, "fmalloc failed to read entire file");
