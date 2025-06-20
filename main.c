@@ -179,18 +179,15 @@ loadpage(char *uri)
 void
 onprompt(char *str)
 {
-	static char last[4096]={0};
 	char *why=0, *link, *uri;
 
 	if (!str || !str[0])
-		str = last;
+		return;
 
 	if (isdigit(str[0]))
 		link = link_get(atoi(str));
 	else
 		link = oncmd(triml(str));
-
-	strcpy(last, str);
 
 	if (!link)
 		return;

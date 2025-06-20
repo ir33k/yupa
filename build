@@ -2,7 +2,7 @@
 set -e # Stop on first error
 
 CC="cc"
-# _XOPEN_SOURCE for strdup()
+# _XOPEN_SOURCE=500 for strdup()
 CFLAGS="-D_XOPEN_SOURCE=500 -Wno-missing-braces -Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99"
 
 $CC $CFLAGS -c util.c

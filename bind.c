@@ -5,7 +5,7 @@
 #include "util.h"
 #include "bind.h"
 
-static char *binds[('Z'-'A')+1]={0};
+static char *binds['Z'-'A']={0};
 static char lastpath[4096]={0};
 
 static void save();
