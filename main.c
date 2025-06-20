@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <limits.h>
 #include <pwd.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,29 +39,31 @@ unsigned envwidth = 76;
 
 static void usage(char *argv0);
 static char *join(char *, char *);
+static void end() __attribute__((noreturn));
 static char *loadpage(char *);
 static void onprompt(char *);
 static char *oncmd(char *);
 static void run(char *);
+static void sig_cb(int);
 
 void
 usage(char *argv0)
 {
-	printf("usage: %s [options] [URI]\n"
+	printf("usage: %s [options] [prompt]\n"
 		"\n"
 		"options:\n"
-		"	-v	Print program version\n"
-		"	-h	Print this help message\n"
+		"	-v	Print program version.\n"
+		"	-h	Print this help message.\n"
 		"\n"
-		"URI:\n"
-		"	Optional initial URI\n"
+		"prompt:\n"
+		"	Optional initial input prompt value, URI for example.\n"
 		"\n"
 		"env:\n"
-		"	YUPATMP         Runtime tmp dir with session files (%s)\n"
-		"	YUPAHOME        Dir with persistent user data (%s)\n"
-		"	YUPAPAGER       Pager program (%s)\n"
-		"	YUPAMARGIN      Left margin (%d)\n"
-		"	YUPAWIDTH       Max width (%d)\n",
+		"	YUPATMP         Runtime tmp dir with session files (%s).\n"
+		"	YUPAHOME        Dir with persistent user data (%s).\n"
+		"	YUPAPAGER       Owerwrites $PAGER value (%s).\n"
+		"	YUPAMARGIN      Left margin (%d).\n"
+		"	YUPAWIDTH       Max width (%d).\n",
 	       argv0, envtmp, envhome, envpager, envmargin, envwidth);
 }
 
@@ -70,6 +73,12 @@ join(char *a, char *b)
 	static char buf[4096];
 	snprintf(buf, sizeof buf, "%s%s", a, b);
 	return buf;
+}
+
+void
+end()
+{
+	exit(0);
 }
 
 char *
@@ -225,7 +234,7 @@ oncmd(char *cmd)
 	
 	switch (cmd[0]) {
 	case 'q':
-		exit(0);
+		end();
 	case 'b':
 		i = atoi(arg);
 		return undo_go(i ? i : -1);
@@ -308,9 +317,22 @@ run(char *uri)
 
 	while (1) {
 		printf(NAME"> ");
-		fgets(buf, sizeof buf, stdin);
+		if (!fgets(buf, sizeof buf, stdin))
+			break;
+
 		trimr(buf);
 		onprompt(buf);
+	}
+	printf("\n");
+	end();
+}
+
+void
+sig_cb(int sig)
+{
+	if (sig == SIGTERM || sig == SIGINT) {
+		printf("\n");
+		end();
 	}
 }
 
@@ -320,6 +342,11 @@ main(int argc, char **argv)
 	int opt, n;
 	char *uri=0, *env;
 	struct passwd *pw;
+	struct sigaction sa;
+
+	sa.sa_handler = sig_cb;
+	sigaction(SIGTERM, &sa, 0);
+	sigaction(SIGINT, &sa, 0);
 
 	if (!mkdtemp(envtmp))
 		err(1, "mkdtemp");
@@ -366,7 +393,7 @@ main(int argc, char **argv)
 	while ((opt = getopt(argc, argv, "vh")) != -1)
 		switch (opt) {
 		case 'v':
-			puts(VERSION);
+			puts(NAME" "VERSION);
 			return 0;
 		case 'h':
 			usage(argv[0]);
