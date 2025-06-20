@@ -24,10 +24,10 @@ void
 cache_add(char *key, char *src)
 {
 	static int age=0;
-	int i, oldest=INT_MAX;
+	int i, min=INT_MAX, oldest=0;
 	char *dst, buf[4096];
 
-	/* Find empty spot */
+	/* Find empty spot or oldest entry */
 	for (i=0; i<CAPACITY; i++) {
 		if (!keys[i])
 			break;
@@ -37,8 +37,10 @@ cache_add(char *key, char *src)
 			return;			/* Already cached */
 		}
 
-		if (keysage[i] < oldest)
+		if (keysage[i] < min) {
+			min = keysage[i];
 			oldest = i;
+		}
 	}
 
 	/* No empty spots, use oldest */
@@ -52,6 +54,7 @@ cache_add(char *key, char *src)
 
 	dst = makepath(i);
 
+	/* TODO(irek): Replace this copy with util function. */
 	snprintf(buf, sizeof buf, "cp %s %s", src, dst);
 }
 
