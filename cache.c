@@ -32,8 +32,10 @@ cache_add(char *key, char *src)
 		if (!keys[i])
 			break;
 
-		if (!strcmp(keys[i], key))	/* Already cached */
-			return;
+		if (!strcmp(keys[i], key)) {
+			keysage[i] = age++;
+			return;			/* Already cached */
+		}
 
 		if (keysage[i] < oldest)
 			oldest = i;
