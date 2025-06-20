@@ -52,7 +52,10 @@ bind_set(char bind, char *str)
 
 	if (str) {
 		trimr(str);
-		binds[i] = strdup(triml(str));
+		str = triml(str);
+
+		if (str[0])
+			binds[i] = strdup(triml(str));
 	}
 
 	save();
@@ -80,7 +83,8 @@ bind_load(char *path)
 	/* NOTE(irek): Ignore error on purpose.  The most propable
 	 * error here is that it was not possible to load/find binds
 	 * file.  This is not a critical error as fresh instalation of
-	 * Yupa expect no binds. */
+	 * Yupa expect no binds.  Later binds file will be created
+	 * when first bind is defined. */
 	if (!fp)
 		return;
 
