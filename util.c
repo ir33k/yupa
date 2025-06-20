@@ -18,7 +18,7 @@ tellmy(char *fmt, ...)
 	 *
 	 *	why = tellmy("First error code %d", 42);
 	 *	why = tellmy("Second error\n%s", why);
-	 *	why = tellmy("Thirs error\n%s", why);
+	 *	why = tellmy("Third error\n%s", why);
 	 */
 	i = !i;
 	va_start(ap, fmt);

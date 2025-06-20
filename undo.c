@@ -4,8 +4,8 @@
 
 /* NOTE(irek): This browser undo history is rather small.  But browser
  * will most likely be used for short session and if there will be a
- * need to go back futher in history then persistent undo history file
- * can be used instead. */
+ * need to go back further in history then persistent undo history
+ * file can be used instead. */
 
 #define SIZE 64
 
