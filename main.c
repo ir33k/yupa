@@ -32,7 +32,7 @@
 
 char envtmp[] = "/tmp/"NAME"XXXXXX";
 char *envhome = 0;
-char *envpager = "less -XI";
+char *envpager = "less -XI +R";
 unsigned envmargin = 4;
 unsigned envwidth = 76;
 
@@ -90,9 +90,9 @@ loadpage(char *uri)
 	if (!port)
 		port = protocol;
 
-	pt = cache_get(uri);
-	if (pt) {
-	}
+	/* pt = cache_get(uri); */
+	/* if (pt) { */
+	/* } */
 
 	switch (protocol) {
 	case GOPHER:
