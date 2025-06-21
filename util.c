@@ -29,6 +29,14 @@ tellmy(char *fmt, ...)
 }
 
 char *
+join(char *a, char *b)
+{
+	static char buf[4096];
+	snprintf(buf, sizeof buf, "%s%s", a, b);
+	return buf;
+}
+
+char *
 fmalloc(FILE *fp)
 {
 	char *pt;

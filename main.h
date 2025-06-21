@@ -1,2 +1,2 @@
-extern char  envtmp[], *envhome, *envpager;
+extern char *envhome, *envsession, *envpager;
 extern unsigned envmargin, envwidth;

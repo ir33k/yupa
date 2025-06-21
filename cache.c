@@ -1,56 +1,56 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include "main.h"
+#include "util.h"
 #include "cache.h"
 
-#define CAPACITY 36
+static struct {
+	char *key;
+	unsigned age;
+} entries[36] = {0};
 
-static char *keys[CAPACITY]={0};
-static int keysage[CAPACITY]={0};
-
-static char *makepath(int index);
+static char *makepath(unsigned index);
 
 char *
-makepath(int index)
+makepath(unsigned index)
 {
 	static char buf[4096];
-	snprintf(buf, sizeof buf, "%s/cache/%d", envtmp, index);
+	snprintf(buf, sizeof buf, "%s/cache/%u", envsession, index);
 	return buf;
 }
 
 void
 cache_add(char *key, char *src)
 {
-	static int age=0;
-	int i, min=INT_MAX, oldest=0;
+	static unsigned age=0;
+	unsigned i, min=-1, oldest=0;
 	char *dst, buf[4096];
 
 	/* Find empty spot or oldest entry */
-	for (i=0; i<CAPACITY; i++) {
-		if (!keys[i])
+	for (i=0; i<SIZE(entries); i++) {
+		if (!entries[i].key)
 			break;
 
-		if (!strcmp(keys[i], key)) {
-			keysage[i] = age++;
+		if (!strcmp(entries[i].key, key)) {
+			entries[i].age = age++;
 			return;			/* Already cached */
 		}
 
-		if (keysage[i] < min) {
-			min = keysage[i];
+		if (entries[i].age < min) {
+			min = entries[i].age;
 			oldest = i;
 		}
 	}
 
 	/* No empty spots, use oldest */
-	if (i == CAPACITY) {
+	if (i == SIZE(entries)) {
 		i = oldest;
-		free(keys[i]);
+		free(entries[i].key);
 	}
 
-	keys[i] = strdup(key);
-	keysage[i] = age++;
+	entries[i].key = strdup(key);
+	entries[i].age = age++;
 
 	dst = makepath(i);
 
@@ -61,12 +61,11 @@ cache_add(char *key, char *src)
 char *
 cache_get(char *key)
 {
-	int i;
+	unsigned i;
 
-	for (i=0; i<CAPACITY; i++)
-		if (!strcmp(keys[i], key))
+	for (i=0; i<SIZE(entries); i++)
+		if (!strcmp(entries[i].key, key))
 			return makepath(i);
 
 	return 0;
 }
-
