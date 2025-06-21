@@ -1,0 +1,9 @@
+A	$ uri=$(cat $YUPAROOT/uri) && echo "=> $uri" >> book.gmi
+B	% echo file://$YUPAHOME/book.gmi
+C	i0
+D	$ echo "TODO Run download script"
+E	$ $EDITOR $YUPAROOT/body
+H	% echo file://$YUPAHOME/undo.gmi
+R	$ less $YUPAROOT/res
+T	/
+U	../
