@@ -2,8 +2,16 @@
 set -e # Stop on first error
 
 CC="cc"
-# _XOPEN_SOURCE=500 for strdup()
-CFLAGS="-D_XOPEN_SOURCE=500 -Wno-missing-braces -Wall -Wextra -Wshadow -Wmissing-declarations -Wswitch-enum -Wno-deprecated-declarations -pedantic -std=c99 -ggdb"
+CFLAGS="-std=c99"
+
+CFLAGS="$CFLAGS -Wall -Wextra -Wshadow -pedantic"
+CFLAGS="$CFLAGS -Wmissing-declarations -Wswitch-enum"
+CFLAGS="$CFLAGS -Wno-missing-braces -Wno-deprecated-declarations"
+
+CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500"	# for strdup()
+CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# for setenv()
+
+# CFLAGS="$CFLAGS -ggdb"
 
 $CC $CFLAGS -c util.c
 $CC $CFLAGS -c uri.c
@@ -11,9 +19,9 @@ $CC $CFLAGS -c fetch.c
 $CC $CFLAGS -c link.c
 $CC $CFLAGS -c undo.c
 $CC $CFLAGS -c bind.c
+$CC $CFLAGS -c cache.c
 $CC $CFLAGS -c gmi.c
 $CC $CFLAGS -c gph.c
 $CC $CFLAGS -c html.c
-$CC $CFLAGS -c cache.c
 $CC $CFLAGS -c main.c
 $CC $CFLAGS -o yupa *.o -lssl -lcrypto
