@@ -1,9 +1,13 @@
 #define SIZE(array) (int)((sizeof array) / (sizeof (array)[0]))
 
-char *tellmy(char *, ...);	/* why */
+typedef char *why_t;
+
+why_t tellme(char *why, char *, ...);
 char *join(char *, char *);
-char *fmalloc(FILE *);
+char *fmalloc(char *path);
 char *eachline(char **);
 char *eachword(char **);
 char *triml(char *);
 void trimr(char *);
+char *trim(char *);
+char *cp(char *, char *);

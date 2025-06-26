@@ -8,10 +8,10 @@
 
 #define CRLF "\r\n"
 
-static char *secure(int sfd, char *host, char *msg, FILE *out);
-static char *plain(int sfd, char *msg, FILE *out);
+static why_t secure(int sfd, char *host, char *msg, FILE *out);
+static why_t plain(int sfd, char *msg, FILE *out);
 
-char *
+why_t
 secure(int sfd, char *host, char *msg, FILE *out)
 {
 	static SSL_CTX *ctx=0;
@@ -45,7 +45,7 @@ secure(int sfd, char *host, char *msg, FILE *out)
 		return "Failed to create SSL instance";
 
 	if (!SSL_set_tlsext_host_name(ssl, host))
-		return tellmy("Failed to TLS set hostname \"%s\"", host);
+		return tellme(0, "Failed to TLS set hostname %s", host);
 
 	if (!SSL_set_fd(ssl, sfd))
 		return "Failed to set SSL sfd";
@@ -66,7 +66,7 @@ secure(int sfd, char *host, char *msg, FILE *out)
 	return 0;
 }
 
-char *
+why_t
 plain(int sfd, char *msg, FILE *out)
 {
 	char buf[BUFSIZ];
@@ -85,7 +85,7 @@ plain(int sfd, char *msg, FILE *out)
 	return 0;
 }
 
-char *
+why_t
 fetch(char *host, int port, int ssl, char *msg, FILE *out)
 {
 	static int sfd=-1;
@@ -104,7 +104,7 @@ fetch(char *host, int port, int ssl, char *msg, FILE *out)
 		return "Failed to open socket";
 
 	if ((he = gethostbyname(host)) == 0)
-		return tellmy("Failed to get hostname \"%s\"", host);
+		return tellme(0, "Failed to get hostname %s", host);
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
@@ -116,7 +116,7 @@ fetch(char *host, int port, int ssl, char *msg, FILE *out)
 	}
 
 	if (!he->h_addr_list[i])
-		return tellmy("Failed to connect, invalid port %d?", port);
+		return tellme(0, "Failed to connect with port %d", port);
 
 	return ssl ?
 		secure(sfd, host, msg, out) :

@@ -20,7 +20,7 @@ link_store(char *uri)
 		capacity = capacity ? capacity*2 : 32;
 		links = realloc(links, sizeof(char *) * capacity);
 		if (!links)
-			err(1, "link_store realloc \"%s\"", uri);
+			err(1, "link_store realloc %s %u", uri, capacity);
 	}
 	links[count++] = strdup(uri);
 	return count -1;

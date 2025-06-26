@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "main.h"
 #include "util.h"
 #include "cache.h"
@@ -20,21 +21,22 @@ makepath(unsigned index)
 	return buf;
 }
 
-void
+why_t
 cache_add(char *key, char *src)
 {
+	why_t why;
 	static unsigned age=0;
 	unsigned i, min=-1, oldest=0;
-	char *dst, buf[4096];
+	char *dst;
 
 	/* Find empty spot or oldest entry */
 	for (i=0; i<SIZE(entries); i++) {
 		if (!entries[i].key)
-			break;
+			break;			/* Found empty */
 
 		if (!strcmp(entries[i].key, key)) {
 			entries[i].age = age++;
-			return;			/* Already cached */
+			return 0;		/* Already cached */
 		}
 
 		if (entries[i].age < min) {
@@ -54,8 +56,11 @@ cache_add(char *key, char *src)
 
 	dst = makepath(i);
 
-	/* TODO(irek): Replace this copy with util function. */
-	snprintf(buf, sizeof buf, "cp %s %s", src, dst);
+	if ((why = cp(src, dst)))
+		why = tellme(why, "Failed to cache %s with %s",
+			     key, src);
+
+	return why;
 }
 
 char *
@@ -64,8 +69,18 @@ cache_get(char *key)
 	unsigned i;
 
 	for (i=0; i<SIZE(entries); i++)
-		if (!strcmp(entries[i].key, key))
+		if (entries[i].key && !strcmp(entries[i].key, key))
 			return makepath(i);
 
 	return 0;
+}
+
+void
+cache_cleanup()
+{
+	unsigned i;
+
+	for (i=0; i<SIZE(entries); i++)
+		if (entries[i].key)
+			unlink(makepath(i));
 }

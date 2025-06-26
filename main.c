@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -32,7 +33,9 @@
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
 
-char *envhome = 0;
+enum mime { UNKNOWN=0, TXT, GPH, GMI, HTML };
+
+char *envhome;
 char *envsession;
 char *envpager = "less -XI +R";
 unsigned envmargin = 4;
@@ -47,11 +50,11 @@ static char *path_cmd;
 static char *path_info;
 
 static void usage(char *argv0);
-static void end() __attribute__((noreturn));
-static char *loadpage(char *);
+static why_t loadpage(char *uri);
 static void onprompt(char *);
 static char *oncmd(char *);
-static void run(char *);
+static void run();
+static void end() __attribute__((noreturn));
 static void onsignal(int);
 static char *startsession();
 
@@ -59,36 +62,29 @@ void
 usage(char *argv0)
 {
 	printf("usage: %s [options] [prompt]\n"
-		"\n"
-		"options:\n"
-		"	-v	Print program version.\n"
-		"	-h	Print this help message.\n"
-		"\n"
-		"prompt:\n"
-		"	Optional initial input prompt value like URI.\n"
-		"\n"
-		"env:\n"
-		"	YUPAHOME	Absolute path to user data (%s).\n"
-		"	YUPASESSION	Runtime path to session dir (%s).\n"
-		"	YUPAPAGER	Owerwrites $PAGER value (%s).\n"
-		"	YUPAMARGIN	Left margin (%d).\n"
-		"	YUPAWIDTH	Max width (%d).\n",
+	       "\n"
+	       "options:\n"
+	       "	-v	Print program version.\n"
+	       "	-h	Print this help message.\n"
+	       "\n"
+	       "prompt:\n"
+	       "	Optional initial input prompt value like URI.\n"
+	       "\n"
+	       "env:\n"
+	       "	YUPAHOME	Absolute path to user data (%s).\n"
+	       "	YUPASESSION	Runtime path to session dir (%s).\n"
+	       "	YUPAPAGER	Overwrites $PAGER value (%s).\n"
+	       "	YUPAMARGIN	Left margin (%d).\n"
+	       "	YUPAWIDTH	Max width (%d).\n",
 	       argv0, envhome, envsession, envpager, envmargin, envwidth);
 }
 
-void
-end()
-{
-	/* TODO(irek): Remove cache */
-	unlink(path_lock);
-	exit(0);
-}
-
-char *
+why_t
 loadpage(char *uri)
 {
-	char *why, *host, *path, buf[4096], *pt;
-	int protocol, port, ssl=0;
+	why_t why;
+	char *host, *path, buf[4096], *cache, *pt;
+	int protocol, port, ssl=0, mime=0;
 	FILE *fp;
 
 	if (!uri)
@@ -102,85 +98,102 @@ loadpage(char *uri)
 	if (!port)
 		port = protocol;
 
-	/* pt = cache_get(uri); */
-	/* if (pt) { */
-	/* } */
-
-	switch (protocol) {
-	case GOPHER:
-		/* First part of the path holds resource type */
-		if (path && strlen(path) > 2)
-			path += 2;
-
-		snprintf(buf, sizeof buf, "%s", path ? path : "");
-		break;
-	case GEMINI:
-		snprintf(buf, sizeof buf, "gemini://%s%s",
-			 host, path ? path : "/");
-		ssl = 1;
-		break;
-	case HTTP:
-		snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
-			 host, path ? path : "/");
-		break;
-	case HTTPS:
-		snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
-			 path ? path : "/", host);
-		ssl = 1;
-		break;
-	default:
-		return "Unknown protocol";
-	}
-
 	if (protocol == LOCAL) {
-		snprintf(buf, sizeof buf, "cp %s %s", path, path_res);
-		system(buf);
+		if ((why = cp(path, path_res)))
+			return tellme(why, "Failed to load local file %s", path);
+
+		pt = strrchr(path, '.');
+		if (!pt) mime = 0;
+		else if (strcasecmp(pt, ".txt"))  mime = TXT;
+		else if (strcasecmp(pt, ".html")) mime = HTML;
+		else if (strcasecmp(pt, ".gmi"))  mime = GMI;
+		else if (strcasecmp(pt, ".gph"))  mime = GPH;
 	} else {
-		fp = fopen(path_res, "w+");
-		if (!fp)
-			err(1, "fopen(/res)");
+		cache = cache_get(uri);
 
-		why = fetch(host, port, ssl, buf, fp);
+		if (cache) {
+			if ((why = cp(cache, path_res)))
+				return tellme(why, "Failed to load %s", uri);
+		} else {
+			switch (protocol) {
+			case GOPHER:
+				mime = GPH;
+				/* First part of the path holds resource type */
+				if (path && strlen(path) > 2)
+					path += 2;
 
-		if (why)
-			return why;
+				snprintf(buf, sizeof buf, "%s", path ? path : "");
+				break;
+			case GEMINI:
+				mime = GMI;
+				snprintf(buf, sizeof buf, "gemini://%s%s",
+					 host, path ? path : "/");
+				ssl = 1;
+				break;
+			case HTTP:
+				mime = HTML;
+				snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
+					 host, path ? path : "/");
+				break;
+			case HTTPS:
+				mime = HTML;
+				snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
+					 path ? path : "/", host);
+				ssl = 1;
+				break;
+			default:
+				return tellme(0, "Unknown protocol %s", uri);
+			}
 
-		pt = fmalloc(fp);
+			if (!(fp = fopen(path_res, "w+")))
+				err(1, "fopen(%s)", path_res);
 
-		if (fclose(fp))
-			err(1, "flose(/res)");
+			if ((why = fetch(host, port, ssl, buf, fp)))
+				return tellme(why, "Failed to load %s", uri);
+
+			// TODO(irek): Early return skips this fclose()
+			if (fclose(fp))
+				err(1, "flose(%s)", path_res);
+		}
 	}
 
 	link_clear();
 	link_store(uri);
 	undo_add(uri);
-	cache_add(uri, path_res);
 
-	fp = fopen(path_uri, "w");
-	if (!fp)
-		err(1, "fopen(/uri)");
+	if (!(fp = fopen(path_uri, "w")))
+		err(1, "fopen(%s)", path_uri);
 
 	fprintf(fp, "%s", uri);
 
 	if (fclose(fp))
-		err(1, "flose(/uri)");
+		err(1, "flose(%s)", path_uri);
 
-	fp = fopen(path_body, "w");
-	if (!fp)
-		err(1, "fopen(/body)");
+	if ((why = cache_add(uri, path_res)))
+		return tellme(why, "Failed to load %s", uri);
 
-	switch (protocol) {
-	case GOPHER: gph_print(pt, fp); break;
-	case GEMINI: gmi_print(pt, fp); break;
-	case HTTP:
-	case HTTPS: html_print(pt, fp); break;
+	if (!mime)
+		return tellme(0, "Unsopported mime file type %s", uri);
+
+	if (mime == TXT) {
+		if ((why = cp(path_res, path_body)))
+			return tellme(why, "Failed to load %s", uri);
+	} else {
+		if (!(fp = fopen(path_body, "w")))
+			err(1, "fopen(%s)", path_body);
+
+		pt = fmalloc(path_res);
+		switch (mime) {
+		case GPH: gph_print(pt, fp); break;
+		case GMI: gmi_print(pt, fp); break;
+		case HTML: html_print(pt, fp); break;
+		}
+		fprintf(fp, "\n");
+		free(pt);
+
+		if (fclose(fp))
+			err(1, "flose(%s)", path_body);
 	}
-	fprintf(fp, "\n");
-
-	free(pt);
-
-	if (fclose(fp))
-		err(1, "flose(/body)");
 
 	snprintf(buf, sizeof buf, "%s %s", envpager, path_body);
 	system(buf);
@@ -199,7 +212,7 @@ onprompt(char *str)
 	if (isdigit(str[0]))
 		link = link_get(atoi(str));
 	else
-		link = oncmd(triml(str));
+		link = oncmd(str);
 
 	if (!link)
 		return;
@@ -221,7 +234,7 @@ oncmd(char *cmd)
 	if (!cmd[0])
 		return 0;
 
-	arg = triml(cmd+1);
+	arg = trim(cmd+1);
 
 	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
 		if (arg[0]) {
@@ -240,7 +253,7 @@ oncmd(char *cmd)
 		end();
 	case 'b':
 		i = atoi(arg);
-		return undo_go(i ? i : -1);
+		return undo_go(i ? -i : -1);
 	case 'f':
 		i = atoi(arg);
 		return undo_go(i ? i : 1);
@@ -300,8 +313,7 @@ oncmd(char *cmd)
 		if (fclose(fp))
 			err(1, "flose(/out)");
 
-		trimr(buf);
-		onprompt(triml(buf));
+		onprompt(trim(buf));
 		break;
 	default:
 		return cmd;	/* CMD is probably a relative URI */
@@ -311,22 +323,25 @@ oncmd(char *cmd)
 }
 
 void
-run(char *uri)
+run()
 {
 	char buf[4096];
-
-	if (uri)
-		onprompt(uri);
 
 	while (1) {
 		printf(NAME"> ");
 		if (!fgets(buf, sizeof buf, stdin))
 			break;
 
-		trimr(buf);
-		onprompt(buf);
+		onprompt(trim(buf));
 	}
-	end();
+}
+
+void
+end()
+{
+	cache_cleanup();
+	unlink(path_lock);
+	exit(0);
 }
 
 void
@@ -359,8 +374,8 @@ startsession()
 	 *
 	 *	$YUPAHOME/0/.lock
 	 *	$YUPAHOME/1/.lock
-	 *	$YUPAHOME/2/.lock
-	 *	$YUPAHOME/3/
+	 *	$YUPAHOME/2/
+	 *	$YUPAHOME/3/.lock
 	 *	$YUPAHOME/4/
 	 */
 
@@ -428,12 +443,10 @@ main(int argc, char **argv)
 
 	mkdir(path_cache, 0755);
 
-	env = getenv("PAGER");
-	if (env)
+	if ((env = getenv("PAGER")))
 		envpager = env;
 
-	env = getenv("YUPAPAGER");
-	if (env)
+	if ((env = getenv("YUPAPAGER")))
 		envpager = env;
 
 	if (setenv("YUPAPAGER", envpager, 1))
@@ -462,11 +475,15 @@ main(int argc, char **argv)
 			return 1;
 		}
 
-	bind_load(join(envhome, "/binds"));
+	bind_init();
 
 	if (argc - optind > 0)
 		uri = argv[argc-optind];
 
-	run(uri);
+	if (uri)
+		onprompt(uri);
+
+	run();
+	end();
 	return 0;
 }
