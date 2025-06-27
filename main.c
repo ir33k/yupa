@@ -2,8 +2,6 @@
 #define VERSION "v4.0"
 #define AUTHOR "irek@gabr.pl"
 
-#define _POSIX_C_SOURCE	200112L	/* For setenv */
-
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
@@ -33,11 +31,12 @@
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
 
-enum mime { UNKNOWN=0, TXT, GPH, GMI, HTML };
+enum mime { BIN, TXT, GPH, GMI, HTML, IMG };
 
 char *envhome;
 char *envsession;
 char *envpager = "less -XI +R";
+char *envviewer = "xdg-open";
 unsigned envmargin = 4;
 unsigned envwidth = 76;
 
@@ -68,15 +67,18 @@ usage(char *argv0)
 	       "	-h	Print this help message.\n"
 	       "\n"
 	       "prompt:\n"
-	       "	Optional initial input prompt value like URI.\n"
+	       "	Optional initial input prompt value.\n"
+	       "	Use URI/URL to load a page.\n"
+	       "	Use \"help\" to learn about prompt commands.\n"
 	       "\n"
 	       "env:\n"
 	       "	YUPAHOME	Absolute path to user data (%s).\n"
 	       "	YUPASESSION	Runtime path to session dir (%s).\n"
 	       "	YUPAPAGER	Overwrites $PAGER value (%s).\n"
+	       "	YUPAVIEWER	Comand to display images (%s).\n"
 	       "	YUPAMARGIN	Left margin (%d).\n"
 	       "	YUPAWIDTH	Max width (%d).\n",
-	       argv0, envhome, envsession, envpager, envmargin, envwidth);
+	       argv0, envhome, envsession, envpager, envviewer, envmargin, envwidth);
 }
 
 why_t
@@ -98,63 +100,70 @@ loadpage(char *uri)
 	if (!port)
 		port = protocol;
 
-	if (protocol == LOCAL) {
+	/* TODO(irek): Defining MIME type is all wrong but it will do for now. */
+	switch (protocol) {
+	case LOCAL:
+		pt = strrchr(path, '.');
+		if (!pt) mime = BIN;
+		else if (strcasecmp(pt, ".txt"))  mime = TXT;
+		else if (strcasecmp(pt, ".gph"))  mime = GPH;
+		else if (strcasecmp(pt, ".gmi"))  mime = GMI;
+		else if (strcasecmp(pt, ".html")) mime = HTML;
+		else if (strcasecmp(pt, ".jpg"))  mime = IMG;
+		else if (strcasecmp(pt, ".jpeg")) mime = IMG;
+		else if (strcasecmp(pt, ".png"))  mime = IMG;
+		else if (strcasecmp(pt, ".bmp"))  mime = IMG;
+		else if (strcasecmp(pt, ".gif"))  mime = IMG;
+		break;
+	case GOPHER: mime = GPH; break;
+	case GEMINI: mime = GMI; break;
+	case HTTP:   mime = HTML; break;
+	case HTTPS:  mime = HTML; break;
+	}
+
+	if ((cache = cache_get(uri)))
+		protocol = CACHE;
+
+	switch (protocol) {
+	case CACHE:
+		if ((why = cp(cache, path_res)))
+			return tellme(why, "Failed to load %s", uri);
+		break;
+	case LOCAL:
 		if ((why = cp(path, path_res)))
 			return tellme(why, "Failed to load local file %s", path);
+		break;
+	case GOPHER:
+		/* First part of the path holds resource type */
+		if (path && strlen(path) > 2)
+			path += 2;
 
-		pt = strrchr(path, '.');
-		if (!pt) mime = 0;
-		else if (strcasecmp(pt, ".txt"))  mime = TXT;
-		else if (strcasecmp(pt, ".html")) mime = HTML;
-		else if (strcasecmp(pt, ".gmi"))  mime = GMI;
-		else if (strcasecmp(pt, ".gph"))  mime = GPH;
-	} else {
-		cache = cache_get(uri);
+		snprintf(buf, sizeof buf, "%s", path ? path : "");
+		break;
+	case GEMINI:
+		snprintf(buf, sizeof buf, "gemini://%s%s",
+			 host, path ? path : "/");
+		ssl = 1;
+		break;
+	case HTTP:
+		snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
+			 host, path ? path : "/");
+		break;
+	case HTTPS:
+		snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
+			 path ? path : "/", host);
+		ssl = 1;
+		break;
+	default:
+		return tellme(0, "Unknown protocol %s", uri);
+	}
 
-		if (cache) {
-			if ((why = cp(cache, path_res)))
-				return tellme(why, "Failed to load %s", uri);
-		} else {
-			switch (protocol) {
-			case GOPHER:
-				mime = GPH;
-				/* First part of the path holds resource type */
-				if (path && strlen(path) > 2)
-					path += 2;
+	if (protocol != CACHE && protocol != LOCAL) {
+		if ((why = fetch(host, port, ssl, buf, path_res)))
+			return tellme(why, "Failed to load %s", uri);
 
-				snprintf(buf, sizeof buf, "%s", path ? path : "");
-				break;
-			case GEMINI:
-				mime = GMI;
-				snprintf(buf, sizeof buf, "gemini://%s%s",
-					 host, path ? path : "/");
-				ssl = 1;
-				break;
-			case HTTP:
-				mime = HTML;
-				snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
-					 host, path ? path : "/");
-				break;
-			case HTTPS:
-				mime = HTML;
-				snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
-					 path ? path : "/", host);
-				ssl = 1;
-				break;
-			default:
-				return tellme(0, "Unknown protocol %s", uri);
-			}
-
-			if (!(fp = fopen(path_res, "w+")))
-				err(1, "fopen(%s)", path_res);
-
-			if ((why = fetch(host, port, ssl, buf, fp)))
-				return tellme(why, "Failed to load %s", uri);
-
-			// TODO(irek): Early return skips this fclose()
-			if (fclose(fp))
-				err(1, "flose(%s)", path_res);
-		}
+		if ((why = cache_add(uri, path_res)))
+			return tellme(why, "Failed to load %s", uri);
 	}
 
 	link_clear();
@@ -169,16 +178,19 @@ loadpage(char *uri)
 	if (fclose(fp))
 		err(1, "flose(%s)", path_uri);
 
-	if ((why = cache_add(uri, path_res)))
-		return tellme(why, "Failed to load %s", uri);
-
-	if (!mime)
+	switch (mime) {
+	default:
+	case BIN:
 		return tellme(0, "Unsopported mime file type %s", uri);
-
-	if (mime == TXT) {
+	case TXT:
 		if ((why = cp(path_res, path_body)))
 			return tellme(why, "Failed to load %s", uri);
-	} else {
+
+		snprintf(buf, sizeof buf, "%s %s", envpager, path_body);
+		break;
+	case GPH:
+	case GMI:
+	case HTML:
 		if (!(fp = fopen(path_body, "w")))
 			err(1, "fopen(%s)", path_body);
 
@@ -193,11 +205,15 @@ loadpage(char *uri)
 
 		if (fclose(fp))
 			err(1, "flose(%s)", path_body);
+
+		snprintf(buf, sizeof buf, "%s %s", envpager, path_body);
+		break;
+	case IMG:
+		snprintf(buf, sizeof buf, "%s %s", envviewer, path_body);
+		break;
 	}
 
-	snprintf(buf, sizeof buf, "%s %s", envpager, path_body);
 	system(buf);
-
 	return 0;
 }
 
@@ -451,6 +467,12 @@ main(int argc, char **argv)
 
 	if (setenv("YUPAPAGER", envpager, 1))
 		err(1, "setenv(YUPAPAGER)");
+
+	if ((env = getenv("YUPAVIEWER")))
+		envviewer = env;
+
+	if (setenv("YUPAVIEWER", envviewer, 1))
+		err(1, "setenv(YUPAVIEWER)");
 
 	env = getenv("YUPAMARGIN");
 	n = env ? atoi(env) : 0;

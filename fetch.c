@@ -1,7 +1,8 @@
 #include <assert.h>
+#include <err.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <netdb.h>
 #include <openssl/ssl.h>
 #include "util.h"
 #include "fetch.h"
@@ -86,12 +87,14 @@ plain(int sfd, char *msg, FILE *out)
 }
 
 why_t
-fetch(char *host, int port, int ssl, char *msg, FILE *out)
+fetch(char *host, int port, int ssl, char *msg, char *out)
 {
+	why_t why;
 	static int sfd=-1;
 	int i;
 	struct hostent *he;
 	struct sockaddr_in addr;
+	FILE *fp;
 
 	assert(host);
 	assert(port > 0);
@@ -118,7 +121,16 @@ fetch(char *host, int port, int ssl, char *msg, FILE *out)
 	if (!he->h_addr_list[i])
 		return tellme(0, "Failed to connect with port %d", port);
 
-	return ssl ?
-		secure(sfd, host, msg, out) :
-		plain(sfd, msg, out);
+	if (!(fp = fopen(out, "w+")))
+		err(1, "fetch fopen(%s)", out);
+
+	why = ssl ?
+		secure(sfd, host, msg, fp) :
+		plain(sfd, msg, fp);
+
+	// TODO(irek): Early return skips this fclose()
+	if (fclose(fp))
+		err(1, "fetch flose(%s)", out);
+
+	return why;
 }
