@@ -1,26 +1,36 @@
+#include <err.h>
+#include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <strings.h>
+#include <unistd.h>
 #include "util.h"
 
 char *
-tellme(char *why, char *fmt, ...)
+tellme(char *fmt, ...)
 {
-	static char buf[2][4096];
-	static int i=0;
+	static char buf[4096];
+	static int n=0;
 	va_list ap;
-	int n;
+
+	if (!fmt) {
+		n = 0;
+		return 0;
+	}
+
+	if ((unsigned)n+1 >= sizeof buf)
+		return buf;
+
+	if (n)
+		n += snprintf(buf+n, (sizeof buf)-n, "\n");
 
 	va_start(ap, fmt);
-	n = vsnprintf(buf[i], sizeof buf[0], fmt, ap);
+	n += vsnprintf(buf+n, (sizeof buf)-n, fmt, ap);
 	va_end(ap);
 
-	if (why && (unsigned)n < sizeof buf[0])
-		snprintf(buf[i]+n, (sizeof buf[0])-n, "\n%s", why);
-
-	return buf[i];
+	return buf;
 }
 
 char *
@@ -28,6 +38,33 @@ join(char *a, char *b)
 {
 	static char buf[4096];
 	snprintf(buf, sizeof buf, "%s%s", a, b);
+	return buf;
+}
+
+char *
+resolvepath(char *path)
+{
+	static char buf[4096];
+	char *pt, *home="";
+	struct passwd *pwd;
+
+	path = trim(path);
+	
+	if (!path[0])
+		return "/";
+
+	while ((pt = strstr(path, "//")))
+		path = pt +1;
+
+	while ((pt = strstr(path +1, "~/")))
+		path = pt;
+
+	if (path[0] == '~' && (pwd = getpwuid(getuid()))) {
+		home = pwd->pw_dir;
+		path++;
+	}
+
+	snprintf(buf, sizeof buf, "%s%s", home, path);
 	return buf;
 }
 
@@ -135,26 +172,32 @@ cp(char *from, char *to)
 	size_t n;
 
 	if (!(fp0 = fopen(from, "r")))
-		return tellme(0, "Failed to open %s", from);
+		return tellme("Failed to open %s", from);
 
 	if (!(fp1 = fopen(to, "w"))) {
-		why = tellme(0, "Failed to open %s", to);
+		why = tellme("Failed to open %s", to);
 		goto fail0;
 	}
 
 	while ((n = fread(buf, 1, sizeof buf, fp0)))
 		if (fwrite(buf, 1, n, fp1) != n) {
-			why = tellme(0, "Failed to write %lu bytes"
-				     "from %s to %s",
+			why = tellme("Failed to write %lu bytes from %s to %s",
 				     n, from, to);
 			goto fail1;
 		}
 
 fail1:	if (fclose(fp1))
-		why = tellme(why, "Failed to close %s", to);
+		why = tellme("Failed to close %s", to);
 
 fail0:	if (fclose(fp0))
-		why = tellme(why, "Failed to close %s", from);
+		why = tellme("Failed to close %s", from);
 
 	return why;
+}
+
+int
+startswith(char *str, char *prefix)
+{
+	unsigned n = strlen(prefix);
+	return n > strlen(str) ? 0 : !strncasecmp(str, prefix, n);
 }

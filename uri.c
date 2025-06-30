@@ -3,18 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include "util.h"
 #include "uri.h"
 
-static int starts_with(char *str, char *prefix);
 static void skip(char *str, unsigned n);
 static char *protocol_str(int);
-
-int
-starts_with(char *str, char *prefix)
-{
-	unsigned n = strlen(prefix);
-	return n > strlen(str) ? 0 : !strncasecmp(str, prefix, n);
-}
 
 void
 skip(char *str, unsigned n)
@@ -44,11 +37,11 @@ int
 uri_protocol(char *uri)
 {
 	assert(uri);
-	if (starts_with(uri, "file://")) return LOCAL;
-	if (starts_with(uri, "http://")) return HTTP;
-	if (starts_with(uri, "https://")) return HTTPS;
-	if (starts_with(uri, "gemini://")) return GEMINI;
-	if (starts_with(uri, "gopher://")) return GOPHER;
+	if (startswith(uri, "file://")) return LOCAL;
+	if (startswith(uri, "http://")) return HTTP;
+	if (startswith(uri, "https://")) return HTTPS;
+	if (startswith(uri, "gemini://")) return GEMINI;
+	if (startswith(uri, "gopher://")) return GOPHER;
 	return 0;
 }
 

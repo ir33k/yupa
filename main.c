@@ -1,13 +1,12 @@
-#define NAME "yupa"
-#define VERSION "v4.0"
-#define AUTHOR "irek@gabr.pl"
+#define NAME	"yupa"
+#define VERSION	"v4.0"
+#define AUTHOR	"irek@gabr.pl"
 
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -17,6 +16,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "mime.h"
+#include "main.h"
 #include "util.h"
 #include "uri.h"
 #include "fetch.h"
@@ -27,28 +28,30 @@
 #include "gph.h"
 #include "html.h"
 #include "cache.h"
-#include "main.h"
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
 
-enum mime { BIN, TXT, GPH, GMI, HTML, IMG };
+char *  envhome    = "~/.yupa";
+char *  envsession = "~/.yupa/0";
+char *  envpager   = "less -XI +R";
+char *  envimage   = "xdg-open";
+char *  envvideo   = "xdg-open";
+char *  envaudio   = "xdg-open";
+char *  envpdf     = "xdg-open";
+int     envmargin  = 4;
+int     envwidth   = 76;
 
-char *envhome;
-char *envsession;
-char *envpager = "less -XI +R";
-char *envviewer = "xdg-open";
-unsigned envmargin = 4;
-unsigned envwidth = 76;
-
-static char *path_lock;
-static char *path_uri;
-static char *path_res;
-static char *path_body;
-static char *path_cache;
-static char *path_cmd;
-static char *path_info;
+static char *pathlock;
+static char *pathuri;
+static char *pathres;
+static char *pathbody;
+static char *pathcache;
+static char *pathcmd;
+static char *pathinfo;
 
 static void usage(char *argv0);
+static void envstr(char *name, char **env);
+static void envint(char *name, int *env);
 static why_t loadpage(char *uri);
 static void onprompt(char *);
 static char *oncmd(char *);
@@ -72,21 +75,50 @@ usage(char *argv0)
 	       "	Use \"help\" to learn about prompt commands.\n"
 	       "\n"
 	       "env:\n"
-	       "	YUPAHOME	Absolute path to user data (%s).\n"
-	       "	YUPASESSION	Runtime path to session dir (%s).\n"
-	       "	YUPAPAGER	Overwrites $PAGER value (%s).\n"
-	       "	YUPAVIEWER	Comand to display images (%s).\n"
-	       "	YUPAMARGIN	Left margin (%d).\n"
-	       "	YUPAWIDTH	Max width (%d).\n",
-	       argv0, envhome, envsession, envpager, envviewer, envmargin, envwidth);
+	       "	YUPAHOME     Absolute path to user data (%s).\n"
+	       "	YUPASESSION  Runtime path to session dir (%s).\n"
+	       "	YUPAPAGER    Overwrites $PAGER value (%s).\n"
+	       "	YUPAIMAGE    Comand to display images (%s).\n"
+	       "	YUPAVIDEO    Comand to play videos (%s).\n"
+	       "	YUPAAUDIO    Comand to play audio (%s).\n"
+	       "	YUPAPDF      Comand to open PDFs (%s).\n"
+	       "	YUPAMARGIN   Left margin (%d).\n"
+	       "	YUPAWIDTH    Max width (%d).\n",
+	       argv0, envhome, envsession, envpager,
+	       envimage, envvideo, envaudio, envpdf,
+	       envmargin, envwidth);
+}
+
+void
+envstr(char *name, char **env)
+{
+	char *str;
+
+	if ((str = getenv(name)))
+		*env = str;
+
+	if (setenv(name, *env, 1))
+		err(1, "setenv(%s)", name);
+}
+
+void
+envint(char *name, int *env)
+{
+	char *str, buf[64];
+
+	if ((str = getenv(name)))
+		*env = atoi(str);
+
+	snprintf(buf, sizeof buf, "%d", *env);
+	if (setenv(name, buf, 1))
+		err(1, "setenv(%s)", name);
 }
 
 why_t
 loadpage(char *uri)
 {
-	why_t why;
 	char *host, *path, buf[4096], *cache, *pt;
-	int protocol, port, ssl=0, mime=0;
+	int protocol, port, ssl=0, mime;
 	FILE *fp;
 
 	if (!uri)
@@ -100,101 +132,90 @@ loadpage(char *uri)
 	if (!port)
 		port = protocol;
 
-	/* TODO(irek): Defining MIME type is all wrong but it will do for now. */
-	switch (protocol) {
-	case LOCAL:
-		pt = strrchr(path, '.');
-		if (!pt) mime = BIN;
-		else if (strcasecmp(pt, ".txt"))  mime = TXT;
-		else if (strcasecmp(pt, ".gph"))  mime = GPH;
-		else if (strcasecmp(pt, ".gmi"))  mime = GMI;
-		else if (strcasecmp(pt, ".html")) mime = HTML;
-		else if (strcasecmp(pt, ".jpg"))  mime = IMG;
-		else if (strcasecmp(pt, ".jpeg")) mime = IMG;
-		else if (strcasecmp(pt, ".png"))  mime = IMG;
-		else if (strcasecmp(pt, ".bmp"))  mime = IMG;
-		else if (strcasecmp(pt, ".gif"))  mime = IMG;
-		break;
-	case GOPHER: mime = GPH; break;
-	case GEMINI: mime = GMI; break;
-	case HTTP:   mime = HTML; break;
-	case HTTPS:  mime = HTML; break;
+	if ((cache = cache_get(uri))) {
+		if (cp(cache, pathres))
+			return tellme("Failed to load %s", uri);
+	} else {
+		switch (protocol) {
+		case LOCAL:
+			if (cp(path, pathres))
+				return tellme("Failed to load local file %s", path);
+			break;
+		case GOPHER:
+			pt = path;
+			if (!pt) pt = "";
+			if (strlen(pt) > 2) pt += 2;	/* Skip item type */
+			snprintf(buf, sizeof buf, "%s", pt);
+			break;
+		case GEMINI:
+			snprintf(buf, sizeof buf, "gemini://%s%s",
+				 host, path ? path : "/");
+			ssl = 1;
+			break;
+		case HTTP:
+			snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
+				 host, path ? path : "/");
+			break;
+		case HTTPS:
+			snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
+				 path ? path : "/", host);
+			ssl = 1;
+			break;
+		default:
+			return tellme("Unknown protocol %s", uri);
+		}
+
+		if (protocol != LOCAL) {
+			if (fetch(host, port, ssl, buf, pathres))
+				return tellme("Failed to load %s", uri);
+
+			if (cache_add(uri, pathres))
+				return tellme("Failed to load %s", uri);
+		}
 	}
 
-	if ((cache = cache_get(uri)))
-		protocol = CACHE;
-
+	mime = mime_path(path);
 	switch (protocol) {
-	case CACHE:
-		if ((why = cp(cache, path_res)))
-			return tellme(why, "Failed to load %s", uri);
-		break;
-	case LOCAL:
-		if ((why = cp(path, path_res)))
-			return tellme(why, "Failed to load local file %s", path);
-		break;
-	case GOPHER:
-		/* First part of the path holds resource type */
-		if (path && strlen(path) > 2)
-			path += 2;
-
-		snprintf(buf, sizeof buf, "%s", path ? path : "");
+	case HTTP:
+	case HTTPS:
 		break;
 	case GEMINI:
-		snprintf(buf, sizeof buf, "gemini://%s%s",
-			 host, path ? path : "/");
-		ssl = 1;
+		/* mime = gph_mime(pt); */
 		break;
-	case HTTP:
-		snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
-			 host, path ? path : "/");
+	case GOPHER:
+		mime = gph_mime(path);
 		break;
-	case HTTPS:
-		snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
-			 path ? path : "/", host);
-		ssl = 1;
-		break;
-	default:
-		return tellme(0, "Unknown protocol %s", uri);
-	}
-
-	if (protocol != CACHE && protocol != LOCAL) {
-		if ((why = fetch(host, port, ssl, buf, path_res)))
-			return tellme(why, "Failed to load %s", uri);
-
-		if ((why = cache_add(uri, path_res)))
-			return tellme(why, "Failed to load %s", uri);
 	}
 
 	link_clear();
 	link_store(uri);
 	undo_add(uri);
 
-	if (!(fp = fopen(path_uri, "w")))
-		err(1, "fopen(%s)", path_uri);
+	if (!(fp = fopen(pathuri, "w")))
+		err(1, "fopen(%s)", pathuri);
 
 	fprintf(fp, "%s", uri);
 
 	if (fclose(fp))
-		err(1, "flose(%s)", path_uri);
+		err(1, "flose(%s)", pathuri);
 
 	switch (mime) {
 	default:
-	case BIN:
-		return tellme(0, "Unsopported mime file type %s", uri);
-	case TXT:
-		if ((why = cp(path_res, path_body)))
-			return tellme(why, "Failed to load %s", uri);
+	case BINARY:
+		return tellme("Unsopported mime file type %s", uri);
+	case TEXT:
+		if (cp(pathres, pathbody))
+			return tellme("Failed to load %s", uri);
 
-		snprintf(buf, sizeof buf, "%s %s", envpager, path_body);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathbody);
 		break;
 	case GPH:
 	case GMI:
 	case HTML:
-		if (!(fp = fopen(path_body, "w")))
-			err(1, "fopen(%s)", path_body);
+		if (!(fp = fopen(pathbody, "w")))
+			err(1, "fopen(%s)", pathbody);
 
-		pt = fmalloc(path_res);
+		pt = fmalloc(pathres);
 		switch (mime) {
 		case GPH: gph_print(pt, fp); break;
 		case GMI: gmi_print(pt, fp); break;
@@ -204,12 +225,21 @@ loadpage(char *uri)
 		free(pt);
 
 		if (fclose(fp))
-			err(1, "flose(%s)", path_body);
+			err(1, "flose(%s)", pathbody);
 
-		snprintf(buf, sizeof buf, "%s %s", envpager, path_body);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathbody);
 		break;
-	case IMG:
-		snprintf(buf, sizeof buf, "%s %s", envviewer, path_body);
+	case IMAGE:
+		snprintf(buf, sizeof buf, "%s %s", envimage, pathbody);
+		break;
+	case VIDEO:
+		snprintf(buf, sizeof buf, "%s %s", envvideo, pathbody);
+		break;
+	case AUDIO:
+		snprintf(buf, sizeof buf, "%s %s", envaudio, pathbody);
+		break;
+	case PDF:
+		snprintf(buf, sizeof buf, "%s %s", envpdf, pathbody);
 		break;
 	}
 
@@ -236,14 +266,16 @@ onprompt(char *str)
 	uri = uri_normalize(link, link_get(0));
 	why = loadpage(uri);
 
-	if (why)
+	if (why) {
 		printf(NAME": %s\n", why);
+		tellme(0);
+	}
 }
 
 char *
 oncmd(char *cmd)
 {
-	char buf[4096], *arg, *str;
+	char buf[4096], *arg, *str=0;
 	int i;
 	FILE *fp;
 
@@ -253,14 +285,11 @@ oncmd(char *cmd)
 	arg = trim(cmd+1);
 
 	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
-		if (arg[0]) {
+		if (arg[0])
 			bind_set(cmd[0], arg);
-		} else {
-			str = bind_get(cmd[0]);
-			if (!str)
-				return 0;
+		else if ((str = bind_get(cmd[0])))
 			onprompt(str);
-		}
+
 		return 0;
 	}
 	
@@ -286,7 +315,7 @@ oncmd(char *cmd)
 			break;
 		}
 
-		fp = fopen(path_info, "w");
+		fp = fopen(pathinfo, "w");
 		if (!fp)
 			err(1, "fopen(/info)");
 
@@ -302,25 +331,25 @@ oncmd(char *cmd)
 		if (fclose(fp))
 			err(1, "flose(/info)");
 
-		snprintf(buf, sizeof buf, "%s %s", envpager, path_info);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathinfo);
 		system(buf);
 		break;
 	case '$':
 		system(arg);
 		break;
 	case '!':
-		snprintf(buf, sizeof buf, "%s %s", arg, path_body);
+		snprintf(buf, sizeof buf, "%s %s", arg, pathbody);
 		system(buf);
 		break;
 	case '|':
-		snprintf(buf, sizeof buf, "<%s %s", path_body, arg);
+		snprintf(buf, sizeof buf, "<%s %s", pathbody, arg);
 		system(buf);
 		break;
 	case '%':
-		snprintf(buf, sizeof buf, "%s >%s", arg, path_cmd);
+		snprintf(buf, sizeof buf, "%s >%s", arg, pathcmd);
 		system(buf);
 
-		fp = fopen(path_cmd, "r");
+		fp = fopen(pathcmd, "r");
 		if (!fp)
 			err(1, "fopen(/out)");
 
@@ -356,7 +385,7 @@ void
 end()
 {
 	cache_cleanup();
-	unlink(path_lock);
+	unlink(pathlock);
 	exit(0);
 }
 
@@ -424,65 +453,36 @@ startsession()
 int
 main(int argc, char **argv)
 {
-	int opt, n;
-	char *uri=0, *env;
-	struct passwd *pw;
+	int opt;
+	char *uri=0;
 	struct sigaction sa;
 
 	sa.sa_handler = onsignal;
 	sigaction(SIGTERM, &sa, 0);
 	sigaction(SIGINT, &sa, 0);
 
-	envhome = getenv("YUPAHOME");
-	if (!envhome) {
-		/* Default to ~/.yupa (but use absolute path) */
-		pw = getpwuid(getuid());
-		envhome = strdup(join(pw ? pw->pw_dir : "", "/."NAME));
-	}
+	envstr("YUPAHOME",   &envhome);
+	envstr("PAGER",      &envpager);
+	envstr("YUPAPAGER",  &envpager);
+	envstr("YUPAIMAGE",  &envimage);
+	envstr("YUPAVIDEO",  &envvideo);
+	envstr("YUPAAUDIO",  &envaudio);
+	envstr("YUPAPDF",    &envpdf);
+	envint("YUPAMARGIN", &envmargin);
+	envint("YUPAWIDTH",  &envwidth);
+
+	envhome = strdup(resolvepath(envhome));
 	mkdir(envhome, 0755);
 
-	if (setenv("YUPAHOME", envhome, 1))
-		err(1, "setenv(YUPAHOME)");
-
 	envsession = startsession();
-
 	if (setenv("YUPASESSION", envsession, 1))
 		err(1, "setenv(YUPASESSION)");
 
-	path_lock  = strdup(join(envsession, "/.lock"));
-	path_res   = strdup(join(envsession, "/res"));
-	path_body  = strdup(join(envsession, "/body"));
-	path_cache = strdup(join(envsession, "/cache"));
-	path_cmd   = strdup(join(envsession, "/cmd"));
-	path_info  = strdup(join(envsession, "/info"));
-	path_uri   = strdup(join(envsession, "/uri"));
+	if (envmargin < 0)
+		errx(0, "YUPAMARGIN has to be >= 0");
 
-	mkdir(path_cache, 0755);
-
-	if ((env = getenv("PAGER")))
-		envpager = env;
-
-	if ((env = getenv("YUPAPAGER")))
-		envpager = env;
-
-	if (setenv("YUPAPAGER", envpager, 1))
-		err(1, "setenv(YUPAPAGER)");
-
-	if ((env = getenv("YUPAVIEWER")))
-		envviewer = env;
-
-	if (setenv("YUPAVIEWER", envviewer, 1))
-		err(1, "setenv(YUPAVIEWER)");
-
-	env = getenv("YUPAMARGIN");
-	n = env ? atoi(env) : 0;
-	if (n > 0)
-		envmargin = (unsigned)n;
-
-	env = getenv("YUPAWIDTH");
-	n = env ? atoi(env) : 0;
-	if (n > (int)envmargin+4)
-		envwidth = (unsigned)n;
+	if (envwidth < envmargin)
+		errx(0, "YUPAMARGIN has to be > YUPAMARGIN");
 
 	while ((opt = getopt(argc, argv, "vh")) != -1)
 		switch (opt) {
@@ -496,6 +496,16 @@ main(int argc, char **argv)
 			usage(argv[0]);
 			return 1;
 		}
+
+	pathlock  = strdup(join(envsession, "/.lock"));
+	pathres   = strdup(join(envsession, "/res"));
+	pathbody  = strdup(join(envsession, "/body"));
+	pathcache = strdup(join(envsession, "/cache"));
+	pathcmd   = strdup(join(envsession, "/cmd"));
+	pathinfo  = strdup(join(envsession, "/info"));
+	pathuri   = strdup(join(envsession, "/uri"));
+
+	mkdir(pathcache, 0755);
 
 	bind_init();
 

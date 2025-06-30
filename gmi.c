@@ -8,6 +8,15 @@
 #include "gmi.h"
 
 /*
+  	if (!strncmp(head+3, "text/gemini", 11)) {
+		gmi_fmt(raw, fmt);
+		return NET_FMT;
+	}
+	if (!strncmp(head+3, "text/", 5)) {
+		return NET_RAW;
+	}
+
+
 From gmix/gmit.h project source file.
 	GMIR_NUL          =  0, // Unknown status code
 	                        // 1X INPUT
@@ -80,7 +89,7 @@ void
 printwrap(char *str, char *prefix, FILE *out)
 {
 	char *word;
-	unsigned n, w, indent;
+	int n, w, indent;
 
 	fprintf(out, "%-*s%s", envmargin, "", prefix);
 
@@ -103,7 +112,7 @@ printwrap(char *str, char *prefix, FILE *out)
 void
 underline(char *str, char mark, FILE *out)
 {
-	unsigned n;
+	int n;
 
 	n = strlen(str);
 

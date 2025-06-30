@@ -24,7 +24,6 @@ makepath(unsigned index)
 why_t
 cache_add(char *key, char *src)
 {
-	why_t why;
 	static unsigned age=0;
 	unsigned i, min=-1, oldest=0;
 	char *dst;
@@ -56,11 +55,10 @@ cache_add(char *key, char *src)
 
 	dst = makepath(i);
 
-	if ((why = cp(src, dst)))
-		why = tellme(why, "Failed to cache %s with %s",
-			     key, src);
+	if (cp(src, dst))
+		return tellme("Failed to cache %s with %s", key, src);
 
-	return why;
+	return 0;
 }
 
 char *

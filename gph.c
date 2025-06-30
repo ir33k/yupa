@@ -2,47 +2,67 @@
 #include <string.h>
 #include "util.h"
 #include "link.h"
+#include "mime.h"
 #include "main.h"
 #include "gph.h"
 
 static char *navlabel(char);
-char *navlink(char *line);
+static char *navlink(char *line);
+
+static struct {
+	char item, *label;
+	enum mime mime;
+} navitems[] = {
+	// Canonical
+	'0',    "TEXT",         TEXT,   // Text file
+	'1',    "GPH",          GPH,    // Gopher submenu
+	'2',    "CSO",          TEXT,   // CSO protocol
+	'3',    "ERROR",        TEXT,   // Error code returned by server
+	'4',    "BINHEX",       BINARY, // BinHex-encoded file, for Macintosh
+	'5',    "DOS",          TEXT,   // DOS file
+	'6',    "UUENCODED",    TEXT,   // uuencoded file
+	'7',    "SEARCH",       SEARCH, // Gopher full-text search
+	'8',    "TELNET",       TEXT,   // Telnet
+	'9',    "BIN",          BINARY, // Binary file
+	'+',    "MIRROR",       TEXT,   // Mirror or alternate server
+	'g',    "GIF",          IMAGE,  // GIF file
+	'I',    "IMG",          IMAGE,  // Image file
+	'T',    "TELNET3270",   TEXT,   // Telnet 3270
+	// Gopher+
+	':',    "BMP",          IMAGE,  // Bitmap image
+	';',    "VIDEO",        VIDEO,  // Movie/video file
+	'<',    "AUDIO",        AUDIO,  // Sound file
+	// Non-canonical
+	'd',    "DOC",          PDF,    // Doc. Seen used alongside PDF's and .DOC's
+	'h',    "HTML",         HTML,   // HTML file
+	'p',    "PNG",          IMAGE,  // Image file ,especially the png format
+	'r',    "RTF",          BINARY, // Document rtf file, rich text format
+	's',    "WAV",          AUDIO,  // Sound file, especially the WAV format
+	'P',    "PDF",          PDF,    // document pdf file
+	'X',    "XML",          TEXT,   // document xml file
+	'i',    0,              0,      // Windly used informational message
+};
 
 char *
 navlabel(char item)
 {
-	switch (item) {
-	/* Canonical */
-	case '0': return "(TEXT) ";       /* Text file */
-	case '1': return "(GPH) ";        /* Gopher submenu */
-	case '2': return "(CSO) ";        /* CSO protocol */
-	case '3': return "(ERROR) ";      /* Error code returned by server */
-	case '4': return "(BINHEX) ";     /* BinHex-encoded file, for Macintosh */
-	case '5': return "(DOS) ";        /* DOS file */
-	case '6': return "(UUENCODED) ";  /* uuencoded file */
-	case '7': return "(SEARCH) ";     /* Gopher full-text search */
-	case '8': return "(TELNET) ";     /* Telnet */
-	case '9': return "(BIN) ";        /* Binary file */
-	case '+': return "(MIRROR) ";     /* Mirror or alternate server */
-	case 'g': return "(GIF) ";        /* GIF file */
-	case 'I': return "(IMG) ";        /* Image file */
-	case 'T': return "(TELNET3270) "; /* Telnet 3270 */
-	/* Gopher+ */
-	case ':': return "(BMP) ";        /* Bitmap image */
-	case ';': return "(VIDEO) ";      /* Movie/video file */
-	case '<': return "(AUDIO) ";      /* Sound file */
-	/* Non-canonical */
-	case 'd': return "(DOC) ";        /* Doc. Seen used alongside PDF's and .DOC's */
-	case 'h': return "(HTML) ";       /* HTML file */
-	case 'p': return "(PNG) ";        /* Image file ,especially the png format */
-	case 'r': return "(RTF) ";        /* Document rtf file, rich text format */
-	case 's': return "(WAV) ";        /* Sound file, especially the WAV format */
-	case 'P': return "(PDF) ";        /* document pdf file */
-	case 'X': return "(XML) ";        /* document xml file */
-	}
-	/* Everything else is not a navigatoin item, like
-	 * 'i' (Informational message, widely used) */
-	return "";
+	static char buf[16];
+	char *label;
+	int i;
+
+	buf[0] = 0;
+
+	for (i=0; i<SIZE(navitems); i++)
+		if (navitems[i].item == item)
+			break;
+
+	if (i<SIZE(navitems))
+		label = navitems[i].label;
+
+	if (label)
+		snprintf(buf, sizeof buf, "(%s) ", label);
+
+	return buf;
 }
 
 char *
@@ -81,4 +101,22 @@ gph_print(char *res, FILE *out)
                 n = strcspn(line, "\t");
 		fprintf(out, "%-*s%s%.*s\n", envmargin, nav, label, n, line+1);
 	}
+}
+
+enum mime
+gph_mime(char *path)
+{
+	int i;
+
+	if (!path || !path[0])
+		return GPH;
+
+	if (strlen(path) < 2 || path[0] != '/' || path[2] != '/')
+		return GPH;
+
+	for (i=0; i<SIZE(navitems); i++)
+		if (navitems[i].item == path[1])
+			break;
+
+	return i<SIZE(navitems) ? navitems[i].mime : TEXT;
 }

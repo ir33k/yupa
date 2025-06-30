@@ -1,7 +1,7 @@
 /* Extract parts of URI string */
 
 /* https://wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers */
-enum { CACHE=4, LOCAL=6, HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
+enum { LOCAL=4, HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
 
 int uri_protocol(char *uri);
 char *uri_host(char *uri);
