@@ -1,0 +1,5 @@
+# History
+
+After page is successfully loaded and absolute URI will be added to browsing history with date and time.
+
+...TODO

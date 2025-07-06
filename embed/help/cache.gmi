@@ -1,0 +1,14 @@
+# Cache
+
+Each page that is not loaded from local drive is cached using absolute URI of that page as unique key.  Visiting the same page again will cause load from local drive instaed of fetching from network.  Thanks to that reloading of current page with `0` or using undo with `b` or `f` works instantly.
+
+Cache can be cleared with `c` command.  This use useful if you want to actually fetch pages again from network.
+
+Cache hold up to 36 unique pages in single session.  After session storage is exhausted then oldest entry will be replaces with newest page.
+
+Cache files live in $YUPASESSION/cache and are removed when program terminates.
+
+## See also
+
+=> links.gmi	Links
+=> session.gmi	Session

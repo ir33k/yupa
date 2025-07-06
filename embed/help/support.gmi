@@ -1,0 +1,15 @@
+# Support
+
+Yupa aims to have full support for Gopher and Gemini protocols.  HTTP support is experimental, getting content of HTML document in some readable form is consider a success.  Local files can be loaded, file extension is used to determinate file content.
+
+## Protocols
+
+* gopher://
+* gemini://
+* http:// - experimental
+* https:// - experimental
+* file:// - for local files
+
+## MIME types
+
+TODO

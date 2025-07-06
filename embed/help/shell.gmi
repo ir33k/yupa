@@ -1,0 +1,21 @@
+# Shell
+
+You can run shell commands directly from Yupa prompt with $, !, | and % commands.  This combined with binds and session files enables you to extend Yupa with custom features.
+
+Dollar only runs the command, exclamation mark runs command with currently loaded page as first program argument, pipe runs command with currently loaded page as standard input, percent runs command and then use that command standard output as prompt input.
+
+```
+Yupa prompt    Shell equivalent
+-----------    -------------------------
+yupa> $ cmd    $ cmd
+yupa> ! cmd    $ cmd $YUPASESSION/out
+yupa> | cmd    $ <$YUPASESSION/out cmd
+yupa> % cmd    $ cmd >$YUPASESSION/cmd	# Output is used as prompt input
+```
+
+Default binds provide good example of some practical usages.
+
+## See also
+
+=> binds.gmi	Binds
+=> session.gmi	Session
