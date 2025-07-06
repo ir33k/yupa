@@ -118,7 +118,7 @@ why_t
 loadpage(char *link)
 {
 	why_t why;
-	char uri[4096], buf[4096], *host, *path, *cache, *search, *pt;
+	char uri[4096], buf[4096], *host, *path, *cache, *search, *pt, *cmd;
 	int protocol, port, ssl=0, mime;
 	unsigned n;
 	FILE *fp, *res, *out;
@@ -234,6 +234,7 @@ loadpage(char *link)
 	if (!(out = fopen(pathout, "w")))
 		err(1, "fopen(%s)", pathout);
 
+	cmd = 0;
 	switch (mime) {
 	default:
 	case BINARY:
@@ -241,35 +242,35 @@ loadpage(char *link)
 		break;
 	case TEXT:
 		if (!(why = fcp(res, out)))
-			snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+			cmd = envpager;
 		break;
 	case GPH:
 		gph_print(res, out);
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+		cmd = envpager;
 		break;
 	case GMI:
 		gmi_print(res, out);
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+		cmd = envpager;
 		break;
 	case HTML:
 		html_print(res, out);
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+		cmd = envpager;
 		break;
 	case IMAGE:
 		if (!(why = fcp(res, out)))
-			snprintf(buf, sizeof buf, "%s %s", envimage, pathout);
+			cmd = envimage;
 		break;
 	case VIDEO:
 		if (!(why = fcp(res, out)))
-			snprintf(buf, sizeof buf, "%s %s", envvideo, pathout);
+			cmd = envvideo;
 		break;
 	case AUDIO:
 		if (!(why = fcp(res, out)))
-			snprintf(buf, sizeof buf, "%s %s", envaudio, pathout);
+			cmd = envaudio;
 		break;
 	case PDF:
 		if (!(why = fcp(res, out)))
-			snprintf(buf, sizeof buf, "%s %s", envpdf, pathout);
+			cmd = envpdf;
 		break;
 	}
 
@@ -279,8 +280,12 @@ loadpage(char *link)
 	if (fclose(out))
 		err(1, "flose(%s)", pathout);
 
-	system(buf);
-	return 0;
+	if (cmd) {
+		snprintf(buf, sizeof buf, "%s %s", cmd, pathout);
+		system(buf);
+	}
+
+	return why;
 }
 
 void
