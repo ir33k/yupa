@@ -31,6 +31,27 @@
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
 
+extern char _binary_embed_binds_start;
+extern char _binary_embed_binds_end;
+extern char _binary_embed_help_binds_gmi_start;
+extern char _binary_embed_help_binds_gmi_end;
+extern char _binary_embed_help_cache_gmi_start;
+extern char _binary_embed_help_cache_gmi_end;
+extern char _binary_embed_help_envs_gmi_start;
+extern char _binary_embed_help_envs_gmi_end;
+extern char _binary_embed_help_history_gmi_start;
+extern char _binary_embed_help_history_gmi_end;
+extern char _binary_embed_help_index_gmi_start;
+extern char _binary_embed_help_index_gmi_end;
+extern char _binary_embed_help_links_gmi_start;
+extern char _binary_embed_help_links_gmi_end;
+extern char _binary_embed_help_session_gmi_start;
+extern char _binary_embed_help_session_gmi_end;
+extern char _binary_embed_help_shell_gmi_start;
+extern char _binary_embed_help_shell_gmi_end;
+extern char _binary_embed_help_support_gmi_start;
+extern char _binary_embed_help_support_gmi_end;
+
 char *envhome    = "~/.yupa";
 char *envsession = "~/.yupa/0";
 char *envpager   = "less -XI +R";
@@ -59,6 +80,7 @@ static void run();
 static void end() __attribute__((noreturn));
 static void onsignal(int);
 static char *startsession();
+static void embed(char *path, char *data_start, char *data_end);
 
 void
 usage(char *argv0)
@@ -343,7 +365,7 @@ oncmd(char *cmd)
 		end();
 	case 'h':
 		snprintf(buf, sizeof buf, "file://%s/%s",
-			 envhome, "help.gmi");
+			 envhome, "help/index.gmi");
 		onprompt(buf);
 		break;
 	case 'b':
@@ -501,6 +523,23 @@ startsession()
 	return strdup(buf);
 }
 
+void
+embed(char *path, char *data_start, char *data_end)
+{
+	FILE *fp;
+
+	if (!access(path, F_OK))
+		return;
+
+	if (!(fp = fopen(path, "w")))
+		err(1, "embed fopen %s", path);
+
+	fwrite(data_start, 1, data_end - data_start, fp);
+
+	if (fclose(fp))
+		err(1, "embed fclose %s", path);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -557,6 +596,38 @@ main(int argc, char **argv)
 	pathuri   = strdup(join(envsession, "/uri"));
 
 	mkdir(pathcache, 0755);
+	mkdir(join(envhome, "/help"), 0755);
+
+	embed(join(envhome, "/binds"),
+	      &_binary_embed_binds_start,
+	      &_binary_embed_binds_end);
+	embed(join(envhome, "/help/binds.gmi"),
+	      &_binary_embed_help_binds_gmi_start,
+	      &_binary_embed_help_binds_gmi_end);
+	embed(join(envhome, "/help/cache.gmi"),
+	      &_binary_embed_help_cache_gmi_start,
+	      &_binary_embed_help_cache_gmi_end);
+	embed(join(envhome, "/help/envs.gmi"),
+	      &_binary_embed_help_envs_gmi_start,
+	      &_binary_embed_help_envs_gmi_end);
+	embed(join(envhome, "/help/history.gmi"),
+	      &_binary_embed_help_history_gmi_start,
+	      &_binary_embed_help_history_gmi_end);
+	embed(join(envhome, "/help/index.gmi"),
+	      &_binary_embed_help_index_gmi_start,
+	      &_binary_embed_help_index_gmi_end);
+	embed(join(envhome, "/help/links.gmi"),
+	      &_binary_embed_help_links_gmi_start,
+	      &_binary_embed_help_links_gmi_end);
+	embed(join(envhome, "/help/session.gmi"),
+	      &_binary_embed_help_session_gmi_start,
+	      &_binary_embed_help_session_gmi_end);
+	embed(join(envhome, "/help/shell.gmi"),
+	      &_binary_embed_help_shell_gmi_start,
+	      &_binary_embed_help_shell_gmi_end);
+	embed(join(envhome, "/help/support.gmi"),
+	      &_binary_embed_help_support_gmi_start,
+	      &_binary_embed_help_support_gmi_end);
 
 	bind_init();
 

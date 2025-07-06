@@ -13,6 +13,24 @@ CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# for setenv()
 
 # CFLAGS="$CFLAGS -ggdb"
 
+# Embed text files as binary data.
+# Based on http://kuu.se/fossil/objcopy.cgi/doc/ckout/README.objcopy.md
+ld -r -z noexecstack --format=binary -o embed_binds.o        embed/binds
+ld -r -z noexecstack --format=binary -o embed_help_binds.o   embed/help/binds.gmi
+ld -r -z noexecstack --format=binary -o embed_help_cache.o   embed/help/cache.gmi
+ld -r -z noexecstack --format=binary -o embed_help_envs.o    embed/help/envs.gmi
+ld -r -z noexecstack --format=binary -o embed_help_history.o embed/help/history.gmi
+ld -r -z noexecstack --format=binary -o embed_help_index.o   embed/help/index.gmi
+ld -r -z noexecstack --format=binary -o embed_help_links.o   embed/help/links.gmi
+ld -r -z noexecstack --format=binary -o embed_help_session.o embed/help/session.gmi
+ld -r -z noexecstack --format=binary -o embed_help_shell.o   embed/help/shell.gmi
+ld -r -z noexecstack --format=binary -o embed_help_support.o embed/help/support.gmi
+
+for f in $(find . -name 'embed_*.o')
+do
+    objcopy --rename-section .data=.rodata,alloc,load,readonly,data,contents $f
+done
+
 $CC $CFLAGS -c util.c
 $CC $CFLAGS -c uri.c
 $CC $CFLAGS -c fetch.c

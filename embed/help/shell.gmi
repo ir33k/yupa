@@ -10,7 +10,7 @@ Yupa prompt    Shell equivalent
 yupa> $ cmd    $ cmd
 yupa> ! cmd    $ cmd $YUPASESSION/out
 yupa> | cmd    $ <$YUPASESSION/out cmd
-yupa> % cmd    $ cmd >$YUPASESSION/cmd	# Output is used as prompt input
+yupa> % cmd    $ cmd >$YUPASESSION/cmd	# Output used as prompt
 ```
 
 Default binds provide good example of some practical usages.
