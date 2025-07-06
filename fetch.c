@@ -46,7 +46,7 @@ secure(int sfd, char *host, char *msg, FILE *out)
 		return "Failed to create SSL instance";
 
 	if (!SSL_set_tlsext_host_name(ssl, host))
-		return tellme("Failed to TLS set hostname %s", host);
+		return "Failed to TLS set hostname";
 
 	if (!SSL_set_fd(ssl, sfd))
 		return "Failed to set SSL sfd";
@@ -107,7 +107,7 @@ fetch(char *host, int port, int ssl, char *msg, char *out)
 		return "Failed to open socket";
 
 	if ((he = gethostbyname(host)) == 0)
-		return tellme("Failed to get hostname %s", host);
+		return "Failed to get hostname";
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
@@ -128,7 +128,6 @@ fetch(char *host, int port, int ssl, char *msg, char *out)
 		secure(sfd, host, msg, fp) :
 		plain(sfd, msg, fp);
 
-	// TODO(irek): Early return skips this fclose()
 	if (fclose(fp))
 		err(1, "fetch flose(%s)", out);
 

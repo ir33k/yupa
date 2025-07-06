@@ -40,15 +40,15 @@ mime_header(char *str)
 	if (!str || !str[0])
 		return 0;
 
-	if (startswith(str, "text/gemini"))     return GMI;
-	if (startswith(str, "text/html"))       return HTML;
-	if (startswith(str, "text/gopher"))     return GPH;
-	if (startswith(str, "text/"))           return TEXT;
-	if (startswith(str, "image/"))          return IMAGE;
-	if (startswith(str, "video/"))          return VIDEO;
-	if (startswith(str, "audio/"))          return AUDIO;
+	if (startswith(str, "text/gemini")) return GMI;
+	if (startswith(str, "text/html")) return HTML;
+	if (startswith(str, "text/")) return TEXT;
+	if (startswith(str, "image/")) return IMAGE;
+	if (startswith(str, "video/")) return VIDEO;
+	if (startswith(str, "audio/")) return AUDIO;
 	if (startswith(str, "application/pdf")) return PDF;
 	if (startswith(str, "application/octet-stream")) return BINARY;
+	if (startswith(str, "application/gopher-menu")) return GPH;
 
 	return 0;
 }

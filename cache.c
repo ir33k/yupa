@@ -25,6 +25,7 @@ why_t
 cache_add(char *key, char *src)
 {
 	static unsigned age=0;
+	why_t why;
 	unsigned i, min=-1, oldest=0;
 	char *dst;
 
@@ -55,8 +56,8 @@ cache_add(char *key, char *src)
 
 	dst = makepath(i);
 
-	if (cp(src, dst))
-		return tellme("Failed to cache %s with %s", key, src);
+	if ((why = cp(src, dst)))
+		return why;
 
 	return 0;
 }
@@ -81,4 +82,6 @@ cache_cleanup()
 	for (i=0; i<SIZE(entries); i++)
 		if (entries[i].key)
 			unlink(makepath(i));
+
+	memset(entries, 0, sizeof entries);
 }

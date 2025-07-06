@@ -12,22 +12,10 @@ char *
 tellme(char *fmt, ...)
 {
 	static char buf[4096];
-	static int n=0;
 	va_list ap;
 
-	if (!fmt) {
-		n = 0;
-		return 0;
-	}
-
-	if ((unsigned)n+1 >= sizeof buf)
-		return buf;
-
-	if (n)
-		n += snprintf(buf+n, (sizeof buf)-n, "\n");
-
 	va_start(ap, fmt);
-	n += vsnprintf(buf+n, (sizeof buf)-n, fmt, ap);
+	vsnprintf(buf, sizeof buf, fmt, ap);
 	va_end(ap);
 
 	return buf;

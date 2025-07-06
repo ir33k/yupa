@@ -52,7 +52,7 @@ static char *pathinfo;
 static void usage(char *argv0);
 static void envstr(char *name, char **env);
 static void envint(char *name, int *env);
-static why_t loadpage(char *uri);
+static why_t loadpage(char *link);
 static void onprompt(char *);
 static char *oncmd(char *);
 static void run();
@@ -115,14 +115,19 @@ envint(char *name, int *env)
 }
 
 why_t
-loadpage(char *uri)
+loadpage(char *link)
 {
-	char *host, *path, buf[4096], *cache, *pt;
+	why_t why;
+	char uri[4096], buf[4096], *host, *path, *cache, *pt;
 	int protocol, port, ssl=0, mime;
+	unsigned n;
 	FILE *fp;
 
-	if (!uri)
-		return "No URI";
+	if (!link)
+		return "No link";
+
+	pt = uri_normalize(link, link_get(0));
+	snprintf(uri, sizeof uri, "%s", pt);
 
 	protocol = uri_protocol(uri);
 	port = uri_port(uri);
@@ -132,20 +137,33 @@ loadpage(char *uri)
 	if (!port)
 		port = protocol;
 
+	if (!path)
+		path = "/";
+
 	if ((cache = cache_get(uri))) {
-		if (cp(cache, pathres))
-			return tellme("Failed to load %s", uri);
+		if ((why = cp(cache, pathres)))
+			return why;
 	} else {
 		switch (protocol) {
 		case LOCAL:
-			if (cp(path, pathres))
-				return tellme("Failed to load local file %s", path);
+			if ((why = cp(path, pathres)))
+				return why;
 			break;
 		case GOPHER:
-			pt = path;
-			if (!pt) pt = "";
-			if (strlen(pt) > 2) pt += 2;	/* Skip item type */
-			snprintf(buf, sizeof buf, "%s", pt);
+			if (strlen(path) > 2 && path[1] == '7') {
+				printf("search: ");
+
+				n = strlen(uri);
+				if (n+2 >= sizeof uri)
+					return "URI too long";
+
+				uri[n++] = '\t';
+				fgets(uri+n, (sizeof uri) - n, stdin);
+				path = uri_path(uri);
+			}
+
+			snprintf(buf, sizeof buf, "%s",
+				 strlen(path) > 2 ? path +2: path);
 			break;
 		case GEMINI:
 			snprintf(buf, sizeof buf, "gemini://%s%s",
@@ -166,29 +184,38 @@ loadpage(char *uri)
 		}
 
 		if (protocol != LOCAL) {
-			if (fetch(host, port, ssl, buf, pathres))
-				return tellme("Failed to load %s", uri);
+			if ((why = fetch(host, port, ssl, buf, pathres)))
+				return why;
 
-			if (cache_add(uri, pathres))
-				return tellme("Failed to load %s", uri);
+			if ((why = cache_add(uri, pathres)))
+				return why;
 		}
-	}
-
-	mime = mime_path(path);
-	switch (protocol) {
-	case HTTP:
-	case HTTPS:
-		break;
-	case GEMINI:
-		/* mime = gph_mime(pt); */
-		break;
-	case GOPHER:
-		mime = gph_mime(path);
-		break;
 	}
 
 	link_clear();
 	link_store(uri);
+
+	mime = 0;
+	switch (protocol) {
+	case LOCAL:
+		mime = mime_path(path);
+		break;
+	case GOPHER:
+		mime = gph_mime(path);
+		break;
+	case GEMINI:
+		pt = 0;
+		if ((why = gmi_onheader(pt, &mime, &pt)))
+			return why;
+
+		if (pt)
+			return loadpage(pt);
+
+		break;
+	case HTTP:
+	case HTTPS:
+		break;
+	}
 	undo_add(uri);
 
 	if (!(fp = fopen(pathuri, "w")))
@@ -202,10 +229,10 @@ loadpage(char *uri)
 	switch (mime) {
 	default:
 	case BINARY:
-		return tellme("Unsopported mime file type %s", uri);
+		return "Unsopported mime file type";
 	case TEXT:
-		if (cp(pathres, pathbody))
-			return tellme("Failed to load %s", uri);
+		if ((why = cp(pathres, pathbody)))
+			return why;
 
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathbody);
 		break;
@@ -250,7 +277,8 @@ loadpage(char *uri)
 void
 onprompt(char *str)
 {
-	char *why=0, *link, *uri;
+	why_t why;
+	char *link;
 
 	if (!str || !str[0])
 		return;
@@ -263,13 +291,8 @@ onprompt(char *str)
 	if (!link)
 		return;
 
-	uri = uri_normalize(link, link_get(0));
-	why = loadpage(uri);
-
-	if (why) {
+	if ((why = loadpage(link)))
 		printf(NAME": %s\n", why);
-		tellme(0);
-	}
 }
 
 char *
@@ -333,6 +356,9 @@ oncmd(char *cmd)
 
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathinfo);
 		system(buf);
+		break;
+	case 'c':
+		cache_cleanup();
 		break;
 	case '$':
 		system(arg);

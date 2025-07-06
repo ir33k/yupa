@@ -3,47 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "util.h"
+#include "mime.h"
 #include "link.h"
 #include "main.h"
 #include "gmi.h"
-
-/*
-  	if (!strncmp(head+3, "text/gemini", 11)) {
-		gmi_fmt(raw, fmt);
-		return NET_FMT;
-	}
-	if (!strncmp(head+3, "text/", 5)) {
-		return NET_RAW;
-	}
-
-
-From gmix/gmit.h project source file.
-	GMIR_NUL          =  0, // Unknown status code
-	                        // 1X INPUT
-	GMIR_INPUT_TEXT   = 10, // Regular input, search phrase
-	GMIR_INPUT_PASS   = 11, // Sensitive input, password
-	                        // 2X SUCCESS
-	GMIR_OK           = 20, // All good
-	                        // 3X Redirection
-	GMIR_REDIR_TEMP   = 30, // Temporary redirection
-	GMIR_REDIR_PERM   = 31, // Permanent redirection
-	                        // 4X TMP FAIL
-	GMIR_WARN_TEMP    = 40, // Temporary failure
-	GMIR_WARN_OUT     = 41, // Server unavailable
-	GMIR_WARN_CGI     = 42, // CGI error
-	GMIR_WARN_PROX    = 43, // Proxy error
-	GMIR_WARN_LIMIT   = 44, // Rate limiting, you have to wait
-	                        // 5X PERMANENT FAIL
-	GMIR_ERR_PERM     = 50, // Permanent failure
-	GMIR_ERR_404      = 51, // Not found
-	GMIR_ERR_GONE     = 52, // Resource no longer available
-	GMIR_ERR_NOPROX   = 53, // Proxy request refused
-	GMIR_ERR_BAD      = 59, // Bad requaest
-	                        // 6X CLIENT CERT
-	GMIR_CERT_REQU    = 60, // Client certificate required
-	GMIR_CERT_UNAUTH  = 61, // Certificate not authorised
-	GMIR_CERT_INVALID = 62, // Cerfiticate not valid
-*/
 
 static char *linklabel(char *line);
 static void printwrap(char *str, char *prefix, FILE *out);
@@ -248,6 +211,55 @@ Text(char **res, char *line, FILE *out)
 {
 	(void)res;
 	printwrap(line, "", out);
+}
+
+why_t
+gmi_onheader(char *line, int *mime, char **redirect)
+{
+	static char buf[4096]="?";
+
+	switch (line[0]) {
+	case '1':			// input
+		// 10 - regular input
+		// 11 - sensitive input, password
+		printf("%s: ", line+3);
+		*redirect = fgets(buf+1, (sizeof buf) -1, stdin);
+		return 0;
+	case '2':			// ok
+		*mime = mime_header(line +3);
+		return 0;
+	case '3':			// redirection
+		// 30 Temporary redirection
+		// 31 Permanent redirection
+		*redirect = line +3;
+		return 0;
+	case '4':
+		switch (line[1]) {
+		default:
+		case '0': return "Temporary failure";
+		case '1': return "Server unavailable";
+		case '2': return "CGI error";
+		case '3': return "Proxy error";
+		case '4': return "Slow down, rate limiting, wait";
+		}
+	case '5':
+		switch (line[1]) {
+		default:
+		case '0': return "Permanent failure";
+		case '1': return "Not found";
+		case '2': return "Gone, no longer available";
+		case '3': return "Proxy request refused";
+		case '9': return "Bad request";
+		}
+	case '6':
+		switch (line[1]) {
+		default:
+		case '0': return "Client certificate required";
+		case '1': return "Certificate not authorized";
+		case '2': return "Certificate not valid";
+		}
+	}
+	return "Unknown response code";
 }
 
 void

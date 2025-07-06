@@ -11,17 +11,17 @@ static char *navlink(char *line);
 
 static struct {
 	char item, *label;
-	enum mime mime;
+	enum mime mime;		// 0 for non nav menu items
 } navitems[] = {
 	// Canonical
 	'0',    "TEXT",         TEXT,   // Text file
 	'1',    "GPH",          GPH,    // Gopher submenu
 	'2',    "CSO",          TEXT,   // CSO protocol
-	'3',    "ERROR",        TEXT,   // Error code returned by server
+	'3',    "ERROR",        0,      // Error code returned by server
 	'4',    "BINHEX",       BINARY, // BinHex-encoded file, for Macintosh
 	'5',    "DOS",          TEXT,   // DOS file
 	'6',    "UUENCODED",    TEXT,   // uuencoded file
-	'7',    "SEARCH",       SEARCH, // Gopher full-text search
+	'7',    "SEARCH",       GPH,    // Gopher full-text search
 	'8',    "TELNET",       TEXT,   // Telnet
 	'9',    "BIN",          BINARY, // Binary file
 	'+',    "MIRROR",       TEXT,   // Mirror or alternate server
@@ -47,7 +47,6 @@ char *
 navlabel(char item)
 {
 	static char buf[16];
-	char *label;
 	int i;
 
 	buf[0] = 0;
@@ -56,11 +55,8 @@ navlabel(char item)
 		if (navitems[i].item == item)
 			break;
 
-	if (i<SIZE(navitems))
-		label = navitems[i].label;
-
-	if (label)
-		snprintf(buf, sizeof buf, "(%s) ", label);
+	if (i<SIZE(navitems) && navitems[i].mime)
+		snprintf(buf, sizeof buf, "(%s) ", navitems[i].label);
 
 	return buf;
 }
