@@ -114,10 +114,14 @@ uri_normalize(char *link, char *base)
 		host = uri_host(link);
 		path = uri_path(link);
 	} else {	/* Link is a relative path */
+		protocol = uri_protocol(base);
+		port = uri_port(base);
+		host = uri_host(base);
+
+		if ((pt = strrchr(base, '/')))
+			*(pt+1) = 0;
+
 		snprintf(buf, sizeof buf, "%s%s", base, link);
-		protocol = uri_protocol(buf);
-		port = uri_port(buf);
-		host = uri_host(buf);
 		path = uri_path(buf);
 	}
 
