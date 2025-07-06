@@ -72,7 +72,7 @@ usage(char *argv0)
 	       "prompt:\n"
 	       "	Optional initial input prompt value.\n"
 	       "	Use URI/URL to load a page.\n"
-	       "	Use \"help\" to learn about prompt commands.\n"
+	       "	Use \"h\" to learn about prompt commands.\n"
 	       "\n"
 	       "env:\n"
 	       "	YUPAHOME     Absolute path to user data (%s).\n"
@@ -312,12 +312,20 @@ onprompt(char *str)
 char *
 oncmd(char *cmd)
 {
-	char buf[4096], *arg, *str=0;
+	static char buf[4096];
+	char *arg, *str=0;
 	int i;
 	FILE *fp;
 
 	if (!cmd[0])
 		return 0;
+
+	/* When second character is not a whitespace (including null
+	 * terminator) and it's not a digit then we can't tell if this
+	 * is an Link or invalid command.  It's better to return it
+	 * right away to try interpert it as a link. */
+	if (cmd[1] > ' ' && !isdigit(cmd[1]))
+		return cmd;
 
 	arg = trim(cmd+1);
 
@@ -333,6 +341,11 @@ oncmd(char *cmd)
 	switch (cmd[0]) {
 	case 'q':
 		end();
+	case 'h':
+		snprintf(buf, sizeof buf, "file://%s/%s",
+			 envhome, "help.gmi");
+		onprompt(buf);
+		break;
 	case 'b':
 		i = atoi(arg);
 		return undo_go(i ? -i : -1);
@@ -400,8 +413,6 @@ oncmd(char *cmd)
 
 		onprompt(trim(buf));
 		break;
-	default:
-		return cmd;	/* CMD is probably a relative URI */
 	}
 
 	return 0;
