@@ -1,3 +1,4 @@
 /* Gemini parser and printer */
-why_t gmi_onheader(char *line, int *mime, char **redirect);
-void gmi_print(char *res, FILE *out);
+char *gmi_search(char *header);
+why_t gmi_onheader(FILE *res, int *mime, char **redirect);
+void gmi_print(FILE *res, FILE *out);

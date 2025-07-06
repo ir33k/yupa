@@ -57,61 +57,6 @@ resolvepath(char *path)
 }
 
 char *
-fmalloc(char *path)
-{
-	FILE *fp;
-	char *pt;
-	long n, m;
-
-	if (!(fp = fopen(path, "r")))
-		err(1, "fmalloc fopen");
-
-	if (fseek(fp, 0, SEEK_END))
-		err(1, "fmalloc fseek");
-
-	n = ftell(fp);
-
-	if (!(pt = malloc(n +1)))
-		err(1, "fmalloc malloc(%ld)", n);
-
-	rewind(fp);
-
-	m = fread(pt, 1, n, fp);
-	pt[m] = 0;
-
-	if (m != n)
-		errx(1, "fmalloc failed to read entire file");
-
-	if (fclose(fp))
-		err(1, "fmalloc fclose %s", path);
-
-	return pt;
-}
-
-char *
-eachline(char **str)
-{
-	char *line;
-
-	if (!**str)
-		return 0;
-
-	line = *str;
-
-	while (**str && **str != '\n' && **str != '\r') (*str)++;
-	if (**str) {
-		if (**str == '\r') {
-			**str = 0;
-			(*str)++;
-		}
-		**str = 0;
-		(*str)++;
-	}
-
-	return line;
-}
-
-char *
 eachword(char **str)
 {
 	char *word;
@@ -131,53 +76,53 @@ eachword(char **str)
 }
 
 char *
-triml(char *str)
+trim(char *str)
 {
+	unsigned u;
+
+	// Trim left
 	while (*str && *str <= ' ') str++;
+
+	// Trim right
+	u = strlen(str);
+	while (u && str[--u] <= ' ') str[u] = 0;
+
 	return str;
 }
 
-void
-trimr(char *str)
+why_t
+fcp(FILE *from, FILE *to)
 {
-	unsigned u;
-	u = strlen(str);
-	while (u && str[--u] <= ' ') str[u] = 0;
+	char buf[BUFSIZ];
+	size_t n;
+
+	while ((n = fread(buf, 1, sizeof buf, from)))
+		if (fwrite(buf, 1, n, to) != n)
+			return "Failed to copy files";
+
+	return 0;
 }
 
-char *
-trim(char *str)
-{
-	trimr(str);
-	return triml(str);
-}
-
-char *
+why_t
 cp(char *from, char *to)
 {
-	char *why=0, buf[BUFSIZ];
+	char *why=0;
 	FILE *fp0, *fp1;
-	size_t n;
 
 	if (!(fp0 = fopen(from, "r")))
 		return tellme("Failed to open %s", from);
 
 	if (!(fp1 = fopen(to, "w"))) {
 		why = tellme("Failed to open %s", to);
-		goto fail0;
+		goto fail;
 	}
 
-	while ((n = fread(buf, 1, sizeof buf, fp0)))
-		if (fwrite(buf, 1, n, fp1) != n) {
-			why = tellme("Failed to write %lu bytes from %s to %s",
-				     n, from, to);
-			goto fail1;
-		}
+	why = fcp(fp0, fp1);
 
-fail1:	if (fclose(fp1))
+	if (fclose(fp1))
 		why = tellme("Failed to close %s", to);
 
-fail0:	if (fclose(fp0))
+fail:	if (fclose(fp0))
 		why = tellme("Failed to close %s", from);
 
 	return why;

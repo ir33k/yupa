@@ -16,8 +16,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "mime.h"
 #include "main.h"
+#include "mime.h"
 #include "util.h"
 #include "uri.h"
 #include "fetch.h"
@@ -31,20 +31,20 @@
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
 
-char *  envhome    = "~/.yupa";
-char *  envsession = "~/.yupa/0";
-char *  envpager   = "less -XI +R";
-char *  envimage   = "xdg-open";
-char *  envvideo   = "xdg-open";
-char *  envaudio   = "xdg-open";
-char *  envpdf     = "xdg-open";
-int     envmargin  = 4;
-int     envwidth   = 76;
+char *envhome    = "~/.yupa";
+char *envsession = "~/.yupa/0";
+char *envpager   = "less -XI +R";
+char *envimage   = "xdg-open";
+char *envvideo   = "xdg-open";
+char *envaudio   = "xdg-open";
+char *envpdf     = "xdg-open";
+int   envmargin  = 4;
+int   envwidth   = 76;
 
 static char *pathlock;
 static char *pathuri;
 static char *pathres;
-static char *pathbody;
+static char *pathout;
 static char *pathcache;
 static char *pathcmd;
 static char *pathinfo;
@@ -118,10 +118,10 @@ why_t
 loadpage(char *link)
 {
 	why_t why;
-	char uri[4096], buf[4096], *host, *path, *cache, *pt;
+	char uri[4096], buf[4096], *host, *path, *cache, *search, *pt;
 	int protocol, port, ssl=0, mime;
 	unsigned n;
-	FILE *fp;
+	FILE *fp, *res, *out;
 
 	if (!link)
 		return "No link";
@@ -134,11 +134,8 @@ loadpage(char *link)
 	host = uri_host(uri);
 	path = uri_path(uri);
 
-	if (!port)
-		port = protocol;
-
-	if (!path)
-		path = "/";
+	if (!port) port = protocol;
+	if (!path) path = "/";
 
 	if ((cache = cache_get(uri))) {
 		if ((why = cp(cache, pathres)))
@@ -150,20 +147,14 @@ loadpage(char *link)
 				return why;
 			break;
 		case GOPHER:
-			if (strlen(path) > 2 && path[1] == '7') {
-				printf("search: ");
-
+			if ((search = gph_search(path))) {
 				n = strlen(uri);
-				if (n+2 >= sizeof uri)
-					return "URI too long";
-
-				uri[n++] = '\t';
-				fgets(uri+n, (sizeof uri) - n, stdin);
+				snprintf(uri+n, (sizeof uri) -n, "%s", search);
 				path = uri_path(uri);
 			}
 
 			snprintf(buf, sizeof buf, "%s",
-				 strlen(path) > 2 ? path +2: path);
+				 path[1] ? path +2 : path);
 			break;
 		case GEMINI:
 			snprintf(buf, sizeof buf, "gemini://%s%s",
@@ -195,6 +186,9 @@ loadpage(char *link)
 	link_clear();
 	link_store(uri);
 
+	if (!(res = fopen(pathres, "r")))
+		err(1, "fopen(%s)", pathres);
+
 	mime = 0;
 	switch (protocol) {
 	case LOCAL:
@@ -204,18 +198,27 @@ loadpage(char *link)
 		mime = gph_mime(path);
 		break;
 	case GEMINI:
+		if ((search = gmi_search(pt)))
+			return loadpage(search);
+
 		pt = 0;
-		if ((why = gmi_onheader(pt, &mime, &pt)))
+		if ((why = gmi_onheader(res, &mime, &pt)))
 			return why;
 
-		if (pt)
-			return loadpage(pt);
+		if (!pt)
+			break;
 
-		break;
+		/* Redirect */
+
+		if (fclose(res))
+			err(1, "flose(%s)", pathres);
+
+		return loadpage(pt);
 	case HTTP:
 	case HTTPS:
 		break;
 	}
+
 	undo_add(uri);
 
 	if (!(fp = fopen(pathuri, "w")))
@@ -229,46 +232,43 @@ loadpage(char *link)
 	switch (mime) {
 	default:
 	case BINARY:
-		return "Unsopported mime file type";
-	case TEXT:
-		if ((why = cp(pathres, pathbody)))
-			return why;
-
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathbody);
+		why = "Unsopported mime file type";
 		break;
+	case TEXT:
 	case GPH:
 	case GMI:
 	case HTML:
-		if (!(fp = fopen(pathbody, "w")))
-			err(1, "fopen(%s)", pathbody);
+		if (!(out = fopen(pathout, "w")))
+			err(1, "fopen(%s)", pathout);
 
-		pt = fmalloc(pathres);
 		switch (mime) {
-		case GPH: gph_print(pt, fp); break;
-		case GMI: gmi_print(pt, fp); break;
-		case HTML: html_print(pt, fp); break;
+		case TEXT: why = fcp(res, out); break;
+		case GPH: gph_print(res, out); break;
+		case GMI: gmi_print(res, out); break;
+		case HTML: html_print(res, out); break;
 		}
-		fprintf(fp, "\n");
-		free(pt);
 
-		if (fclose(fp))
-			err(1, "flose(%s)", pathbody);
+		if (fclose(out))
+			err(1, "flose(%s)", pathout);
 
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathbody);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
 		break;
 	case IMAGE:
-		snprintf(buf, sizeof buf, "%s %s", envimage, pathbody);
+		snprintf(buf, sizeof buf, "%s %s", envimage, pathout);
 		break;
 	case VIDEO:
-		snprintf(buf, sizeof buf, "%s %s", envvideo, pathbody);
+		snprintf(buf, sizeof buf, "%s %s", envvideo, pathout);
 		break;
 	case AUDIO:
-		snprintf(buf, sizeof buf, "%s %s", envaudio, pathbody);
+		snprintf(buf, sizeof buf, "%s %s", envaudio, pathout);
 		break;
 	case PDF:
-		snprintf(buf, sizeof buf, "%s %s", envpdf, pathbody);
+		snprintf(buf, sizeof buf, "%s %s", envpdf, pathout);
 		break;
 	}
+
+	if (fclose(res))
+		err(1, "flose(%s)", pathres);
 
 	system(buf);
 	return 0;
@@ -364,11 +364,11 @@ oncmd(char *cmd)
 		system(arg);
 		break;
 	case '!':
-		snprintf(buf, sizeof buf, "%s %s", arg, pathbody);
+		snprintf(buf, sizeof buf, "%s %s", arg, pathout);
 		system(buf);
 		break;
 	case '|':
-		snprintf(buf, sizeof buf, "<%s %s", pathbody, arg);
+		snprintf(buf, sizeof buf, "<%s %s", pathout, arg);
 		system(buf);
 		break;
 	case '%':
@@ -525,7 +525,7 @@ main(int argc, char **argv)
 
 	pathlock  = strdup(join(envsession, "/.lock"));
 	pathres   = strdup(join(envsession, "/res"));
-	pathbody  = strdup(join(envsession, "/body"));
+	pathout   = strdup(join(envsession, "/out"));
 	pathcache = strdup(join(envsession, "/cache"));
 	pathcmd   = strdup(join(envsession, "/cmd"));
 	pathinfo  = strdup(join(envsession, "/info"));

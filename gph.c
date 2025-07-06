@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include "main.h"
 #include "util.h"
 #include "link.h"
 #include "mime.h"
-#include "main.h"
 #include "gph.h"
 
 static char *navlabel(char);
@@ -77,27 +77,50 @@ navlink(char *line)
 }
 
 void
-gph_print(char *res, FILE *out)
+gph_print(FILE *res, FILE *out)
 {
-	char *line, nav[16], *label;
+	char buf[4096], nav[16], *label;
 	unsigned i, n;
 
-	while ((line = eachline(&res))) {
-		if (line[0] == '.')	/* Gopher EOF mark, ed style */
+	while (fgets(buf, sizeof buf, res)) {
+		n = strlen(buf);
+		if (n && buf[n-1] == '\n')
+			buf[--n] = 0;
+
+		if (buf[0] == '.')	/* Gopher EOF mark, ed style */
 			break;
 
 		nav[0] = 0;
-		label = navlabel(line[0]);
+		label = navlabel(buf[0]);
 
 		if (label[0]) {
-                        i = link_store(navlink(line));
+                        i = link_store(navlink(buf));
 			snprintf(nav, sizeof nav, "%u> ", i);
                 }
 
-                n = strcspn(line, "\t");
-		fprintf(out, "%-*s%s%.*s\n", envmargin, nav, label, n, line+1);
+                n = strcspn(buf, "\t");
+		fprintf(out, "%-*s%s%.*s\n", envmargin, nav, label, n, buf+1);
 	}
+	fprintf(out, "\n");
 }
+
+char *
+gph_search(char *path)
+{
+	static char buf[4096];
+
+	if (path[1] != '7')
+		return 0;
+	
+	printf("search: ");
+
+	fgets(buf+1, (sizeof buf) -1, stdin);
+	trim(buf+1);
+	buf[0] = '\t';
+
+	return buf;
+}
+
 
 enum mime
 gph_mime(char *path)

@@ -239,7 +239,7 @@ parse(char *str)
 #endif
 
 void
-html_print(char *res, FILE *out)
+html_print(FILE *res, FILE *out)
 {
 	(void)res;
 	(void)out;
