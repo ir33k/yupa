@@ -183,9 +183,6 @@ loadpage(char *link)
 		}
 	}
 
-	link_clear();
-	link_store(uri);
-
 	if (!(res = fopen(pathres, "r")))
 		err(1, "fopen(%s)", pathres);
 
@@ -213,12 +210,17 @@ loadpage(char *link)
 		if (fclose(res))
 			err(1, "flose(%s)", pathres);
 
+		link_clear();
+		link_store(uri);
+
 		return loadpage(pt);
 	case HTTP:
 	case HTTPS:
 		break;
 	}
 
+	link_clear();
+	link_store(uri);
 	undo_add(uri);
 
 	if (!(fp = fopen(pathuri, "w")))
@@ -229,46 +231,53 @@ loadpage(char *link)
 	if (fclose(fp))
 		err(1, "flose(%s)", pathuri);
 
+	if (!(out = fopen(pathout, "w")))
+		err(1, "fopen(%s)", pathout);
+
 	switch (mime) {
 	default:
 	case BINARY:
 		why = "Unsopported mime file type";
 		break;
 	case TEXT:
+		if (!(why = fcp(res, out)))
+			snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+		break;
 	case GPH:
+		gph_print(res, out);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+		break;
 	case GMI:
+		gmi_print(res, out);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
+		break;
 	case HTML:
-		if (!(out = fopen(pathout, "w")))
-			err(1, "fopen(%s)", pathout);
-
-		switch (mime) {
-		case TEXT: why = fcp(res, out); break;
-		case GPH: gph_print(res, out); break;
-		case GMI: gmi_print(res, out); break;
-		case HTML: html_print(res, out); break;
-		}
-
-		if (fclose(out))
-			err(1, "flose(%s)", pathout);
-
+		html_print(res, out);
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathout);
 		break;
 	case IMAGE:
-		snprintf(buf, sizeof buf, "%s %s", envimage, pathout);
+		if (!(why = fcp(res, out)))
+			snprintf(buf, sizeof buf, "%s %s", envimage, pathout);
 		break;
 	case VIDEO:
-		snprintf(buf, sizeof buf, "%s %s", envvideo, pathout);
+		if (!(why = fcp(res, out)))
+			snprintf(buf, sizeof buf, "%s %s", envvideo, pathout);
 		break;
 	case AUDIO:
-		snprintf(buf, sizeof buf, "%s %s", envaudio, pathout);
+		if (!(why = fcp(res, out)))
+			snprintf(buf, sizeof buf, "%s %s", envaudio, pathout);
 		break;
 	case PDF:
-		snprintf(buf, sizeof buf, "%s %s", envpdf, pathout);
+		if (!(why = fcp(res, out)))
+			snprintf(buf, sizeof buf, "%s %s", envpdf, pathout);
 		break;
 	}
 
 	if (fclose(res))
 		err(1, "flose(%s)", pathres);
+
+	if (fclose(out))
+		err(1, "flose(%s)", pathout);
 
 	system(buf);
 	return 0;
