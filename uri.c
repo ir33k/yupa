@@ -125,6 +125,9 @@ uri_normalize(char *link, char *base)
 		path = uri_path(buf);
 	}
 
+	if (!host)
+		host = "";
+
 	if (!protocol)
 		protocol = port;
 
@@ -145,12 +148,12 @@ uri_normalize(char *link, char *base)
 	if (!path)
 		path = "";
 
-	/* Resolve "//" "." and ".." */
+	/* Resolve "//" "./" and "../" */
 	if (path[0]) {
 		while ((pt = strstr(path, "//")))
 			path = pt + 1;
 
-		while ((pt = strstr(path, ".."))) {
+		while ((pt = strstr(path, "../"))) {
 			if (pt == path)
 				break;
 
@@ -165,7 +168,7 @@ uri_normalize(char *link, char *base)
 		}
 
 		pt = path;
-		while ((pt = strstr(pt, "/.")))
+		while ((pt = strstr(pt, "./")))
 			skip(pt, 2);
 	}
 
