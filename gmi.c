@@ -141,7 +141,7 @@ Listitem(char *line, FILE *res, FILE *out)
 		line = fgets(buf, sizeof buf, res);
 
 		if (!line || strncmp(line, "* ", 2)) {
-			if (fseek(res, -strlen(line), SEEK_CUR) == -1)
+			if (line && fseek(res, -strlen(line), SEEK_CUR) == -1)
 				err(1, "gmi Listitem fseek");
 			break;
 		}
