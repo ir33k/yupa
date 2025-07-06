@@ -1,3 +1,4 @@
+#include <err.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -114,7 +115,6 @@ Listitem(char *line, FILE *res, FILE *out)
 {
 	char buf[4096], prefix[16];
 	unsigned i;
-	long pos;
 
 	/* NOTE(irek): Gemini supports only unordered list but only
 	 * because that syntax is simpler.  Ordered lists are more
@@ -128,27 +128,26 @@ Listitem(char *line, FILE *res, FILE *out)
 	 * with ordered list is a bad idea.  It would be perfect to
 	 * check all list items but for simplicity I'm looking only at
 	 * first line. */
-	i = isdigit(*line) ? 0 : 1;
+	i = isdigit(line[0]) ? 0 : 1;
 
-	pos = ftell(res);
 	while (1) {
-		if (i) {	/* Ordered list */
+		if (i) {	/* Unordered list */
+			printwrap(line, "* ", out);
+		} else {	/* Ordered list */
 			snprintf(prefix, sizeof prefix, "%u) ", i++);
 			printwrap(line, prefix, out);
-		} else {	/* Unordered list */
-			printwrap(line, "* ", out);
 		}
 
-		pos = ftell(res);
 		line = fgets(buf, sizeof buf, res);
 
-		if (!line || strncmp(line, "* ", 2))
+		if (!line || strncmp(line, "* ", 2)) {
+			if (fseek(res, -strlen(line), SEEK_CUR) == -1)
+				err(1, "gmi Listitem fseek");
 			break;
+		}
 
 		line = trim(line +2);
 	}
-
-	fseek(res, SEEK_SET, pos);
 }
 
 void
@@ -291,9 +290,6 @@ gmi_print(FILE *res, FILE *out)
 {
 	char buf[4096], *line;
 	unsigned i;
-
-	/* Skip header line */
-	fgets(buf, sizeof buf, res);
 
 	while ((line = fgets(buf, sizeof buf, res))) {
 		/* NOTE(irek): -1 is used to skip check for last markup.
