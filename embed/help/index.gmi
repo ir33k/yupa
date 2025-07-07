@@ -22,4 +22,4 @@ $ cmd   Run shell command
 => shell.gmi	Shell
 => binds.gmi	Binds
 => cache.gmi	Cache
-=> spport.gmi	Support
+=> support.gmi	Support

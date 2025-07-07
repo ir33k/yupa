@@ -12,4 +12,19 @@ Yupa aims to have full support for Gopher and Gemini protocols.  HTTP support is
 
 ## MIME types
 
-TODO
+It's not the protocol, but MIME type that determinates how response body will be printed.  Gopher, Gemini and HTML pages are formatted using YUPAMARGIN and YUPAWIDTH settings.  Other regular text files are just displayed as they are using YUPAPAGER.  Media files are open with corresponding YUPAIMG, YUPAVIDEO, YUAPAUDIO and YUPAPDF programs.  Binary files are not open but can be handled with  `!` or `|` shell commands.
+
+* text/gemini - .gmi
+* applicatoin/gopher-menu - .gph
+* text/html - .html
+* text/ - .txt
+* image/ - .jpg, .jpeg, .png, .bmp, .gif
+* video/ - .mp4, .mov, .avi, .mkv
+* audio/ - .wav, .mp3
+* application/pdf - .pdf
+* application/octet-stream - (binary)
+
+## See also
+
+=> envs.gmi	Environment
+=> shell.gmi	Shell

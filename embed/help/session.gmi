@@ -27,7 +27,7 @@ yupa> $ echo $YUPASESSION
 /home/user/.yupa/2
 
 yupa> $ cd $YUPASESSION
-$ find .
+yupa> $ find .
 ./.lock
 ./res
 ./out
