@@ -31,26 +31,26 @@
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
 
-extern char _binary_embed_binds_start;
-extern char _binary_embed_binds_end;
-extern char _binary_embed_help_binds_gmi_start;
-extern char _binary_embed_help_binds_gmi_end;
-extern char _binary_embed_help_cache_gmi_start;
-extern char _binary_embed_help_cache_gmi_end;
-extern char _binary_embed_help_envs_gmi_start;
-extern char _binary_embed_help_envs_gmi_end;
-extern char _binary_embed_help_history_gmi_start;
-extern char _binary_embed_help_history_gmi_end;
-extern char _binary_embed_help_index_gmi_start;
-extern char _binary_embed_help_index_gmi_end;
-extern char _binary_embed_help_links_gmi_start;
-extern char _binary_embed_help_links_gmi_end;
-extern char _binary_embed_help_session_gmi_start;
-extern char _binary_embed_help_session_gmi_end;
-extern char _binary_embed_help_shell_gmi_start;
-extern char _binary_embed_help_shell_gmi_end;
-extern char _binary_embed_help_support_gmi_start;
-extern char _binary_embed_help_support_gmi_end;
+extern const char _binary_binds_start[];
+extern const char _binary_binds_end[];
+extern const char _binary_help_binds_gmi_start[];
+extern const char _binary_help_binds_gmi_end[];
+extern const char _binary_help_cache_gmi_start[];
+extern const char _binary_help_cache_gmi_end[];
+extern const char _binary_help_envs_gmi_start[];
+extern const char _binary_help_envs_gmi_end[];
+extern const char _binary_help_history_gmi_start[];
+extern const char _binary_help_history_gmi_end[];
+extern const char _binary_help_index_gmi_start[];
+extern const char _binary_help_index_gmi_end[];
+extern const char _binary_help_links_gmi_start[];
+extern const char _binary_help_links_gmi_end[];
+extern const char _binary_help_session_gmi_start[];
+extern const char _binary_help_session_gmi_end[];
+extern const char _binary_help_shell_gmi_start[];
+extern const char _binary_help_shell_gmi_end[];
+extern const char _binary_help_support_gmi_start[];
+extern const char _binary_help_support_gmi_end[];
 
 char *envhome    = "~/.yupa";
 char *envsession = "~/.yupa/0";
@@ -80,7 +80,7 @@ static void run();
 static void end() __attribute__((noreturn));
 static void onsignal(int);
 static char *startsession();
-static void embed(char *path, char *data_start, char *data_end);
+static void save(char *name, const char *bin_start, const char *bin_end);
 
 void
 usage(char *argv0)
@@ -96,7 +96,7 @@ usage(char *argv0)
 	       "	Use URI/URL to load a page.\n"
 	       "	Use \"h\" to learn about prompt commands.\n"
 	       "\n"
-	       "env:\n"
+	       "envs:\n"
 	       "	YUPAHOME     Absolute path to user data (%s).\n"
 	       "	YUPASESSION  Runtime path to session dir (%s).\n"
 	       "	YUPAPAGER    Overwrites $PAGER value (%s).\n"
@@ -106,8 +106,9 @@ usage(char *argv0)
 	       "	YUPAPDF      Comand to open PDFs (%s).\n"
 	       "	YUPAMARGIN   Left margin (%d).\n"
 	       "	YUPAWIDTH    Max width (%d).\n",
-	       argv0, envhome, envsession, envpager,
-	       envimage, envvideo, envaudio, envpdf,
+	       argv0,
+	       envhome, envsession,
+	       envpager, envimage, envvideo, envaudio, envpdf,
 	       envmargin, envwidth);
 }
 
@@ -524,34 +525,36 @@ startsession()
 }
 
 void
-embed(char *path, char *data_start, char *data_end)
+save(char *name, const char *bin_start, const char *bin_end)
 {
 	FILE *fp;
+	char *path;
+
+	path = join(envhome, name);
 
 	if (!access(path, F_OK))
 		return;
 
 	if (!(fp = fopen(path, "w")))
-		err(1, "embed fopen %s", path);
+		err(1, "save fopen %s", path);
 
-	fwrite(data_start, 1, data_end - data_start, fp);
+	fwrite(bin_start, 1, bin_end - bin_start, fp);
 
 	if (fclose(fp))
-		err(1, "embed fclose %s", path);
+		err(1, "save fclose %s", path);
 }
 
 int
 main(int argc, char **argv)
 {
 	int opt;
-	char *uri=0;
+	char *uri=0, *env;
 	struct sigaction sa;
 
 	sa.sa_handler = onsignal;
 	sigaction(SIGTERM, &sa, 0);
 	sigaction(SIGINT, &sa, 0);
 
-	envstr("YUPAHOME",   &envhome);
 	envstr("PAGER",      &envpager);
 	envstr("YUPAPAGER",  &envpager);
 	envstr("YUPAIMAGE",  &envimage);
@@ -561,7 +564,13 @@ main(int argc, char **argv)
 	envint("YUPAMARGIN", &envmargin);
 	envint("YUPAWIDTH",  &envwidth);
 
+	if ((env = getenv("YUPAHOME")))
+		envhome = env;
+
 	envhome = strdup(resolvepath(envhome));
+	if (setenv("YUPAHOME", envhome, 1))
+		err(1, "setenv(YUPAHOME)");
+
 	mkdir(envhome, 0755);
 
 	envsession = startsession();
@@ -598,36 +607,36 @@ main(int argc, char **argv)
 	mkdir(pathcache, 0755);
 	mkdir(join(envhome, "/help"), 0755);
 
-	embed(join(envhome, "/binds"),
-	      &_binary_embed_binds_start,
-	      &_binary_embed_binds_end);
-	embed(join(envhome, "/help/binds.gmi"),
-	      &_binary_embed_help_binds_gmi_start,
-	      &_binary_embed_help_binds_gmi_end);
-	embed(join(envhome, "/help/cache.gmi"),
-	      &_binary_embed_help_cache_gmi_start,
-	      &_binary_embed_help_cache_gmi_end);
-	embed(join(envhome, "/help/envs.gmi"),
-	      &_binary_embed_help_envs_gmi_start,
-	      &_binary_embed_help_envs_gmi_end);
-	embed(join(envhome, "/help/history.gmi"),
-	      &_binary_embed_help_history_gmi_start,
-	      &_binary_embed_help_history_gmi_end);
-	embed(join(envhome, "/help/index.gmi"),
-	      &_binary_embed_help_index_gmi_start,
-	      &_binary_embed_help_index_gmi_end);
-	embed(join(envhome, "/help/links.gmi"),
-	      &_binary_embed_help_links_gmi_start,
-	      &_binary_embed_help_links_gmi_end);
-	embed(join(envhome, "/help/session.gmi"),
-	      &_binary_embed_help_session_gmi_start,
-	      &_binary_embed_help_session_gmi_end);
-	embed(join(envhome, "/help/shell.gmi"),
-	      &_binary_embed_help_shell_gmi_start,
-	      &_binary_embed_help_shell_gmi_end);
-	embed(join(envhome, "/help/support.gmi"),
-	      &_binary_embed_help_support_gmi_start,
-	      &_binary_embed_help_support_gmi_end);
+	save("/binds",
+	     _binary_binds_start,
+	     _binary_binds_end);
+	save("/help/binds.gmi",
+	     _binary_help_binds_gmi_start,
+	     _binary_help_binds_gmi_end);
+	save("/help/cache.gmi",
+	     _binary_help_cache_gmi_start,
+	     _binary_help_cache_gmi_end);
+	save("/help/envs.gmi",
+	     _binary_help_envs_gmi_start,
+	     _binary_help_envs_gmi_end);
+	save("/help/history.gmi",
+	     _binary_help_history_gmi_start,
+	     _binary_help_history_gmi_end);
+	save("/help/index.gmi",
+	     _binary_help_index_gmi_start,
+	     _binary_help_index_gmi_end);
+	save("/help/links.gmi",
+	     _binary_help_links_gmi_start,
+	     _binary_help_links_gmi_end);
+	save("/help/session.gmi",
+	     _binary_help_session_gmi_start,
+	     _binary_help_session_gmi_end);
+	save("/help/shell.gmi",
+	     _binary_help_shell_gmi_start,
+	     _binary_help_shell_gmi_end);
+	save("/help/support.gmi",
+	     _binary_help_support_gmi_start,
+	     _binary_help_support_gmi_end);
 
 	bind_init();
 
