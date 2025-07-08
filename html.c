@@ -3,10 +3,11 @@
 #include <string.h>
 #include <err.h>
 #include "util.h"
+#include "mime.h"
 #include "html.h"
 
-enum element {
-	E_NULL=0, E_A, E_ADDRESS, E_AREA, E_ARTICLE, E_ASIDE, E_B,
+enum {
+	E_A, E_ADDRESS, E_AREA, E_ARTICLE, E_ASIDE, E_B,
 	E_BASE, E_BLOCKQUOTE, E_BR, E_BUTTON, E_CODE, E_COL, E_DD,
 	E_DETAILS, E_DIV, E_DL, E_DT, E_EM, E_EMBED, E_FIELDSET,
 	E_FIGCAPTION, E_FIGURE, E_FOOTER, E_FORM, E_H1, E_H2, E_H3,
@@ -14,32 +15,17 @@ enum element {
 	E_LINK, E_MAIN, E_META, E_NAV, E_NOSCRIPT, E_OL, E_P, E_PARAM,
 	E_PRE, E_SECTION, E_SELECT, E_SOURCE, E_SPAN, E_STRONG,
 	E_TABLE, E_TD, E_TEXT, E_TFOOT, E_TH, E_THEAD, E_TR, E_TRACK,
-	E_U, E_UL, E_VIDEO, E_WBR };
+	E_U, E_UL, E_VIDEO, E_WBR};
 
 enum flag {
 	F_INLINE = 1 << 0,	/* Display block is the default */
 	F_VOID   = 1 << 1,	/* Self closed, with no children */
 };
 
-struct dynamic {
-	void *pt;
-	size_t item, capacity;
-	unsigned n;
-};
-
-struct node {
-	int parent, child, next;
-	enum element type;
-	char *title, *value;
-};
-
-#if 0
-
 static const struct {
 	char *name;
 	unsigned flag;
 } elements[] = {
-	[E_NULL]        = { "",           0 },
 	[E_ADDRESS]     = { "address",    0 },
 	[E_AREA]        = { "area",       F_INLINE | F_VOID },
 	[E_ARTICLE]     = { "article",    0 },
@@ -104,153 +90,59 @@ static const struct {
 	[E_WBR]         = { "wbr",        F_INLINE | F_VOID },
 };
 
-static struct dynamic nodes;
-
-static void dynamic_init(struct dynamic *, size_t item, unsigned n);
-static void dynamic_add(struct dynamic *, unsigned n);
-static void dynamic_append(struct dynamic *, void *buf, unsigned n);
-static void dynamic_clear(struct dynamic *);
-
-void
-dynamic_init(struct dynamic *d, size_t item, unsigned n)
-{
-	memset(d, 0, sizeof(*d));
-	d->item = item;
-	dynamic_add(d, n);
-}
-
-void
-dynamic_add(struct dynamic *d, unsigned n)
-{
-	d->capacity += n;
-	d->pt = realloc(d->pt, d->capacity * d->item);
-
-	if (!d->pt)
-		err(1, "dynamic realloc");
-}
-
-void
-dynamic_append(struct dynamic *d, void *buf, unsigned n)
-{
-	if (d->capacity - d->n < n)
-		dynamic_add(d, n);
-
-	memcpy((char*)d->pt + d->n*d->item, buf, n*d->item);
-	d->n += n;
-}
-
-void
-dynamic_clear(struct dynamic *d)
-{
-	d->n = 0;
-}
-
-static char *parse_node_text(char *str, int parent);
-static char *parse_node(char *str, int parent, int child);
-static void parse(char *str);
-
-
-char *
-parse_node_text(char *str, int parent)
-{
-	struct node node = {0};
-
-	node.parent = parent;
-	node.type = E_TEXT;
-	node.value = str;
-
-	dynamic_append(&nodes, &node, 1);
-
-	while (*str && *str != '<') str++;
-
-	if (!*str)
-		return str;
-
-	*str = 0;
-	return str +1;
-}
-
-char *
-parse_node(char *str, int parent, int child)
-{
-	struct node node = {0};
-	char *name, c;
-	int i;
-
-	nodes.pt[parent].child = child;
-	node.parent = parent;
-
-	str = str_trim_left(str);
-	if (!*str)
-		return;
-
-	if (*str != '<')
-		str = parse_node_text(str, parent);
-
-	if (!*str)
-		return;
-
-	/* Ignore <!DOCUMENT html> */
-	if (*str == '!')
-		parse_node(str, parent);
-
-	if (*str == '/')
-		return;
-
-	name = str;
-	str = strcspn(str, "/> \t");
-	if (!str) return;	/* Missing end of element name */
-	c = *str;
-	*str = 0;
-	str++;
-
-	for (i=1; i<COUNT(elements); i++) {
-		if (!strncasecmp(name, elements[i].name)) {
-			node.type = i;
-			break;
-		}
-	}
-
-	if (!node.type)
-		node.value = name;
-
-	if (c == ' ' || c == '\t') {
-		str = str_trim_left(str);
-		c = *str;
-	}
-
-	if (c != '/' && c != '>') {
-	}
-}
-
-void
-parse(char *str)
-{
-	struct node node = {0};
-
-	node.type = E_NULL;
-	node.value = "root";
-
-	dynamic_append(&nodes, &node, 1);
-	dynamic_append(&nodes, &node, 1);
-
-	while (*str)
-		str = parse_node(str, 0, nodes.n);
-}
-#endif
-
 why_t
 html_onheader(FILE *res, int *mime, char **redirect)
 {
-	(void)res;
-	(void)mime;
-	(void)redirect;
+	char buf[4096], *pt;
+	int code;
+
+	if (!fgets(buf, sizeof buf, res))
+		return "Missing HTTP header";
+
+	if (!startswith(buf, "HTTP"))
+		return "Missing HTTP header first line";
+
+	if (!(pt = strchr(buf, ' ')))
+		return "Missing HTTP response code";
+
+	*mime = 0;
+	*redirect = 0;
+	code = atoi(trim(pt));
+
+	switch (code) {
+	case 200:	// Ok
+		break;
+	case 307:	// Temporary redirect
+	case 308:	// Permanent redirect
+		while (fgets(buf, sizeof buf, res)) {
+			if (!strcmp(buf, "\r\n"))
+				break;
+
+			if (startswith(buf, "location:")) {
+				*redirect = trim(buf +9);
+				return 0;
+			}
+		}
+		return "Failed to find locatoin header for redirection";
+	default:
+		return tellme("Failed with %s", trim(buf));
+	}
+
+	while (fgets(buf, sizeof buf, res)) {
+		if (!strcmp(buf, "\r\n"))
+			break;
+
+		if (!*mime && startswith(buf, "content-type:"))
+			*mime = mime_header(trim(buf +13));
+	}
+
 	return 0;
 }
 
 void
 html_print(FILE *res, FILE *out)
 {
+	
 	(void)res;
 	(void)out;
 }
