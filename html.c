@@ -203,7 +203,7 @@ parse_node(char *str, int parent, int child)
 	*str = 0;
 	str++;
 
-	for (i=1; i<SIZE(elements); i++) {
+	for (i=1; i<COUNT(elements); i++) {
 		if (!strncasecmp(name, elements[i].name)) {
 			node.type = i;
 			break;

@@ -294,7 +294,7 @@ gmi_print(FILE *res, FILE *out)
 	while ((line = fgets(buf, sizeof buf, res))) {
 		/* NOTE(irek): -1 is used to skip check for last markup.
 		 * With that last element it the default which is Text. */
-		for (i=0; i<SIZE(markup)-1; i++)
+		for (i=0; i<COUNT(markup)-1; i++)
 			if (!strncmp(line, markup[i].prefix, markup[i].n))
 				break;
 

@@ -7,33 +7,30 @@
 #include "bind.h"
 
 static char *binds['Z'-'A'+1]={0};
-static char *path;
-static void save();
+static void save(char *path);
 
 void
-save()
+save(char *path)
 {
 	int i;
 	FILE *fp;
 
 	if (!(fp = fopen(path, "w")))
-		err(1, "bind save fopen");
+		err(1, "bind save fopen %s", path);
 
-	for (i=0; i<SIZE(binds); i++)
+	for (i=0; i<COUNT(binds); i++)
 		if (binds[i])
 			fprintf(fp, "%c\t%s\n", i+'A', binds[i]);
 
 	if (fclose(fp))
-		err(1, "bind save fclose");
+		err(1, "bind save fclose %s", path);
 }
 
 void
-bind_init()
+bind_init(char *path)
 {
 	char buf[4096];
 	FILE *fp;
-
-	path = join(envhome, "/binds");
 
 	if (!(fp = fopen(path, "r")))
 		return;		/* Ignore error, file might not exist */
@@ -42,11 +39,11 @@ bind_init()
 		binds[buf[0]-'A'] = strdup(trim(buf+1));
 
 	if (fclose(fp))
-		err(1, "bind_init flose");
+		err(1, "bind_init flose %s", path);
 }
 
 void
-bind_set(char bind, char *str)
+bind_set(char bind, char *str, char *path)
 {
 	int i = bind-'A';
 
@@ -54,7 +51,7 @@ bind_set(char bind, char *str)
 		free(binds[i]);
 
 	binds[i] = strdup(str);
-	save();
+	save(path);
 }
 
 char *

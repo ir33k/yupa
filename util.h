@@ -1,4 +1,4 @@
-#define SIZE(array) (int)((sizeof array) / (sizeof (array)[0]))
+#define COUNT(array) (int)((sizeof array) / (sizeof (array)[0]))
 
 typedef char *why_t;
 

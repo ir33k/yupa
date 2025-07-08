@@ -1,9 +1,9 @@
-A	$ uri=$(cat $YUPASESSION/uri) && echo "=> $uri" >> book.gmi
+A	$ echo "=> $(cat $YUPASESSION/uri)" >> $YUPAHOME/book.gmi
 B	% echo file://$YUPAHOME/book.gmi
 C	i0
 D	$ echo "TODO Run download script"
 E	$ $EDITOR $YUPASESSION/body
-H	% echo file://$YUPAHOME/undo.gmi
+H	% echo file://$YUPAHOME/history.gmi
 R	$ less $YUPASESSION/res
 T	/
 U	../

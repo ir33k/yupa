@@ -63,12 +63,14 @@ int   envmargin  = 4;
 int   envwidth   = 76;
 
 static char *pathlock;
-static char *pathuri;
 static char *pathres;
 static char *pathout;
-static char *pathcache;
-static char *pathcmd;
+static char *pathuri;
 static char *pathinfo;
+static char *pathcmd;
+static char *pathcache;
+static char *pathbinds;
+static char *pathhistory;
 
 static void usage(char *argv0);
 static void envstr(char *name, char **env);
@@ -100,10 +102,10 @@ usage(char *argv0)
 	       "	YUPAHOME     Absolute path to user data (%s).\n"
 	       "	YUPASESSION  Runtime path to session dir (%s).\n"
 	       "	YUPAPAGER    Overwrites $PAGER value (%s).\n"
-	       "	YUPAIMAGE    Comand to display images (%s).\n"
-	       "	YUPAVIDEO    Comand to play videos (%s).\n"
-	       "	YUPAAUDIO    Comand to play audio (%s).\n"
-	       "	YUPAPDF      Comand to open PDFs (%s).\n"
+	       "	YUPAIMAGE    Command to display images (%s).\n"
+	       "	YUPAVIDEO    Command to play videos (%s).\n"
+	       "	YUPAAUDIO    Command to play audio (%s).\n"
+	       "	YUPAPDF      Command to open PDFs (%s).\n"
 	       "	YUPAMARGIN   Left margin (%d).\n"
 	       "	YUPAWIDTH    Max width (%d).\n",
 	       argv0,
@@ -244,7 +246,7 @@ loadpage(char *link)
 
 	link_clear();
 	link_store(uri);
-	undo_add(uri);
+	undo_add(uri, pathhistory);
 
 	if (!(fp = fopen(pathuri, "w")))
 		err(1, "fopen(%s)", pathuri);
@@ -354,7 +356,7 @@ oncmd(char *cmd)
 
 	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
 		if (arg[0])
-			bind_set(cmd[0], arg);
+			bind_set(cmd[0], arg, pathbinds);
 		else if ((str = bind_get(cmd[0])))
 			onprompt(str);
 
@@ -596,13 +598,15 @@ main(int argc, char **argv)
 			return 1;
 		}
 
-	pathlock  = strdup(join(envsession, "/.lock"));
-	pathres   = strdup(join(envsession, "/res"));
-	pathout   = strdup(join(envsession, "/out"));
-	pathcache = strdup(join(envsession, "/cache"));
-	pathcmd   = strdup(join(envsession, "/cmd"));
-	pathinfo  = strdup(join(envsession, "/info"));
-	pathuri   = strdup(join(envsession, "/uri"));
+	pathlock    = strdup(join(envsession, "/.lock"));
+	pathres     = strdup(join(envsession, "/res"));
+	pathout     = strdup(join(envsession, "/out"));
+	pathuri     = strdup(join(envsession, "/uri"));
+	pathinfo    = strdup(join(envsession, "/info"));
+	pathcmd     = strdup(join(envsession, "/cmd"));
+	pathcache   = strdup(join(envsession, "/cache"));
+	pathbinds   = strdup(join(envhome, "/binds"));
+	pathhistory = strdup(join(envhome, "/history.gmi"));
 
 	mkdir(pathcache, 0755);
 	mkdir(join(envhome, "/help"), 0755);
@@ -638,7 +642,7 @@ main(int argc, char **argv)
 	     _binary_help_support_gmi_start,
 	     _binary_help_support_gmi_end);
 
-	bind_init();
+	bind_init(pathbinds);
 
 	if (argc - optind > 0)
 		uri = argv[argc-optind];

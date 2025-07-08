@@ -51,11 +51,11 @@ navlabel(char item)
 
 	buf[0] = 0;
 
-	for (i=0; i<SIZE(navitems); i++)
+	for (i=0; i<COUNT(navitems); i++)
 		if (navitems[i].item == item)
 			break;
 
-	if (i<SIZE(navitems) && navitems[i].mime)
+	if (i<COUNT(navitems) && navitems[i].mime)
 		snprintf(buf, sizeof buf, "(%s) ", navitems[i].label);
 
 	return buf;
@@ -133,9 +133,9 @@ gph_mime(char *path)
 	if (strlen(path) < 2 || path[0] != '/' || path[2] != '/')
 		return GPH;
 
-	for (i=0; i<SIZE(navitems); i++)
+	for (i=0; i<COUNT(navitems); i++)
 		if (navitems[i].item == path[1])
 			break;
 
-	return i<SIZE(navitems) ? navitems[i].mime : TEXT;
+	return i<COUNT(navitems) ? navitems[i].mime : TEXT;
 }

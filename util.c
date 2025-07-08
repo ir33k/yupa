@@ -131,6 +131,7 @@ fail:	if (fclose(fp0))
 int
 startswith(char *str, char *prefix)
 {
+	if (!str) str = "";
 	unsigned n = strlen(prefix);
 	return n > strlen(str) ? 0 : !strncasecmp(str, prefix, n);
 }

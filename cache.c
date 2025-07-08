@@ -30,7 +30,7 @@ cache_add(char *key, char *src)
 	char *dst;
 
 	/* Find empty spot or oldest entry */
-	for (i=0; i<SIZE(entries); i++) {
+	for (i=0; i<COUNT(entries); i++) {
 		if (!entries[i].key)
 			break;			/* Found empty */
 
@@ -46,7 +46,7 @@ cache_add(char *key, char *src)
 	}
 
 	/* No empty spots, use oldest */
-	if (i == SIZE(entries)) {
+	if (i == COUNT(entries)) {
 		i = oldest;
 		free(entries[i].key);
 	}
@@ -67,7 +67,7 @@ cache_get(char *key)
 {
 	unsigned i;
 
-	for (i=0; i<SIZE(entries); i++)
+	for (i=0; i<COUNT(entries); i++)
 		if (entries[i].key && !strcmp(entries[i].key, key))
 			return makepath(i);
 
@@ -79,7 +79,7 @@ cache_cleanup()
 {
 	unsigned i;
 
-	for (i=0; i<SIZE(entries); i++)
+	for (i=0; i<COUNT(entries); i++)
 		if (entries[i].key)
 			unlink(makepath(i));
 
