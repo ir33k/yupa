@@ -1,46 +1,41 @@
-Yupa the CLI web browser for multiple web protocols.
+Yupa is a CLI browser for Gopher, Gemini and HTTP[S] (beta) protocols.
 
-
-			   WORK IN PROGRESS
-
-	     Working on v4, making Yupa from scratch with
-		 different mindset and design goals.
-				   
-
+Documentation is accessible inside Yupa in help pages that are open
+with `h` command.  Pages describe topics like history, links, cache,
+session, extensibility through custom binds, shell commands, env
+variables and more.
 
 Build and run:
 
-	$ ./build               # Compile and run tests
-	$ ./yupa -h             # Print usage instruction
-	$ ./yupa URI            # Run with optional URI
+	$ ./build       # Compile and run tests
+	$ ./yupa -h     # Print usage instruction
+	$ ./yupa URI    # Run with optional URI
+	$ yupa> h       # Open help pages within Yupa
 
-Changelog:
+Usage:
 
-	2025-06-15 Sun 11:43	v4.0
+	yupa> gemini://tilde.pink       # Load page
 
-	1. Redesign whole thing, focus on basics, try to make HTML work.
-	2. Remove notion of tabs, work with only one page.
+	# After page is loaded the YUPAPAGER (less by default) is used
+	# to display it.  When you are done reading the page and you
+	# want to insert another Yupa command you have to first quit
+	# the pages.  In case of less it's done by pressing 'q'.
 
-	2024.01.14 Sun 01:00	v3.1
+	yupa> i81       # Inspect page link
+	yupa> 81        # Visit page link
+	yupa> b         # Go back in undo history
+	yupa> f         # Go forward in undo history
+	yupa> q         # Quit
 
-	1. Update internal help message.
-	2. Fix bug with using relative Gemini link after redirection.
+----------------------------------------------------------------------
 
-	2024.01.13 Sat 07:07	v3.0
+Yupa is a successor to gmi100 [1][2] which is a Gemini CLI browser
+written in 100 lines of C.  Even tho gmi100 was just made for fun I
+found it approach to browsing text protocols very appealing.  I kept
+using gmi100 despite having "better" alternatives easily available.
 
-	1. Basic support for file:// protocol.
+This is how Yupa was born.  It's essentially the same interface with
+same UX philosophy but with support for more protocols and features.
 
-	2024.01.12 Fri 19:27	v2.0
-
-	1. Basic support for gemini:// protocol.
-	2. Support relative URIs.
-	3. Support redirections.
-	4. Fix typos in comments by Kian-Meng Ang <kianmeng@cpan.org>.
-
-	2024.01.03 Wed 01:21	v1.0
-
-	1. Initial release.
-	2. Support gopher:// protocol.
-	3. Interactive command menu navigation.
-	4. Tabs.
-	5. Browsing history.
+[1] http://irek.gabr.pl/gmi100.html
+[2] https://github.com/ir33k/gmi100
