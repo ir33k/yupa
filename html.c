@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
+#include "util.h"
 #include "html.h"
 
 enum element {
@@ -237,6 +238,15 @@ parse(char *str)
 		str = parse_node(str, 0, nodes.n);
 }
 #endif
+
+why_t
+html_onheader(FILE *res, int *mime, char **redirect)
+{
+	(void)res;
+	(void)mime;
+	(void)redirect;
+	return 0;
+}
 
 void
 html_print(FILE *res, FILE *out)

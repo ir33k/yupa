@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <err.h>
 #include <pwd.h>
 #include <stdarg.h>

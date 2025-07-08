@@ -241,6 +241,22 @@ loadpage(char *link)
 		return loadpage(pt);
 	case HTTP:
 	case HTTPS:
+		pt = 0;
+		if ((why = html_onheader(res, &mime, &pt)))
+			return why;
+
+		if (!pt)
+			break;
+
+		/* Redirect */
+
+		if (fclose(res))
+			err(1, "flose(%s)", pathres);
+
+		link_clear();
+		link_store(uri);
+
+		return loadpage(pt);
 		break;
 	}
 
@@ -348,7 +364,7 @@ oncmd(char *cmd)
 	/* When second character is not a whitespace (including null
 	 * terminator) and it's not a digit then we can't tell if this
 	 * is an Link or invalid command.  It's better to return it
-	 * right away to try interpert it as a link. */
+	 * right away to try interpret it as a link. */
 	if (cmd[1] > ' ' && !isdigit(cmd[1]))
 		return cmd;
 
@@ -550,7 +566,7 @@ int
 main(int argc, char **argv)
 {
 	int opt;
-	char *uri=0, *env;
+	char *prompt=0, *env;
 	struct sigaction sa;
 
 	sa.sa_handler = onsignal;
@@ -643,12 +659,13 @@ main(int argc, char **argv)
 	     _binary_help_support_gmi_end);
 
 	bind_init(pathbinds);
+	undo_load(pathhistory);
 
 	if (argc - optind > 0)
-		uri = argv[argc-optind];
+		prompt = argv[argc-optind];
 
-	if (uri)
-		onprompt(uri);
+	if (prompt)
+		onprompt(prompt);
 
 	run();
 	end();

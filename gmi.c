@@ -222,7 +222,7 @@ gmi_search(char *header)
 	if (header[0] != '1')
 		return 0;
 
-	/* TODO(irek): For respnse code 10 a regular text input is
+	/* TODO(irek): For response code 10 a regular text input is
 	 * expected but for 11 a sensitive input like password should
 	 * be taken without printing typed text in terminal. */
 

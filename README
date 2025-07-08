@@ -7,7 +7,7 @@ variables and more.
 
 Build and run:
 
-	$ ./build       # Compile and run tests
+	$ ./build       # Compile yupa binary
 	$ ./yupa -h     # Print usage instruction
 	$ ./yupa URI    # Run with optional URI
 	$ yupa> h       # Open help pages within Yupa
