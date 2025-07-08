@@ -62,6 +62,8 @@ char *envpdf     = "xdg-open";
 int   envmargin  = 4;
 int   envwidth   = 76;
 
+static int silent = 0;
+
 static char *pathlock;
 static char *pathres;
 static char *pathout;
@@ -321,7 +323,7 @@ loadpage(char *link)
 	if (fclose(out))
 		err(1, "flose(%s)", pathout);
 
-	if (cmd) {
+	if (!silent && cmd) {
 		snprintf(buf, sizeof buf, "%s %s", cmd, pathout);
 		system(buf);
 	}
@@ -427,6 +429,10 @@ oncmd(char *cmd)
 		break;
 	case 'c':
 		cache_cleanup();
+		break;
+	case 's':
+		silent = !silent;
+		printf("Silent mode %s\n", silent ? "enabled" : "disabled");
 		break;
 	case '$':
 		system(arg);
@@ -659,13 +665,18 @@ main(int argc, char **argv)
 	     _binary_help_support_gmi_end);
 
 	bind_init(pathbinds);
-	undo_load(pathhistory);
 
 	if (argc - optind > 0)
 		prompt = argv[argc-optind];
 
-	if (prompt)
+	if (prompt) {
 		onprompt(prompt);
+	} else if (!access(pathhistory, F_OK)) {
+		silent = 1;
+		onprompt(join("file://", pathhistory));
+		onprompt("$ less -XI +Rq $YUPASESSION/out");
+		silent = 0;
+	}
 
 	run();
 	end();

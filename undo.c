@@ -6,6 +6,7 @@
 #include <time.h>
 #include "main.h"
 #include "util.h"
+#include "link.h"
 #include "uri.h"
 #include "undo.h"
 
@@ -57,13 +58,6 @@ save(char *uri, char *path)
 
 	if (fclose(fp))
 		err(1, "undo save fclose %s", path);
-}
-
-void
-undo_load(char *path)
-{
-	(void)path;
-	// TODO(irek): Load last entires from history.gmi file.
 }
 
 void

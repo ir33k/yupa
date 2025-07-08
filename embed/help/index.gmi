@@ -9,6 +9,7 @@ b [N]   Go back N times (default 1) in local browsing history
 f [N]   Go forward N times (default 1) in local browsing history
 i [N]   Info, list all links and binds, or specific item N
 c       Clear cache
+s       Toggle silent mode which supress showing page output
 $ cmd   Run shell command
 ! cmd   Run shell command with current page as first argument
 | cmd   Run shell command with current page as standard input

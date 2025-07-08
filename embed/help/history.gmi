@@ -12,7 +12,7 @@ To visit oldest entries, or future entries that got lost because new page was lo
 
 Browsing history is stored in $YUPAHOME/history.gmi file.  So it is persistent and shared between sessions.  Only successfully loaded pages are added.  Redirected pages, response with errors and local $YUPAHOME files are ignored.
 
-To access history simply open file://$YUPAHOME/history.gmi, in default binds this is accessible under bind H.  Old entries are at the bottom, new at the top.
+To access history simply open file://$YUPAHOME/history.gmi, in default binds this is accessible under bind H.  Old entries are at the bottom, new at the top.  If you start Yupa without any arguments the history file will be open by default allowing to quickly navigate back to where you left off last time.
 
 History file size is limited to 10 KB but if you want to remove it, simply remove the file, or alter it if you want to remove just part of it.  There is no bind for that but you could for example add:
 
