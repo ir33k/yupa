@@ -16,33 +16,38 @@ CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# for setenv()
 # Embed text files as binary data.
 # Based on http://kuu.se/fossil/objcopy.cgi/doc/ckout/README.objcopy.md
 cd embed
-ld -r -z noexecstack --format=binary -o binds.o            binds
-ld -r -z noexecstack --format=binary -o help_binds_gmi.o   help/binds.gmi
-ld -r -z noexecstack --format=binary -o help_cache_gmi.o   help/cache.gmi
-ld -r -z noexecstack --format=binary -o help_envs_gmi.o    help/envs.gmi
-ld -r -z noexecstack --format=binary -o help_history_gmi.o help/history.gmi
-ld -r -z noexecstack --format=binary -o help_index_gmi.o   help/index.gmi
-ld -r -z noexecstack --format=binary -o help_links_gmi.o   help/links.gmi
-ld -r -z noexecstack --format=binary -o help_session_gmi.o help/session.gmi
-ld -r -z noexecstack --format=binary -o help_shell_gmi.o   help/shell.gmi
-ld -r -z noexecstack --format=binary -o help_support_gmi.o help/support.gmi
+
+ld -r -z noexecstack -b binary -o binds.o            binds            &
+ld -r -z noexecstack -b binary -o help_binds_gmi.o   help/binds.gmi   &
+ld -r -z noexecstack -b binary -o help_cache_gmi.o   help/cache.gmi   &
+ld -r -z noexecstack -b binary -o help_envs_gmi.o    help/envs.gmi    &
+ld -r -z noexecstack -b binary -o help_history_gmi.o help/history.gmi &
+ld -r -z noexecstack -b binary -o help_index_gmi.o   help/index.gmi   &
+ld -r -z noexecstack -b binary -o help_links_gmi.o   help/links.gmi   &
+ld -r -z noexecstack -b binary -o help_session_gmi.o help/session.gmi &
+ld -r -z noexecstack -b binary -o help_shell_gmi.o   help/shell.gmi   &
+ld -r -z noexecstack -b binary -o help_support_gmi.o help/support.gmi &
+wait
+
 for f in $(find . -name '*.o')
 do
     objcopy --rename-section .data=.rodata,alloc,load,readonly,data,contents $f
 done
+
 cd ..
 
-$CC $CFLAGS -c util.c
-$CC $CFLAGS -c uri.c
-$CC $CFLAGS -c fetch.c
-$CC $CFLAGS -c link.c
-$CC $CFLAGS -c undo.c
-$CC $CFLAGS -c bind.c
-$CC $CFLAGS -c cache.c
-$CC $CFLAGS -c gmi.c
-$CC $CFLAGS -c gph.c
-$CC $CFLAGS -c html.c
-$CC $CFLAGS -c mime.c
-$CC $CFLAGS -c main.c
+$CC $CFLAGS -c util.c  &
+$CC $CFLAGS -c uri.c   &
+$CC $CFLAGS -c fetch.c &
+$CC $CFLAGS -c link.c  &
+$CC $CFLAGS -c undo.c  &
+$CC $CFLAGS -c bind.c  &
+$CC $CFLAGS -c cache.c &
+$CC $CFLAGS -c gmi.c   &
+$CC $CFLAGS -c gph.c   &
+$CC $CFLAGS -c html.c  &
+$CC $CFLAGS -c mime.c  &
+$CC $CFLAGS -c main.c  &
+wait
 
 $CC $CFLAGS -o yupa *.o embed/*.o -lssl -lcrypto
