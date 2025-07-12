@@ -189,11 +189,11 @@ loadpage(char *link)
 			ssl = 1;
 			break;
 		case HTTP:
-			snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0",
+			snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0\n",
 				 host, path ? path : "/");
 			break;
 		case HTTPS:
-			snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s",
+			snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s\n",
 				 path ? path : "/", host);
 			ssl = 1;
 			break;
