@@ -67,7 +67,8 @@ eachword(char **str)
 
 	word = *str;
 
-	while (**str && **str != ' ' && **str != '\t') (*str)++;
+	while (**str && **str > ' ') (*str)++;
+
 	if (**str) {
 		**str = 0;
 		(*str)++;
