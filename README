@@ -116,7 +116,7 @@ without any interface (like function).  But values are consider
 constant so this is fine.
 
 
-2025-07-12
+2025-07-11
 
 Now after project is mostly completed I have some thoughts on memory
 management.  Normally I try to avoid dynamic memory allocation but
@@ -153,3 +153,14 @@ than working with files but working with files requires less memory
 and usually no dynamic allocations.  Working with memory is more cross
 platform, but working with files enables other tools to be used for
 debugging or extensions.
+
+
+2025-07-12
+
+Version 4.0 of Yupa is mostly done.  The HTML parsing is primitive and
+not finished but it's experimental anyway.  It's possible to read
+content of web pages and navigate using links so it is good enough.
+The main part seems to be finished.  It is not time to use it.  Last
+time before v4.0 I ended up ditching this software because it was not
+as convenient as I thought.  So this time I will wait some time before
+final verdict.
