@@ -1,3 +1,12 @@
+/*
+
+TODO(irek): Ignore tags content like <style> and <script>.
+TODO(irek): Style headers, lists, and inline elements like bold.
+TODO(irek): Handle images by adding them to links and printing alt or title.
+TODO(irek): Handle <pre> unformatted content.
+
+*/
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,24 +84,24 @@ static const struct {
 	[E_FOOTER]      = { "footer",     F_BLOCK },
 	[E_NAV]         = { "nav",        F_BLOCK },
 	[E_FORM]        = { "form",       F_BLOCK },
-	[E_INPUT]       = { "input",      0 | F_VOID },
+	[E_INPUT]       = { "input",      F_VOID },
 	[E_BUTTON]      = { "button",     0 },
 	[E_ADDRESS]     = { "address",    F_BLOCK },
-	[E_AREA]        = { "area",       0 | F_VOID },
-	[E_COL]         = { "col",        0 | F_VOID },
+	[E_AREA]        = { "area",       F_VOID },
+	[E_COL]         = { "col",        F_VOID },
 	[E_DD]          = { "dd",         F_BLOCK },
 	[E_DETAILS]     = { "details",    0 },
-	[E_EMBED]       = { "embed",      0 | F_VOID },
+	[E_EMBED]       = { "embed",      F_VOID },
 	[E_FIELDSET]    = { "fieldset",   F_BLOCK },
 	[E_FIGCAPTION]  = { "figcaption", F_BLOCK },
 	[E_FIGURE]      = { "figure",     F_BLOCK },
 	[E_NOSCRIPT]    = { "noscript",   F_BLOCK },
-	[E_PARAM]       = { "param",      0 | F_VOID },
+	[E_PARAM]       = { "param",      F_VOID },
 	[E_SELECT]      = { "select",     0 },
-	[E_SOURCE]      = { "source",     0 | F_VOID },
-	[E_TRACK]       = { "track",      0 | F_VOID },
+	[E_SOURCE]      = { "source",     F_VOID },
+	[E_TRACK]       = { "track",      F_VOID },
 	[E_VIDEO]       = { "video",      F_BLOCK },
-	[E_WBR]         = { "wbr",        0 | F_VOID },
+	[E_WBR]         = { "wbr",        F_VOID },
 	[E_HEAD]        = { "head",       F_BLOCK },
 	[E_TITLE]       = { "title",      F_BLOCK },
 	[E_STYLE]       = { "style",      F_IGNORE },
