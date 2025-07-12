@@ -39,3 +39,117 @@ same UX philosophy but with support for more protocols and features.
 
 [1] http://irek.gabr.pl/gmi100.html
 [2] https://github.com/ir33k/gmi100
+
+
+======================================================================
+
+DEVLOG
+
+
+2025-06-29
+
+I got to use few different abstract data structures in this project.
+
+1. Ring buffer for undo history.
+2. Dynamic array for links.
+3. Before rewrite there was linked list for tabs.
+4. Binds can be called a hash table with primitive hashing.
+
+In all cases I implemented data structure specifically for given case
+instead of using generic implementation.  I did that in few project
+and I found this approach to be very beneficial.  Mainly because it's
+easier to tailor memory management to specific case, have simpler
+interface with functions for just few required operations, internal
+state is smaller and easy to debug.  In short, implementation is less
+generic and more specific which I like.
+
+
+2025-07-01
+
+With Yupa I exercised idea of data driven UX/UI.  Because this program
+is a text web browser it, by design, can work with web pages.  And now
+instead of making separate interface for history, bookmarks and help I
+simply designed those features to be a web pages.  That way program is
+smaller and has less UX/UI ideas.  User already know how to use those
+things and it's very easy to extend program with more stuff.
+
+I did the same in Dogo text editor project.  It has no UI, no buttons,
+no menus, no nothing, only text.  Despite lack of UI, and ignoring
+keyboard shortcuts, user still can open files, search, do find and
+replace, execute shell commands, just by doing the same thing user do
+when user type and edit text.
+
+I had similar thoughts about spreadsheet program.  It could represent
+many things in form of spreadsheet like: program settings, list of
+open files, document properties or even file system navigation when
+opening or saving new files.  Output from `ls` command is essentially
+a table.
+
+
+2025-07-10
+
+Most of Yupa compilation units are designed to work like singletons.
+The static variables are like private properties, static functions are
+private methods.  Functions exposed by header file are public methods.
+You can have initialisation and stuff but no state is passed to those
+public functions.  State is managed inside and by that we can have
+only one instance of the thing making it a singleton.  Header file can
+be included by any other header file which makes them global.  Not
+necessary a good thing.
+
+I'm not into OOP but this is just something that I noticed.  This
+usage of compilation units is way different from classic library
+approach.  Like I have with util.h lib which is just a collection of
+pure functions.  Usually when library require a persistent state then
+it is stored outside of library code and passed into functions.
+
+I found this method of programming very easy and fast.  Features
+defined in such matte have smaller and simpler interfaces.  The
+internals are also smaller and simpler because I can use global state
+a lot (bad bad programmer) and have short context specific names
+without any namespaces.
+
+In this project I used couple of environment variables.  All are
+initialized on startup in main() function and then available globally
+everywhere.  This is the only state accessible to those singletons
+without any interface (like function).  But values are consider
+constant so this is fine.
+
+
+2025-07-12
+
+Now after project is mostly completed I have some thoughts on memory
+management.  Normally I try to avoid dynamic memory allocation but
+this time I was not restricting myself.  Using malloc() and free()
+right there where I needed.  This usually result in big mess, making
+mistakes like use after free or double free.  Yet I have not made such
+mistakes and now after grepping for malloc() and free() I see very few
+standard usages for both.  I mostly used strdup() which use malloc().
+
+Strategy of "malloc and never free" seems to dominate in this code
+base.  I use it for environment variables, file paths (that do not
+change) and undo history file.  In general, everything that is defined
+or initialized once and used throughout entire program lifetime is
+allocated once and never free.  I rly like that, I might use this more
+in future project.
+
+In majority of cases where dynamic memory allocation is usually
+necessary I avoided it by streaming data from or to file with small
+stack allocated buffer.  I did not forced this strategy, it was just
+natural for this program as it construct session using files and
+enables extensibility through UNIX file system.
+
+There are two cases where I do standard malloc() and free() after.
+HTML parser and links storage.  The links storage does that because I
+can't predict amount of memory required to collect all page links.
+Now I see that maybe I should store links in external file like
+everything else.  As far as HTML goes, I allocate entire response body
+because it makes parsing of HTML easier as this format is not lines
+based like Gopher or Gemini.
+
+Final thoughts.  If not for the file system I would have to use
+dynamic memory allocation a lot more.  Working with memory is simpler
+than working with files but working with files requires less memory
+and usually no dynamic allocations.  Working with memory is more cross
+platform, but working with files enables other tools to be used for
+debugging or extensions.
