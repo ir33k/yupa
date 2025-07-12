@@ -108,10 +108,12 @@ static const struct {
 static struct {
 	char *buf, *base;
 	int w, block;
+	unsigned link;
 } ctx;
 
 static char *fmalloc(FILE *);
 static char *skipwhitespace(char *);
+static void print(char *, FILE *out);
 static enum attribute onattribute(char **str, char **value);
 static void ontext(FILE *out);
 static void onelement(FILE *out);
@@ -149,6 +151,43 @@ skipwhitespace(char *str)
 {
 	while (str && *str <= ' ') str++;
 	return str;
+}
+void
+print(char *str, FILE *out)
+{
+	char *word;
+	int n;
+
+	if (ctx.block) {
+		fprintf(out, "\n\n");
+		ctx.block = 0;
+		ctx.w = 0;
+	}
+
+	if (ctx.w == 0) {
+		fprintf(out, "%-*s", envmargin, "");
+		ctx.w += envmargin;
+	}
+
+	while ((word = eachword(&str))) {
+		n = strlen(word);
+		if (n == 0)
+			continue;
+
+		if (ctx.w > envmargin) {
+			if (ctx.w < envwidth)
+				fprintf(out, " ");
+			ctx.w++;
+		}
+
+		ctx.w += n;
+		if (ctx.w > envwidth) {
+			fprintf(out, "\n%-*s", envmargin, "");
+			ctx.w = envmargin + n;
+		}
+
+		fprintf(out, "%s", word);
+	}
 }
 
 enum attribute
@@ -192,8 +231,7 @@ onattribute(char **str, char **value)
 void
 ontext(FILE *out)
 {
-	char *node, *pt, *word;
-	int n;
+	char *node, *pt;
 
 	node = skipwhitespace(ctx.buf);
 	if ((pt = strchr(node, '<'))) {
@@ -206,35 +244,13 @@ ontext(FILE *out)
 	if (!*node)
 		return;
 
-	if (ctx.block) {
-		fprintf(out, "\n\n");
-		ctx.block = 0;
-		ctx.w = 0;
-	}
-
-	if (ctx.w == 0) {
-		fprintf(out, "%-*s", envmargin, "");
-		ctx.w += envmargin;
-	}
-
-	while ((word = eachword(&node))) {
-		n = strlen(word) +1;	// +1 for space after word
-		if (n == 1)
-			continue;
-
-		if (ctx.w + n > envwidth) {
-			fprintf(out, "\n%-*s", envmargin, "");
-			ctx.w = envmargin;
-		}
-		fprintf(out, "%s ", word);
-		ctx.w += n;
-	}
+	print(node, out);
 }
 
 void
 onelement(FILE *out)
 {
-	char *node, *pt, *name, *value;
+	char *node, *pt, *name, *value, buf[128];
 	int closing, selfclosing, i, attr;
 	unsigned n;
 
@@ -274,11 +290,16 @@ onelement(FILE *out)
 	switch ((enum element)i) {
 	case E_P: break;
 	case E_A:
+		if (closing) {
+			snprintf(buf, sizeof buf, "][%d]", ctx.link);
+			print(buf, out);
+			break;
+		}
+		print("[", out);
 		while ((attr = onattribute(&node, &value)))
 			switch (attr) {
 			case A_HREF:
-				if (value)
-					link_store(join(ctx.base, value));
+				ctx.link = link_store(join(ctx.base, value ? value : ""));
 				break;
 			}
 		break;
