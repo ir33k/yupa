@@ -51,3 +51,5 @@ $CC $CFLAGS -c main.c  &
 wait
 
 $CC $CFLAGS -o yupa *.o embed/*.o -lssl -lcrypto
+
+rm *.o embed/*.o
