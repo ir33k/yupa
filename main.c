@@ -2,6 +2,111 @@
 #define VERSION	"v4.0"
 #define AUTHOR	"irek@gabr.pl"
 
+/*
+
+BUG	Non normalized URL when bookmarks are used
+
+	Navigate to gemini://geminiprotocol.net:1965 using bookmarks.
+	This probably works the same for any URI selected as link.
+	Then navigate to any other link on that page.  This will result
+	in navigation to gemini://geminiprotocol.net:1965/ instead of
+	the actual link.  Only on second attempt to use link the proper
+	URI will be created.
+
+TODO	Reduce number of source files
+
+	My recent work on Andy text editor proven that approach with
+	less files scales better, even tho many small compilation
+	units allow for more convenient static symbols.  Two files
+	plus one file for each protocol will be enough: main, common,
+	gph and gmi.
+
+TODO	Replace binds with build in commands
+
+	Binds are great, and the fact that I can implement many basic
+	features like bookmarks is fantastic but such approach takes
+	away many binds that could be used for quick URI navigation.
+	Even tho stuff like go up in URI path can be implemented with
+	bind, now I think it's better to have those fundamental stuff
+	build in as lowercase commands.
+
+TODO	Display commands help on empty prompr
+
+	At the moment empty prompt does nothing.  But I found that
+	when not using Yupa daily I don't rly remember even the basics
+	commands.  So it would be nice to have quicker access to them,
+	quicker than full Help menu as Help menu opens Less that you
+	have to quit from before inserting new prompt.  So I propose
+	to show very condensed help on empty prompt.
+
+TODO	Use different embeding strategy
+
+	The embeding of files with compiler and linker is not very
+	portable.  I would like to switch to something much simpler.
+	Script that takes file and variable name as arguments and
+	produce C code in stdout should be enough for small files:
+
+	$ ./embed help/index.gmi embed_help_index
+	char *embed_help_index =
+		"# Help\n"
+		"\n"
+		"Insert absolute URI to load a page...\n"
+		"\n"
+		"```\n"
+		"q       Quit\n"
+		"h       Load this help page\n"
+		...
+		;
+
+TODO	Remove HTML support
+
+	It's not used and I'm not planning on developing it further.
+	It would be better to just call web browser on http links.  It
+	could be implemented like other env variables used for binary
+	files, for example as envhtml.
+
+TODO	Improve history.gmi file
+
+	Browsing history is very often used because without tabs it
+	plays big role in navigation between recently open pages.  But
+	it's cluttered and repeats the same entries often.  It would
+	be beneficial to make it more user friendly.
+
+	I have few things in mind:
+
+	1. Divide history.gmi file into separate file per year.  That
+	   way dates inside history log can be shorter and we will
+	   load smaller file while still keeping entire browsing
+	   history with files: history/2025.gmi, history/2024.gmi.
+
+	2. Have second history only for given session that don't have
+	   dates, only links that are in order of last visited without
+	   duplication.
+
+TODO	Display current URI
+
+	Either on top of the rendered page or before prompt.  I print
+	current URI very often to see where am I, to apply navigation
+	command like ../ or to simply understand where I was redirected
+	when using link without checking it URI.
+
+TODO	Add details to gemini links
+
+	When navigating Gopher links it's easy to see what kind of link
+	you are clicking on because type of resource is always printed.
+	So I know that I'm going to open non Gopher link like image, or
+	html before I choose that link without checking the full URI.
+	In Gemini I don't have that.  I would like to add it for all
+	non Gemini links.  So I'm not surprised that suddenly browser
+	is open or video will be downloaded.
+
+	Gemini protocol is designed like HTTP which means user don't
+	know the contnet-type in advance.  It's defined by response.
+	But in many cases link content can be predicted by the protocol
+	or file extensions.
+
+*/
+
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
