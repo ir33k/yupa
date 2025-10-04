@@ -6,7 +6,11 @@ CFLAGS="-std=c99"
 
 CFLAGS="$CFLAGS -Wall -Wextra -Wshadow -pedantic"
 CFLAGS="$CFLAGS -Wmissing-declarations -Wswitch-enum"
-CFLAGS="$CFLAGS -Wno-missing-braces -Wno-deprecated-declarations"
+
+# Disable selected warnings
+CFLAGS="$CFLAGS -Wno-missing-braces"
+CFLAGS="$CFLAGS -Wno-deprecated-declarations"
+CFLAGS="$CFLAGS -Wno-format-truncation"
 
 CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500"	# for strdup()
 CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# for setenv()
@@ -45,7 +49,6 @@ $CC $CFLAGS -c bind.c  &
 $CC $CFLAGS -c cache.c &
 $CC $CFLAGS -c gmi.c   &
 $CC $CFLAGS -c gph.c   &
-$CC $CFLAGS -c html.c  &
 $CC $CFLAGS -c mime.c  &
 $CC $CFLAGS -c main.c  &
 wait

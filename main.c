@@ -60,13 +60,6 @@ TODO	Use different embeding strategy
 		...
 		;
 
-TODO	Remove HTML support
-
-	It's not used and I'm not planning on developing it further.
-	It would be better to just call web browser on http links.  It
-	could be implemented like other env variables used for binary
-	files, for example as envhtml.
-
 TODO	Improve history.gmi file
 
 	Browsing history is very often used because without tabs it
@@ -133,7 +126,6 @@ TODO	Add details to gemini links
 #include "bind.h"
 #include "gmi.h"
 #include "gph.h"
-#include "html.h"
 #include "cache.h"
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
@@ -166,6 +158,7 @@ char *envimage   = "xdg-open";
 char *envvideo   = "xdg-open";
 char *envaudio   = "xdg-open";
 char *envpdf     = "xdg-open";
+char *envhtml    = "xdg-open";
 int   envmargin  = 4;
 int   envwidth   = 76;
 
@@ -215,11 +208,12 @@ usage(char *argv0)
 	       "	YUPAVIDEO    Command to play videos (%s).\n"
 	       "	YUPAAUDIO    Command to play audio (%s).\n"
 	       "	YUPAPDF      Command to open PDFs (%s).\n"
+	       "	YUPAHTML     Command to open HTMLs (%s).\n"
 	       "	YUPAMARGIN   Left margin (%d).\n"
 	       "	YUPAWIDTH    Max width (%d).\n",
 	       argv0,
 	       envhome, envsession,
-	       envpager, envimage, envvideo, envaudio, envpdf,
+	       envpager, envimage, envvideo, envaudio, envpdf, envhtml,
 	       envmargin, envwidth);
 }
 
@@ -276,6 +270,8 @@ loadpage(char *link)
 		if ((why = cp(cache, pathres)))
 			return why;
 	} else {
+		buf[0] = 0;
+
 		switch (protocol) {
 		case LOCAL:
 			if ((why = cp(path, pathres)))
@@ -297,19 +293,15 @@ loadpage(char *link)
 			ssl = 1;
 			break;
 		case HTTP:
-			snprintf(buf, sizeof buf, "GET http://%s%s HTTP/1.0\n",
-				 host, path ? path : "/");
-			break;
 		case HTTPS:
-			snprintf(buf, sizeof buf, "GET %s HTTP/1.0\nHost: %s\n",
-				 path ? path : "/", host);
-			ssl = 1;
-			break;
+			snprintf(buf, sizeof buf, "%s %s", envhtml, uri);
+			system(buf);
+			return 0;
 		default:
 			return tellme("Unknown protocol %s", uri);
 		}
 
-		if (protocol != LOCAL) {
+		if (buf[0]) {
 			if ((why = fetch(host, port, ssl, buf, pathres)))
 				return why;
 
@@ -351,23 +343,7 @@ loadpage(char *link)
 		return loadpage(pt);
 	case HTTP:
 	case HTTPS:
-		pt = 0;
-		if ((why = html_onheader(res, &mime, &pt)))
-			return why;
-
-		if (!pt)
-			break;
-
-		/* Redirect */
-
-		if (fclose(res))
-			err(1, "flose(%s)", pathres);
-
-		link_clear();
-		link_store(uri);
-
-		return loadpage(pt);
-		break;
+		assert(0 && "unreachable");
 	}
 
 	link_clear();
@@ -407,8 +383,8 @@ loadpage(char *link)
 		cmd = envpager;
 		break;
 	case MIME_HTML:
-		html_print(res, out);
-		cmd = envpager;
+		if (!(why = fcp(res, out)))
+			cmd = envhtml;
 		break;
 	case MIME_IMAGE:
 		if (!(why = fcp(res, out)))
@@ -696,6 +672,7 @@ main(int argc, char **argv)
 	envstr("YUPAVIDEO",  &envvideo);
 	envstr("YUPAAUDIO",  &envaudio);
 	envstr("YUPAPDF",    &envpdf);
+	envstr("YUPAHTML",   &envhtml);
 	envint("YUPAMARGIN", &envmargin);
 	envint("YUPAWIDTH",  &envwidth);
 
