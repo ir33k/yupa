@@ -6,42 +6,55 @@
 #include "mime.h"
 #include "gph.h"
 
+int navitems_indexof(char item);
 static char *navlabel(char);
 static char *navlink(char *line);
 
 static struct {
 	char item, *label;
-	enum mime mime;		// 0 for non nav menu items
+	enum mime mime;
 } navitems[] = {
 	// Canonical
-	'0',    "TEXT",         TEXT,   // Text file
-	'1',    "GPH",          GPH,    // Gopher submenu
-	'2',    "CSO",          TEXT,   // CSO protocol
-	'3',    "ERROR",        0,      // Error code returned by server
-	'4',    "BINHEX",       BINARY, // BinHex-encoded file, for Macintosh
-	'5',    "DOS",          TEXT,   // DOS file
-	'6',    "UUENCODED",    TEXT,   // uuencoded file
-	'7',    "SEARCH",       GPH,    // Gopher full-text search
-	'8',    "TELNET",       TEXT,   // Telnet
-	'9',    "BIN",          BINARY, // Binary file
-	'+',    "MIRROR",       TEXT,   // Mirror or alternate server
-	'g',    "GIF",          IMAGE,  // GIF file
-	'I',    "IMG",          IMAGE,  // Image file
-	'T',    "TELNET3270",   TEXT,   // Telnet 3270
+	'0', "TXT",        MIME_TEXT,   // Text file
+	'1', "GPH",        MIME_GPH,    // Gopher submenu
+	'2', "CSO",        MIME_TEXT,   // CSO protocol
+	'3', "ERROR",      MIME_NONE,   // Error code returned by server
+	'4', "BINHEX",     MIME_BINARY, // BinHex-encoded file, for Macintosh
+	'5', "DOS",        MIME_TEXT,   // DOS file
+	'6', "UUENCODED",  MIME_TEXT,   // uuencoded file
+	'7', "SEARCH",     MIME_GPH,    // Gopher full-text search
+	'8', "TELNET",     MIME_TEXT,   // Telnet
+	'9', "BIN",        MIME_BINARY, // Binary file
+	'+', "MIRROR",     MIME_TEXT,   // Mirror or alternate server
+	'g', "GIF",        MIME_IMAGE,  // GIF file
+	'I', "IMG",        MIME_IMAGE,  // Image file
+	'T', "TELNET3270", MIME_TEXT,   // Telnet 3270
 	// Gopher+
-	':',    "BMP",          IMAGE,  // Bitmap image
-	';',    "VIDEO",        VIDEO,  // Movie/video file
-	'<',    "AUDIO",        AUDIO,  // Sound file
+	':', "BMP",        MIME_IMAGE,  // Bitmap image
+	';', "VIDEO",      MIME_VIDEO,  // Movie/video file
+	'<', "AUDIO",      MIME_AUDIO,  // Sound file
 	// Non-canonical
-	'd',    "DOC",          PDF,    // Doc. Seen used alongside PDF's and .DOC's
-	'h',    "HTML",         HTML,   // HTML file
-	'p',    "PNG",          IMAGE,  // Image file ,especially the png format
-	'r',    "RTF",          BINARY, // Document rtf file, rich text format
-	's',    "WAV",          AUDIO,  // Sound file, especially the WAV format
-	'P',    "PDF",          PDF,    // document pdf file
-	'X',    "XML",          TEXT,   // document xml file
-	'i',    0,              0,      // Windly used informational message
+	'd', "DOC",        MIME_PDF,    // Doc, used alongside .pdf's and .doc's
+	'h', "HTML",       MIME_HTML,   // HTML file
+	'p', "PNG",        MIME_IMAGE,  // Image file ,especially the png format
+	'r', "RTF",        MIME_BINARY, // Document rtf file, rich text format
+	's', "WAV",        MIME_AUDIO,  // Sound file, especially the WAV format
+	'P', "PDF",        MIME_PDF,    // document pdf file
+	'X', "XML",        MIME_TEXT,   // document xml file
+	'i', 0,            MIME_NONE,   // Windly used informational message
 };
+
+int
+navitems_indexof(char item)
+{
+	int i;
+
+	for (i=0; i<COUNT(navitems); i++)
+		if (navitems[i].item == item)
+			return i;
+
+	return -1;
+}
 
 char *
 navlabel(char item)
@@ -51,11 +64,9 @@ navlabel(char item)
 
 	buf[0] = 0;
 
-	for (i=0; i<COUNT(navitems); i++)
-		if (navitems[i].item == item)
-			break;
+	i = navitems_indexof(item);
 
-	if (i<COUNT(navitems) && navitems[i].mime)
+	if (i != -1 && navitems[i].mime != MIME_NONE)
 		snprintf(buf, sizeof buf, "(%s) ", navitems[i].label);
 
 	return buf;
@@ -65,7 +76,7 @@ char *
 navlink(char *line)
 {
         static char buf[4096];
-        char item, path[1024], host[1024];
+        char item, path[2048], host[1024];
         int port;
 
         /* TODO(irek): How Gopher handles links without item type and path?
@@ -128,14 +139,14 @@ gph_mime(char *path)
 	int i;
 
 	if (!path || !path[0])
-		return GPH;
+		return MIME_GPH;
 
 	if (strlen(path) < 2 || path[0] != '/' || path[2] != '/')
-		return GPH;
+		return MIME_GPH;
 
 	for (i=0; i<COUNT(navitems); i++)
 		if (navitems[i].item == path[1])
 			break;
 
-	return i<COUNT(navitems) ? navitems[i].mime : TEXT;
+	return i<COUNT(navitems) ? navitems[i].mime : MIME_TEXT;
 }

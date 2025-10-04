@@ -13,6 +13,15 @@ BUG	Non normalized URL when bookmarks are used
 	the actual link.  Only on second attempt to use link the proper
 	URI will be created.
 
+BUG	HTML Gopher links are not parsed correctly
+
+TODO	Avoid printing GPH item prefix
+
+	GPH in Gopher protocl is the most common and expected link
+	item type.  Same as Gemini in Gemini protocol.  Displaying
+	the item prefix only takes unnecesary space and it makes
+	some tables used in Gopher git frontends unaligned.
+
 TODO	Reduce number of source files
 
 	My recent work on Andy text editor proven that approach with
@@ -30,7 +39,7 @@ TODO	Replace binds with build in commands
 	bind, now I think it's better to have those fundamental stuff
 	build in as lowercase commands.
 
-TODO	Display commands help on empty prompr
+TODO	Display commands help on empty prompt
 
 	At the moment empty prompt does nothing.  But I found that
 	when not using Yupa daily I don't rly remember even the basics
@@ -251,7 +260,8 @@ loadpage(char *link)
 {
 	why_t why;
 	char uri[4096], buf[4096], *host, *path, *cache, *search, *pt, *cmd;
-	int protocol, port, ssl=0, mime;
+	int protocol, port, ssl=0;
+	enum mime mime;
 	unsigned n;
 	FILE *fp, *res, *out;
 
@@ -385,38 +395,41 @@ loadpage(char *link)
 	cmd = 0;
 	switch (mime) {
 	default:
-	case BINARY:
-		why = "Unsopported mime file type";
+	case MIME_NONE:
+		why = "Unsupported mime file type";
 		break;
-	case TEXT:
+	case MIME_BINARY:
+		why = "Binary mime file type is unsupported";
+		break;
+	case MIME_TEXT:
 		if (!(why = fcp(res, out)))
 			cmd = envpager;
 		break;
-	case GPH:
+	case MIME_GPH:
 		gph_print(res, out);
 		cmd = envpager;
 		break;
-	case GMI:
+	case MIME_GMI:
 		gmi_print(res, out);
 		cmd = envpager;
 		break;
-	case HTML:
+	case MIME_HTML:
 		html_print(res, out);
 		cmd = envpager;
 		break;
-	case IMAGE:
+	case MIME_IMAGE:
 		if (!(why = fcp(res, out)))
 			cmd = envimage;
 		break;
-	case VIDEO:
+	case MIME_VIDEO:
 		if (!(why = fcp(res, out)))
 			cmd = envvideo;
 		break;
-	case AUDIO:
+	case MIME_AUDIO:
 		if (!(why = fcp(res, out)))
 			cmd = envaudio;
 		break;
-	case PDF:
+	case MIME_PDF:
 		if (!(why = fcp(res, out)))
 			cmd = envpdf;
 		break;

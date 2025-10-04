@@ -235,7 +235,7 @@ gmi_search(char *header)
 }
 
 why_t
-gmi_onheader(FILE *res, int *mime, char **redirect)
+gmi_onheader(FILE *res, enum mime *mime, char **redirect)
 {
 	static char buf[4096];
 

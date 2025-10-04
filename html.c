@@ -433,7 +433,7 @@ html_print(FILE *res, FILE *out)
 }
 
 why_t
-html_onheader(FILE *res, int *mime, char **redirect)
+html_onheader(FILE *res, enum mime *mime, char **redirect)
 {
 	char buf[4096], *pt;
 	int code;
