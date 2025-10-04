@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -e # Stop on first error
+set -e			# Stop on first error
 
 CC="cc"
 CFLAGS="-std=c99"
@@ -12,31 +12,23 @@ CFLAGS="$CFLAGS -Wno-missing-braces"
 CFLAGS="$CFLAGS -Wno-deprecated-declarations"
 CFLAGS="$CFLAGS -Wno-format-truncation"
 
-CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500"	# for strdup()
+CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500"		# for strdup()
 CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# for setenv()
 
-# CFLAGS="$CFLAGS -ggdb"
-
-# Embed text files as binary data.
-# Based on http://kuu.se/fossil/objcopy.cgi/doc/ckout/README.objcopy.md
 cd embed
+$CC $CFLAGS -o embed main.c
 
-ld -r -z noexecstack -b binary -o binds.o            binds            &
-ld -r -z noexecstack -b binary -o help_binds_gmi.o   help/binds.gmi   &
-ld -r -z noexecstack -b binary -o help_cache_gmi.o   help/cache.gmi   &
-ld -r -z noexecstack -b binary -o help_envs_gmi.o    help/envs.gmi    &
-ld -r -z noexecstack -b binary -o help_history_gmi.o help/history.gmi &
-ld -r -z noexecstack -b binary -o help_index_gmi.o   help/index.gmi   &
-ld -r -z noexecstack -b binary -o help_links_gmi.o   help/links.gmi   &
-ld -r -z noexecstack -b binary -o help_session_gmi.o help/session.gmi &
-ld -r -z noexecstack -b binary -o help_shell_gmi.o   help/shell.gmi   &
-ld -r -z noexecstack -b binary -o help_support_gmi.o help/support.gmi &
-wait
-
-for f in $(find . -name '*.o')
-do
-    objcopy --rename-section .data=.rodata,alloc,load,readonly,data,contents $f
-done
+echo "" > ../embed.c
+./embed embed_binds            < binds            >> ../embed.c
+./embed embed_help_binds_gmi   < help/binds.gmi   >> ../embed.c
+./embed embed_help_cache_gmi   < help/cache.gmi   >> ../embed.c
+./embed embed_help_envs_gmi    < help/envs.gmi    >> ../embed.c
+./embed embed_help_history_gmi < help/history.gmi >> ../embed.c
+./embed embed_help_index_gmi   < help/index.gmi   >> ../embed.c
+./embed embed_help_links_gmi   < help/links.gmi   >> ../embed.c
+./embed embed_help_session_gmi < help/session.gmi >> ../embed.c
+./embed embed_help_shell_gmi   < help/shell.gmi   >> ../embed.c
+./embed embed_help_support_gmi < help/support.gmi >> ../embed.c
 
 cd ..
 
@@ -53,6 +45,6 @@ $CC $CFLAGS -c mime.c  &
 $CC $CFLAGS -c main.c  &
 wait
 
-$CC $CFLAGS -o yupa *.o embed/*.o -lssl -lcrypto
+$CC $CFLAGS -o yupa *.o -lssl -lcrypto
 
-rm *.o embed/*.o
+rm *.o embed/embed embed.c

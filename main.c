@@ -41,25 +41,6 @@ TODO	Display commands help on empty prompt
 	have to quit from before inserting new prompt.  So I propose
 	to show very condensed help on empty prompt.
 
-TODO	Use different embeding strategy
-
-	The embeding of files with compiler and linker is not very
-	portable.  I would like to switch to something much simpler.
-	Script that takes file and variable name as arguments and
-	produce C code in stdout should be enough for small files:
-
-	$ ./embed help/index.gmi embed_help_index
-	char *embed_help_index =
-		"# Help\n"
-		"\n"
-		"Insert absolute URI to load a page...\n"
-		"\n"
-		"```\n"
-		"q       Quit\n"
-		"h       Load this help page\n"
-		...
-		;
-
 TODO	Improve history.gmi file
 
 	Browsing history is very often used because without tabs it
@@ -116,6 +97,7 @@ TODO	Add details to gemini links
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "embed.c"
 #include "main.h"
 #include "mime.h"
 #include "util.h"
@@ -129,27 +111,6 @@ TODO	Add details to gemini links
 #include "cache.h"
 
 #define SESSIONMAX 16	/* Arbitrary limit of sessions to avoid insanity */
-
-extern const char _binary_binds_start[];
-extern const char _binary_binds_end[];
-extern const char _binary_help_binds_gmi_start[];
-extern const char _binary_help_binds_gmi_end[];
-extern const char _binary_help_cache_gmi_start[];
-extern const char _binary_help_cache_gmi_end[];
-extern const char _binary_help_envs_gmi_start[];
-extern const char _binary_help_envs_gmi_end[];
-extern const char _binary_help_history_gmi_start[];
-extern const char _binary_help_history_gmi_end[];
-extern const char _binary_help_index_gmi_start[];
-extern const char _binary_help_index_gmi_end[];
-extern const char _binary_help_links_gmi_start[];
-extern const char _binary_help_links_gmi_end[];
-extern const char _binary_help_session_gmi_start[];
-extern const char _binary_help_session_gmi_end[];
-extern const char _binary_help_shell_gmi_start[];
-extern const char _binary_help_shell_gmi_end[];
-extern const char _binary_help_support_gmi_start[];
-extern const char _binary_help_support_gmi_end[];
 
 char *envhome    = "~/.yupa";
 char *envsession = "~/.yupa/0";
@@ -184,7 +145,7 @@ static void run();
 static void end() __attribute__((noreturn));
 static void onsignal(int);
 static char *startsession();
-static void save(char *name, const char *bin_start, const char *bin_end);
+static void save(char *name, const char *str);
 
 void
 usage(char *argv0)
@@ -636,7 +597,7 @@ startsession()
 }
 
 void
-save(char *name, const char *bin_start, const char *bin_end)
+save(char *name, const char *str)
 {
 	FILE *fp;
 	char *path;
@@ -649,7 +610,7 @@ save(char *name, const char *bin_start, const char *bin_end)
 	if (!(fp = fopen(path, "w")))
 		err(1, "save fopen %s", path);
 
-	fwrite(bin_start, 1, bin_end - bin_start, fp);
+	fwrite(str, 1, strlen(str), fp);
 
 	if (fclose(fp))
 		err(1, "save fclose %s", path);
@@ -721,36 +682,16 @@ main(int argc, char **argv)
 	mkdir(pathcache, 0755);
 	mkdir(join(envhome, "/help"), 0755);
 
-	save("/binds",
-	     _binary_binds_start,
-	     _binary_binds_end);
-	save("/help/binds.gmi",
-	     _binary_help_binds_gmi_start,
-	     _binary_help_binds_gmi_end);
-	save("/help/cache.gmi",
-	     _binary_help_cache_gmi_start,
-	     _binary_help_cache_gmi_end);
-	save("/help/envs.gmi",
-	     _binary_help_envs_gmi_start,
-	     _binary_help_envs_gmi_end);
-	save("/help/history.gmi",
-	     _binary_help_history_gmi_start,
-	     _binary_help_history_gmi_end);
-	save("/help/index.gmi",
-	     _binary_help_index_gmi_start,
-	     _binary_help_index_gmi_end);
-	save("/help/links.gmi",
-	     _binary_help_links_gmi_start,
-	     _binary_help_links_gmi_end);
-	save("/help/session.gmi",
-	     _binary_help_session_gmi_start,
-	     _binary_help_session_gmi_end);
-	save("/help/shell.gmi",
-	     _binary_help_shell_gmi_start,
-	     _binary_help_shell_gmi_end);
-	save("/help/support.gmi",
-	     _binary_help_support_gmi_start,
-	     _binary_help_support_gmi_end);
+	save("/binds",            embed_binds);
+	save("/help/binds.gmi",   embed_help_binds_gmi);
+	save("/help/cache.gmi",   embed_help_cache_gmi);
+	save("/help/envs.gmi",    embed_help_envs_gmi);
+	save("/help/history.gmi", embed_help_history_gmi);
+	save("/help/index.gmi",   embed_help_index_gmi);
+	save("/help/links.gmi",   embed_help_links_gmi);
+	save("/help/session.gmi", embed_help_session_gmi);
+	save("/help/shell.gmi",   embed_help_shell_gmi);
+	save("/help/support.gmi", embed_help_support_gmi);
 
 	bind_init(pathbinds);
 
