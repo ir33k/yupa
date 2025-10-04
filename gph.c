@@ -1,14 +1,12 @@
 #include <stdio.h>
 #include <string.h>
+
 #include "main.h"
-#include "util.h"
-#include "link.h"
-#include "mime.h"
 #include "gph.h"
 
-int navitems_indexof(char item);
-static char *navlabel(char);
-static char *navlink(char *line);
+static int	navitems_indexof(char item);
+static char*	navlabel(char);
+static char*	navlink(char *line);
 
 static struct {
 	char item, *label;
@@ -49,7 +47,7 @@ navitems_indexof(char item)
 {
 	int i;
 
-	for (i=0; i<COUNT(navitems); i++)
+	for (i=0; i<LENGTH(navitems); i++)
 		if (navitems[i].item == item)
 			return i;
 
@@ -148,9 +146,9 @@ gph_mime(char *path)
 	if (strlen(path) < 2 || path[0] != '/' || path[2] != '/')
 		return MIME_GPH;
 
-	for (i=0; i<COUNT(navitems); i++)
+	for (i=0; i<LENGTH(navitems); i++)
 		if (navitems[i].item == path[1])
 			break;
 
-	return i<COUNT(navitems) ? navitems[i].mime : MIME_TEXT;
+	return i<LENGTH(navitems) ? navitems[i].mime : MIME_TEXT;
 }
