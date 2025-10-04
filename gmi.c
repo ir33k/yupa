@@ -3,27 +3,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "main.h"
-#include "util.h"
-#include "mime.h"
-#include "link.h"
 #include "gmi.h"
 
-static char *linklabel(char *line);
-static void printwrap(char *str, char *prefix, FILE *out);
-static void underline(char *str, char mark, FILE *out);
+static char*	linklabel(char *line);
+static void	printwrap(char *str, char *prefix, FILE *out);
+static void	underline(char *str, char mark, FILE *out);
 
 typedef void (*printer_t)(char *line, FILE *res, FILE *out);
 
-static void Link	(char *, FILE *, FILE *);
-static void Listitem	(char *, FILE *, FILE *);
-static void Blockquote	(char *, FILE *, FILE *);
-static void Heading1	(char *, FILE *, FILE *);
-static void Heading2	(char *, FILE *, FILE *);
-static void Heading3	(char *, FILE *, FILE *);
-static void Preformat	(char *, FILE *, FILE *);
-static void Empty	(char *, FILE *, FILE *);
-static void Text	(char *, FILE *, FILE *);
+static void	Link		(char*, FILE*, FILE*);
+static void	Listitem	(char*, FILE*, FILE*);
+static void	Blockquote	(char*, FILE*, FILE*);
+static void	Heading1	(char*, FILE*, FILE*);
+static void	Heading2	(char*, FILE*, FILE*);
+static void	Heading3	(char*, FILE*, FILE*);
+static void	Preformat	(char*, FILE*, FILE*);
+static void	Empty		(char*, FILE*, FILE*);
+static void	Text		(char*, FILE*, FILE*);
 
 /* gemini://geminiprotocol.net/docs/gemtext.gmi */
 static struct {
@@ -234,8 +232,8 @@ gmi_search(char *header)
 	return buf;
 }
 
-why_t
-gmi_onheader(FILE *res, enum mime *mime, char **redirect)
+Err
+gmi_onheader(FILE *res, char **header, char **redirect)
 {
 	static char buf[4096];
 
@@ -249,7 +247,7 @@ gmi_onheader(FILE *res, enum mime *mime, char **redirect)
 		/* This should be handled by calling gmi_search() */
 		return 0;
 	case '2':			// ok
-		*mime = mime_header(buf +3);
+		*header = buf + 3;
 		return 0;
 	case '3':			// redirection
 		// 30 Temporary redirection
@@ -294,7 +292,7 @@ gmi_print(FILE *res, FILE *out)
 	while ((line = fgets(buf, sizeof buf, res))) {
 		/* NOTE(irek): -1 is used to skip check for last markup.
 		 * With that last element it the default which is Text. */
-		for (i=0; i<COUNT(markup)-1; i++)
+		for (i=0; i<LENGTH(markup)-1; i++)
 			if (!strncmp(line, markup[i].prefix, markup[i].n))
 				break;
 
