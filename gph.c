@@ -16,7 +16,7 @@ static struct {
 } navitems[] = {
 	// Canonical
 	'0', "TXT",        MIME_TEXT,   // Text file
-	'1', "GPH",        MIME_GPH,    // Gopher submenu
+	'1', "",           MIME_GPH,    // Gopher submenu
 	'2', "CSO",        MIME_TEXT,   // CSO protocol
 	'3', "ERROR",      MIME_NONE,   // Error code returned by server
 	'4', "BINHEX",     MIME_BINARY, // BinHex-encoded file, for Macintosh
@@ -62,13 +62,15 @@ navlabel(char item)
 	static char buf[16];
 	int i;
 
-	buf[0] = 0;
-
 	i = navitems_indexof(item);
 
-	if (i != -1 && navitems[i].mime != MIME_NONE)
-		snprintf(buf, sizeof buf, "(%s) ", navitems[i].label);
+	if (i == -1 || navitems[i].mime == MIME_NONE)
+		return 0;
 
+	if (navitems[i].label[0] == 0)
+		return "";
+
+	snprintf(buf, sizeof buf, "(%s) ", navitems[i].label);
 	return buf;
 }
 
@@ -104,10 +106,12 @@ gph_print(FILE *res, FILE *out)
 		nav[0] = 0;
 		label = navlabel(buf[0]);
 
-		if (label[0]) {
+		if (label) {
                         i = link_store(navlink(buf));
 			snprintf(nav, sizeof nav, "%u> ", i);
-                }
+                } else {
+			label = "";
+		}
 
                 n = strcspn(buf, "\t");
 		fprintf(out, "%-*s%s%.*s\n", envmargin, nav, label, n, buf+1);

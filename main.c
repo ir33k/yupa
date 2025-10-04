@@ -15,13 +15,6 @@ BUG	Non normalized URL when bookmarks are used
 
 BUG	HTML Gopher links are not parsed correctly
 
-TODO	Avoid printing GPH item prefix
-
-	GPH in Gopher protocl is the most common and expected link
-	item type.  Same as Gemini in Gemini protocol.  Displaying
-	the item prefix only takes unnecesary space and it makes
-	some tables used in Gopher git frontends unaligned.
-
 TODO	Reduce number of source files
 
 	My recent work on Andy text editor proven that approach with
