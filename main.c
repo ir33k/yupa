@@ -69,7 +69,7 @@ static Err	loadpage	(char *link);
 static void	onprompt	(char*);
 static char*	oncmd		(char*);
 static void	run		();
-static void	end		() __attribute__((noreturn));
+static void	end		(int) __attribute__((noreturn));
 static void	onsignal	(int);
 static char*	startsession	();
 static void	save		(char *name, const char *str);
@@ -442,7 +442,7 @@ oncmd(char *cmd)
 	
 	switch (cmd[0]) {
 	case 'q':
-		end();
+		end(0);
 	case 'h':
 		snprintf(buf, sizeof buf, "file://%s/%s",
 			 envhome, "help/index.gmi");
@@ -539,11 +539,11 @@ run()
 }
 
 void
-end()
+end(int code)
 {
 	cache_cleanup();
 	unlink(pathlock);
-	exit(0);
+	exit(code);
 }
 
 void
@@ -552,7 +552,7 @@ onsignal(int sig)
 	switch (sig) {
 	case SIGTERM:
 	case SIGINT:
-		end();
+		end(0);
 	}
 }
 
@@ -1323,6 +1323,16 @@ main(int argc, char **argv)
 	if (setenv("YUPASESSION", envsession, 1))
 		err(1, "setenv(YUPASESSION)");
 
+	pathlock    = strdup(join(envsession, "/.lock"));
+	pathres     = strdup(join(envsession, "/res"));
+	pathout     = strdup(join(envsession, "/out"));
+	pathuri     = strdup(join(envsession, "/uri"));
+	pathinfo    = strdup(join(envsession, "/info"));
+	pathcmd     = strdup(join(envsession, "/cmd"));
+	pathcache   = strdup(join(envsession, "/cache"));
+	pathbinds   = strdup(join(envhome, "/binds"));
+	pathhistory = strdup(join(envhome, "/history.gmi"));
+
 	if (envmargin < 0)
 		errx(0, "YUPAMARGIN has to be >= 0");
 
@@ -1333,24 +1343,14 @@ main(int argc, char **argv)
 		switch (opt) {
 		case 'v':
 			puts(NAME" "VERSION" by <"AUTHOR">");
-			return 0;
+			end(0);
 		case 'h':
 			usage(argv[0]);
-			return 0;
+			end(0);
 		default:
 			usage(argv[0]);
-			return 1;
+			end(1);
 		}
-
-	pathlock    = strdup(join(envsession, "/.lock"));
-	pathres     = strdup(join(envsession, "/res"));
-	pathout     = strdup(join(envsession, "/out"));
-	pathuri     = strdup(join(envsession, "/uri"));
-	pathinfo    = strdup(join(envsession, "/info"));
-	pathcmd     = strdup(join(envsession, "/cmd"));
-	pathcache   = strdup(join(envsession, "/cache"));
-	pathbinds   = strdup(join(envhome, "/binds"));
-	pathhistory = strdup(join(envhome, "/history.gmi"));
 
 	mkdir(pathcache, 0755);
 	mkdir(join(envhome, "/help"), 0755);
@@ -1381,6 +1381,5 @@ main(int argc, char **argv)
 	}
 
 	run();
-	end();
-	return 0;
+	end(0);
 }
