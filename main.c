@@ -162,28 +162,23 @@ tellmewhy(char *fmt, ...)
 void
 usage(char *argv0)
 {
-	printf("usage: %s [options] [prompt]\n"
+	printf("usage: %s [options] [URI/input]\n"
 	       "\n"
 	       "options:\n"
-	       "	-v	Print program version.\n"
-	       "	-h	Print this help message.\n"
-	       "\n"
-	       "prompt:\n"
-	       "	Optional initial input prompt value.\n"
-	       "	Use URI/URL to load a page.\n"
-	       "	Use \"h\" to learn about prompt commands.\n"
+	       "	-v		Print program version\n"
+	       "	-h		Print this help message\n"
 	       "\n"
 	       "envs:\n"
-	       "	YUPAHOME     Absolute path to user data (%s).\n"
-	       "	YUPASESSION  Runtime path to session dir (%s).\n"
-	       "	YUPAPAGER    Overwrites $PAGER value (%s).\n"
-	       "	YUPAIMAGE    Command to display images (%s).\n"
-	       "	YUPAVIDEO    Command to play videos (%s).\n"
-	       "	YUPAAUDIO    Command to play audio (%s).\n"
-	       "	YUPAPDF      Command to open PDFs (%s).\n"
-	       "	YUPAHTML     Command to open websites (%s).\n"
-	       "	YUPAMARGIN   Left margin (%d).\n"
-	       "	YUPAWIDTH    Max width (%d).\n",
+	       "	YUPAHOME	Absolute path to user data (%s)\n"
+	       "	YUPASESSION	Runtime path to session dir (%s)\n"
+	       "	YUPAPAGER	Overwrites $PAGER value (%s)\n"
+	       "	YUPAIMAGE	Command to display images (%s)\n"
+	       "	YUPAVIDEO	Command to play videos (%s)\n"
+	       "	YUPAAUDIO	Command to play audio (%s)\n"
+	       "	YUPAPDF		Command to open PDFs (%s)\n"
+	       "	YUPAHTML	Command to open websites (%s)\n"
+	       "	YUPAMARGIN	Left margin (%d)\n"
+	       "	YUPAWIDTH	Max width (%d)\n",
 	       argv0,
 	       envhome, envsession,
 	       envpager, envimage, envvideo, envaudio, envpdf, envhtml,
