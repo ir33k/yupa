@@ -13,34 +13,34 @@ static struct {
 	char*	label;
 	Mime	mime;
 } navitems[] = {
-	// Canonical
-	'0', "TXT",        MIME_TEXT,   // Text file
-	'1', "",           MIME_GPH,    // Gopher submenu
-	'2', "CSO",        MIME_TEXT,   // CSO protocol
-	'3', "ERROR",      MIME_NONE,   // Error code returned by server
-	'4', "BINHEX",     MIME_BINARY, // BinHex-encoded file, for Macintosh
-	'5', "DOS",        MIME_TEXT,   // DOS file
-	'6', "UUENCODED",  MIME_TEXT,   // uuencoded file
-	'7', "SEARCH",     MIME_GPH,    // Gopher full-text search
-	'8', "TELNET",     MIME_TEXT,   // Telnet
-	'9', "BIN",        MIME_BINARY, // Binary file
-	'+', "MIRROR",     MIME_TEXT,   // Mirror or alternate server
-	'g', "GIF",        MIME_IMAGE,  // GIF file
-	'I', "IMG",        MIME_IMAGE,  // Image file
-	'T', "TELNET3270", MIME_TEXT,   // Telnet 3270
-	// Gopher+
-	':', "BMP",        MIME_IMAGE,  // Bitmap image
-	';', "VIDEO",      MIME_VIDEO,  // Movie/video file
-	'<', "AUDIO",      MIME_AUDIO,  // Sound file
-	// Non-canonical
-	'd', "DOC",        MIME_PDF,    // Doc, used alongside .pdf's and .doc's
-	'h', "HTML",       MIME_HTML,   // HTML file
-	'p', "PNG",        MIME_IMAGE,  // Image file ,especially the png format
-	'r', "RTF",        MIME_BINARY, // Document rtf file, rich text format
-	's', "WAV",        MIME_AUDIO,  // Sound file, especially the WAV format
-	'P', "PDF",        MIME_PDF,    // document pdf file
-	'X', "XML",        MIME_TEXT,   // document xml file
-	'i', 0,            MIME_NONE,   // Windly used informational message
+	/* Canonical */
+	'0', "TXT",        MIME_TEXT,   /* Text file */
+	'1', "",           MIME_GPH,    /* Gopher submenu */
+	'2', "CSO",        MIME_TEXT,   /* CSO protocol */
+	'3', "ERROR",      MIME_NONE,   /* Error code returned by server */
+	'4', "BINHEX",     MIME_BINARY, /* BinHex-encoded file (Macintosh) */
+	'5', "DOS",        MIME_TEXT,   /* DOS file */
+	'6', "UUENCODED",  MIME_TEXT,   /* uuencoded file */
+	'7', "SEARCH",     MIME_GPH,    /* Gopher full-text search */
+	'8', "TELNET",     MIME_TEXT,   /* Telnet */
+	'9', "BIN",        MIME_BINARY, /* Binary file */
+	'+', "MIRROR",     MIME_TEXT,   /* Mirror or alternate server */
+	'g', "GIF",        MIME_IMAGE,  /* GIF file */
+	'I', "IMG",        MIME_IMAGE,  /* Image file */
+	'T', "TELNET3270", MIME_TEXT,   /* Telnet 3270 */
+	/* Gopher+ */
+	':', "BMP",        MIME_IMAGE,  /* Bitmap image */
+	';', "VIDEO",      MIME_VIDEO,  /* Movie/video file */
+	'<', "AUDIO",      MIME_AUDIO,  /* Sound file */
+	/* Non-canonical */
+	'd', "DOC",        MIME_PDF,    /* PDF's and DOC's */
+	'h', "HTML",       MIME_HTML,   /* HTML file */
+	'p', "PNG",        MIME_IMAGE,  /* Image file, mainly png */
+	'r', "RTF",        MIME_BINARY, /* RTF (rich text format) file */
+	's', "WAV",        MIME_AUDIO,  /* Sound file, mainly WAV */
+	'P', "PDF",        MIME_PDF,    /* PDF */
+	'X', "XML",        MIME_TEXT,   /* XML */
+	'i', 0,            MIME_NONE,   /* Windly used info message */
 };
 
 int

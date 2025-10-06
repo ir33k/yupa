@@ -1,19 +1,6 @@
 #define NAME	"yupa"
-#define VERSION	"v5.0"
+#define VERSION	"v5.1"
 #define AUTHOR	"irek@gabr.pl"
-
-/*
-Dictionary
-
-URI
-	Absolute normalized URI.
-
-LINK
-	In contrast to URI link don't have to be full URI, it can be
-	relative to currently open page.  As convention the first
-	link, with index of 0, is always an URI to currently open
-	page.
-*/
 
 #include <assert.h>
 #include <ctype.h>
@@ -24,13 +11,11 @@ LINK
 #include <openssl/ssl.h>
 #include <pwd.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -39,18 +24,17 @@ LINK
 #include "gmi.h"
 #include "gph.h"
 
-#define CRLF		"\r\n"
-#define SESSIONSN	16		// Arbitrary limit to avoid insanity
-#define BINDSN		('Z'-'A'+1)
+#define CRLF		"\r\n"		/* Terminates request messages */
+#define SESSIONSN	16		/* Arbitrary limit to avoid insanity */
+#define BINDSN		('Z'-'A'+1)	/* Inclusive range from A to Z */
 #define UNDOSN		32
 
-// https://wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
-enum {
-	LOCAL	=    4,
-	HTTP	=   80,
-	HTTPS	=  443,
+enum {					/* TCP/UDP ports https://w.wiki/Bkb */
+	LOCAL	= 4,
+	HTTP	= 80,
+	HTTPS	= 443,
 	GEMINI	= 1965,
-	GOPHER	=   70,
+	GOPHER	= 70,
 };
 
 typedef char		Undo[4096];
@@ -61,46 +45,44 @@ struct cache {
 	int	age;
 };
 
-static Err	tellmewhy	(char*, ...);
 static void	usage		(char *argv0);
 static void	envstr		(char *name, char **env);
 static void	envint		(char *name, int *env);
 static Err	loadpage	(char *link);
 static void	onprompt	(char*);
 static char*	oncmd		(char*);
-static void	run		();
 static void	end		(int) __attribute__((noreturn));
 static void	onsignal	(int);
 static char*	startsession	();
 static void	save		(char *name, const char *str);
 static char*	join		(char*, char*);
 static char*	resolvepath	(char*);
-static Err	fcp		(FILE *from, FILE *to);
-static Err	cp		(char *from, char *to);
+static Err	fcp		(FILE *src, FILE *dst);
+static Err	cp		(char *src, char *dst);
 static int	startswith	(char*, char *prefix);
 static void	skip		(char *str, unsigned n);
 
-// Fetch
+/* Fetch */
 static Err	fetch_secure	(int sfd, char *host, char *msg, FILE *out);
 static Err	fetch_plain	(int sfd, char *msg, FILE *out);
 static Err	fetch		(char *host, int port, int ssl, char *msg, char *out);
 
-// Binds are characters in range from A to Z that hold any string value
-static void	bind_init	(char *path);
-static void	bind_set	(char bind, char *str, char *path);
+/* Binds are characters in range from A to Z that hold any string value */
+static void	bind_init	();
+static void	bind_set	(char bind, char *str);
 static char*	bind_get	(char bind);
 
-// Cache some number of files for later reuse
+/* Cache some number of files for later reuse */
 static char*	cache_path	(int index);
 static Err	cache_add	(char *key, char *path);
 static char*	cache_get	(char *key);
 static void	cache_cleanup	();
 
-// Links storage
+/* Links storage */
 static void	link_clear	();
 static char*	link_get	(int i);
 
-// Extract parts of URI string
+/* Extract parts of URI string */
 static char*	uri_protocolstr	(int protocol);
 static int	uri_protocol	(char *uri);
 static char*	uri_host	(char *uri);
@@ -108,11 +90,11 @@ static int	uri_port	(char *uri);
 static char*	uri_path	(char *uri);
 static char*	uri_normalize	(char *link, char *base_uri);
 
-// Browsing undo history
+/* Browsing undo history */
 static void	undo_add	(char *uri, char *path);
 static char*	undo_go		(int offset);
 
-// Mime
+/* Mime */
 static Mime	mime_path	(char *path);
 static Mime	mime_header	(char *str);
 
@@ -145,19 +127,6 @@ static char*	pathcmd;
 static char*	pathcache;
 static char*	pathbinds;
 static char*	pathhistory;
-
-Err
-tellmewhy(char *fmt, ...)
-{
-	static char buf[4096];
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(buf, sizeof buf, fmt, ap);
-	va_end(ap);
-
-	return buf;
-}
 
 void
 usage(char *argv0)
@@ -267,12 +236,12 @@ loadpage(char *link)
 			system(buf);
 			return 0;
 		default:
-			return tellmewhy("Unknown protocol %s", uri);
+			return "Unknown protocol";
 		}
 
 		if (buf[0]) {
 			if ((why = fetch(host, port, ssl, buf, pathres)))
-				return tellmewhy("%s, port %d", why, port);
+				return why;
 
 			if ((why = cache_add(uri, pathres)))
 				return why;
@@ -433,7 +402,7 @@ oncmd(char *cmd)
 
 	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
 		if (arg[0])
-			bind_set(cmd[0], arg, pathbinds);
+			bind_set(cmd[0], arg);
 		else if ((str = bind_get(cmd[0])))
 			onprompt(str);
 
@@ -522,20 +491,6 @@ oncmd(char *cmd)
 	}
 
 	return 0;
-}
-
-void
-run()
-{
-	char buf[4096];
-
-	while (1) {
-		printf(NAME"> ");
-		if (!fgets(buf, sizeof buf, stdin))
-			break;
-
-		onprompt(trim(buf));
-	}
 }
 
 void
@@ -687,10 +642,10 @@ trim(char *str)
 {
 	int u;
 
-	// Trim left
+	/* Trim left */
 	while (*str && *str <= ' ') str++;
 
-	// Trim right
+	/* Trim right */
 	u = strlen(str);
 	while (u && str[--u] <= ' ') str[u] = 0;
 
@@ -698,39 +653,39 @@ trim(char *str)
 }
 
 Err
-fcp(FILE *from, FILE *to)
+fcp(FILE *src, FILE *dst)
 {
 	char buf[BUFSIZ];
 	size_t n;
 
-	while ((n = fread(buf, 1, sizeof buf, from)))
-		if (fwrite(buf, 1, n, to) != n)
+	while ((n = fread(buf, 1, sizeof buf, src)))
+		if (fwrite(buf, 1, n, dst) != n)
 			return "Failed to copy files";
 
 	return 0;
 }
 
 Err
-cp(char *from, char *to)
+cp(char *src, char *dst)
 {
 	char *why=0;
 	FILE *fp0, *fp1;
 
-	if (!(fp0 = fopen(from, "r")))
-		return tellmewhy("Failed to open %s", from);
+	if (!(fp0 = fopen(src, "r")))
+		return "Failed to open src";
 
-	if (!(fp1 = fopen(to, "w"))) {
-		why = tellmewhy("Failed to open %s", to);
+	if (!(fp1 = fopen(dst, "w"))) {
+		why = "Failed to open dst";
 		goto fail;
 	}
 
 	why = fcp(fp0, fp1);
 
 	if (fclose(fp1))
-		why = tellmewhy("Failed to close %s", to);
+		why = "Failed to close dst";
 
 fail:	if (fclose(fp0))
-		why = tellmewhy("Failed to close %s", from);
+		why = "Failed to close src";
 
 	return why;
 }
@@ -879,23 +834,23 @@ fetch(char *host, int port, int ssl, char *msg, char *out)
 }
 
 void
-bind_init(char *path)
+bind_init()
 {
 	char buf[4096];
 	FILE *fp;
 
-	if (!(fp = fopen(path, "r")))
+	if (!(fp = fopen(pathbinds, "r")))
 		return;		/* Ignore error, file might not exist */
 
 	while (fgets(buf, sizeof buf, fp))
 		binds[buf[0]-'A'] = strdup(trim(buf+1));
 
 	if (fclose(fp))
-		err(1, "bind_init flose %s", path);
+		err(1, "bind_init flose %s", pathbinds);
 }
 
 void
-bind_set(char bind, char *str, char *path)
+bind_set(char bind, char *str)
 {
 	int i = bind-'A';
 	FILE *fp;
@@ -905,15 +860,15 @@ bind_set(char bind, char *str, char *path)
 
 	binds[i] = strdup(str);
 
-	if (!(fp = fopen(path, "w")))
-		err(1, "bind save fopen %s", path);
+	if (!(fp = fopen(pathbinds, "w")))
+		err(1, "bind save fopen %s", pathbinds);
 
 	for (i=0; i<LENGTH(binds); i++)
 		if (binds[i])
 			fprintf(fp, "%c\t%s\n", i+'A', binds[i]);
 
 	if (fclose(fp))
-		err(1, "bind save fclose %s", path);
+		err(1, "bind save fclose %s", pathbinds);
 }
 
 char *
@@ -926,7 +881,7 @@ char *
 cache_path(int index)
 {
 	static char buf[4096];
-	snprintf(buf, sizeof buf, "%s/cache/%u", envsession, index);
+	snprintf(buf, sizeof buf, "%s/%u", pathcache, index);
 	return buf;
 }
 
@@ -1188,7 +1143,7 @@ undo_add(char *uri, char *path)
 	struct tm *tm;
 	FILE *fp;
 
-	// Avoid duplications
+	/* Avoid duplications */
 	if (!strcmp(undos[undo_last % UNDOSN], uri))
 		return;
 
@@ -1293,7 +1248,7 @@ int
 main(int argc, char **argv)
 {
 	int opt;
-	char *prompt=0, *env;
+	char buf[4096], *prompt=0, *env;
 	struct sigaction sa;
 
 	sa.sa_handler = onsignal;
@@ -1366,7 +1321,7 @@ main(int argc, char **argv)
 	save("/help/shell.gmi",   embed_help_shell_gmi);
 	save("/help/support.gmi", embed_help_support_gmi);
 
-	bind_init(pathbinds);
+	bind_init();
 
 	if (argc - optind > 0)
 		prompt = argv[argc-optind];
@@ -1380,6 +1335,13 @@ main(int argc, char **argv)
 		silent = 0;
 	}
 
-	run();
+	while (1) {
+		printf(NAME"> ");
+		if (!fgets(buf, sizeof buf, stdin))
+			break;
+
+		onprompt(trim(buf));
+	}
+
 	end(0);
 }

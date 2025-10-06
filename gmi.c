@@ -59,7 +59,7 @@ printwrap(char *str, char *prefix, FILE *out)
 	w = envmargin;
 
 	while ((word = eachword(&str))) {
-		n = strlen(word) +1;	// +1 for space after word
+		n = strlen(word) +1;	/* +1 for space after word */
 		if (w + n > envwidth) {
 			fprintf(out, "\n");
 			fprintf(out, "%-*s", envmargin + indent, "");
@@ -243,15 +243,15 @@ gmi_onheader(FILE *res, char **header, char **redirect)
 	trim(buf);
 
 	switch (buf[0]) {
-	case '1':			// input
+	case '1':			/* input */
 		/* This should be handled by calling gmi_search() */
 		return 0;
-	case '2':			// ok
+	case '2':			/* ok */
 		*header = buf + 3;
 		return 0;
-	case '3':			// redirection
-		// 30 Temporary redirection
-		// 31 Permanent redirection
+	case '3':			/* redirection */
+		/* 30 Temporary redirection */
+		/* 31 Permanent redirection */
 		*redirect = buf +3;
 		return 0;
 	case '4':

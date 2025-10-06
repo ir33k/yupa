@@ -1,6 +1,6 @@
 #define LENGTH(a)	(int)((sizeof(a)) / (sizeof(a)[0]))
 
-enum mime {			// File mime type
+enum mime {
 	MIME_NONE,
 	MIME_BINARY,
 	MIME_TEXT,
