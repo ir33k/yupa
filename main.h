@@ -21,4 +21,5 @@ extern int	envwidth;
 
 char*	eachword	(char**);
 char*	trim		(char*);
+int	starts		(char *str, char *with);
 int	link_store	(char*);

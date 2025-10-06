@@ -4,86 +4,93 @@
 #include "main.h"
 #include "gph.h"
 
-static int	navitems_indexof(char item);
-static char*	navlabel(char);
-static char*	navlink(char *line);
+typedef struct nav	Nav;		/* Gopher navigation item */
 
-static struct {
+struct nav {
 	char	item;
 	char*	label;
 	Mime	mime;
-} navitems[] = {
-	/* Canonical */
-	'0', "TXT",        MIME_TEXT,   /* Text file */
-	'1', "",           MIME_GPH,    /* Gopher submenu */
-	'2', "CSO",        MIME_TEXT,   /* CSO protocol */
-	'3', "ERROR",      MIME_NONE,   /* Error code returned by server */
-	'4', "BINHEX",     MIME_BINARY, /* BinHex-encoded file (Macintosh) */
-	'5', "DOS",        MIME_TEXT,   /* DOS file */
-	'6', "UUENCODED",  MIME_TEXT,   /* uuencoded file */
-	'7', "SEARCH",     MIME_GPH,    /* Gopher full-text search */
-	'8', "TELNET",     MIME_TEXT,   /* Telnet */
-	'9', "BIN",        MIME_BINARY, /* Binary file */
-	'+', "MIRROR",     MIME_TEXT,   /* Mirror or alternate server */
-	'g', "GIF",        MIME_IMAGE,  /* GIF file */
-	'I', "IMG",        MIME_IMAGE,  /* Image file */
-	'T', "TELNET3270", MIME_TEXT,   /* Telnet 3270 */
-	/* Gopher+ */
-	':', "BMP",        MIME_IMAGE,  /* Bitmap image */
-	';', "VIDEO",      MIME_VIDEO,  /* Movie/video file */
-	'<', "AUDIO",      MIME_AUDIO,  /* Sound file */
-	/* Non-canonical */
-	'd', "DOC",        MIME_PDF,    /* PDF's and DOC's */
-	'h', "HTML",       MIME_HTML,   /* HTML file */
-	'p', "PNG",        MIME_IMAGE,  /* Image file, mainly png */
-	'r', "RTF",        MIME_BINARY, /* RTF (rich text format) file */
-	's', "WAV",        MIME_AUDIO,  /* Sound file, mainly WAV */
-	'P', "PDF",        MIME_PDF,    /* PDF */
-	'X', "XML",        MIME_TEXT,   /* XML */
-	'i', 0,            MIME_NONE,   /* Windly used info message */
 };
 
-int
-navitems_indexof(char item)
+static Nav*	navs_get(char item);
+static char*	navlabel(char);
+static char*	navlink(char *line);
+
+static Nav navs[] = {
+	/* Canonical */
+	'0',	"TXT",		MIME_TEXT,	/* Text file */
+	'1',	"",		MIME_GPH,	/* Gopher submenu */
+	'2',	"CSO",		MIME_TEXT,	/* CSO protocol */
+	'3',	"ERROR",	0,		/* Server error message */
+	'4',	"BINHEX",	MIME_BINARY,	/* BinHex Macintosh file */
+	'5',	"DOS",		MIME_TEXT,	/* DOS file */
+	'6',	"UUENCODED",	MIME_TEXT,	/* uuencoded file */
+	'7',	"SEARCH",	MIME_GPH,	/* Gopher full-text search */
+	'8',	"TELNET",	MIME_TEXT,	/* Telnet */
+	'9',	"BIN",		MIME_BINARY,	/* Binary file */
+	'+',	"MIRROR",	MIME_TEXT,	/* Mirror or alternate server */
+	'g',	"GIF",		MIME_IMAGE,	/* GIF file */
+	'I',	"IMG",		MIME_IMAGE,	/* Image file */
+	'T',	"TELNET3270",	MIME_TEXT,	/* Telnet 3270 */
+	/* Gopher+ */
+	':',	"BMP",		MIME_IMAGE,	/* Bitmap image */
+	';',	"VIDEO",	MIME_VIDEO,	/* Movie/video file */
+	'<',	"AUDIO",	MIME_AUDIO,	/* Sound file */
+	/* Non-canonical */
+	'd',	"DOC",		MIME_PDF,	/* PDF's and DOC's */
+	'h',	"HTML",		MIME_HTML,	/* HTML file */
+	'p',	"PNG",		MIME_IMAGE,	/* Image file, mainly png */
+	'r',	"RTF",		MIME_BINARY,	/* RTF (rich text format) */
+	's',	"WAV",		MIME_AUDIO,	/* Sound file, mainly WAV */
+	'P',	"PDF",		MIME_PDF,	/* PDF */
+	'X',	"XML",		MIME_TEXT,	/* XML */
+	'i',	0,		0,		/* Windly used info message */
+};
+
+Nav*
+navs_get(char item)
 {
 	int i;
 
-	for (i=0; i<LENGTH(navitems); i++)
-		if (navitems[i].item == item)
-			return i;
+	for (i=0; i<LENGTH(navs); i++)
+		if (navs[i].item == item)
+			return navs + i;
 
-	return -1;
+	return 0;
 }
 
 char *
 navlabel(char item)
 {
 	static char buf[16];
-	int i;
+	Nav *nav;
 
-	i = navitems_indexof(item);
+	nav = navs_get(item);
 
-	if (i == -1 || navitems[i].mime == MIME_NONE)
+	if (!nav || !nav->mime)
 		return 0;
 
-	if (navitems[i].label[0] == 0)
+	if (nav->label[0] == 0)
 		return "";
 
-	snprintf(buf, sizeof buf, "(%s) ", navitems[i].label);
+	snprintf(buf, sizeof buf, "(%s) ", nav->label);
 	return buf;
 }
 
 char *
 navlink(char *line)
 {
-        static char buf[4096];
-        char item, path[2048], host[1024];
+        static char buf[4096], path[4096];
+        char item, host[1024];
         int port;
 
-        /* TODO(irek): How Gopher handles links without item type and path?
-         * For example link to root hostname page. */
         sscanf(line, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d", &item, path, host, &port);
-        snprintf(buf, sizeof buf, "gopher://%s:%d/%c%s", host, port, item, path);
+
+	if (item == 'h')		/* HTTP */
+		return path+4;
+
+	snprintf(buf, sizeof buf, "gopher://%s:%d/%c%s",
+		 host, port, item, path);
 
         return buf;
 }
@@ -99,7 +106,7 @@ gph_print(FILE *res, FILE *out)
 		if (n && buf[n-1] == '\n')
 			buf[--n] = 0;
 
-		if (buf[0] == '.')	/* Gopher EOF mark, ed style */
+		if (!strcmp(buf, "."))	/* Gopher EOF mark, ed style */
 			break;
 
 		nav[0] = 0;
@@ -135,21 +142,16 @@ gph_search(char *path)
 	return buf;
 }
 
-
 Mime
 gph_mime(char *path)
 {
-	int i;
+	Nav *nav;
 
-	if (!path || !path[0])
+	if (!path || strlen(path) < 2 || path[0] != '/' || path[2] != '/')
 		return MIME_GPH;
 
-	if (strlen(path) < 2 || path[0] != '/' || path[2] != '/')
-		return MIME_GPH;
+	if (!(nav = navs_get(path[1])))
+		return MIME_TEXT;
 
-	for (i=0; i<LENGTH(navitems); i++)
-		if (navitems[i].item == path[1])
-			break;
-
-	return i<LENGTH(navitems) ? navitems[i].mime : MIME_TEXT;
+	return nav->mime;
 }

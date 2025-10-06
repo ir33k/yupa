@@ -7,45 +7,11 @@
 #include "main.h"
 #include "gmi.h"
 
-static char*	linklabel(char *line);
-static void	printwrap(char *str, char *prefix, FILE *out);
-static void	underline(char *str, char mark, FILE *out);
-
-typedef void (*printer_t)(char *line, FILE *res, FILE *out);
-
-static void	Link		(char*, FILE*, FILE*);
-static void	Listitem	(char*, FILE*, FILE*);
-static void	Blockquote	(char*, FILE*, FILE*);
-static void	Heading1	(char*, FILE*, FILE*);
-static void	Heading2	(char*, FILE*, FILE*);
-static void	Heading3	(char*, FILE*, FILE*);
-static void	Preformat	(char*, FILE*, FILE*);
-static void	Empty		(char*, FILE*, FILE*);
-static void	Text		(char*, FILE*, FILE*);
-
-/* gemini://geminiprotocol.net/docs/gemtext.gmi */
-static struct {
-	const char *prefix;
-	unsigned n;
-	printer_t printer;
-} markup[] = {
-	"=>",	2, Link,
-	"* ",	2, Listitem,
-	">",	1, Blockquote,
-	"# ",	2, Heading1,
-	"## ",	3, Heading2,
-	"### ",	4, Heading3,
-	"```",	3, Preformat,
-	"",	1, Empty,
-	"",	0, Text,
-};
-
-char *
-linklabel(char *line)
-{
-	unsigned n = strcspn(line, "\t ");
-	return line[n] ? trim(line +n) : 0;
-}
+static void	printwrap	(char *str, char *prefix, FILE *out);
+static void	underline	(char *str, char mark, FILE *out);
+static void	emit_link	(char *line, FILE *out);
+static void	emit_li		(char *line, FILE *res, FILE *out);
+static void	emit_pre	(char *line, FILE *res, FILE *out);
 
 void
 printwrap(char *str, char *prefix, FILE *out)
@@ -55,6 +21,7 @@ printwrap(char *str, char *prefix, FILE *out)
 
 	fprintf(out, "%-*s%s", envmargin, "", prefix);
 
+	str = trim(str);
 	indent = strlen(prefix);
 	w = envmargin;
 
@@ -74,12 +41,14 @@ printwrap(char *str, char *prefix, FILE *out)
 void
 underline(char *str, char mark, FILE *out)
 {
-	int n;
+	int n, max;
 
+	str = trim(str);
 	n = strlen(str);
+	max = envwidth - envmargin;
 
-	if (n > (envwidth - envmargin))
-		n = envwidth - envmargin;
+	if (n > max)
+		n = max;
 
 	fprintf(out, "\n");
 	printwrap(str, "", out);
@@ -92,15 +61,14 @@ underline(char *str, char mark, FILE *out)
 }	
 
 void
-Link(char *line, FILE *res, FILE *out)
+emit_link(char *line, FILE *out)
 {
 	char *label, prefix[16];
 	unsigned i, n;
 
-	(void)res;
-
-	label = linklabel(line);
+	line = trim(line);
 	n = strcspn(line, "\t ");
+	label = line[n] ? trim(line +n) : 0;
 	line[n] = 0;
 	i = link_store(line);
 
@@ -109,15 +77,17 @@ Link(char *line, FILE *res, FILE *out)
 }
 
 void
-Listitem(char *line, FILE *res, FILE *out)
+emit_li(char *line, FILE *res, FILE *out)
 {
 	char buf[4096], prefix[16];
 	unsigned i;
 
-	/* NOTE(irek): Gemini supports only unordered list but only
-	 * because that syntax is simpler.  Ordered lists are more
-	 * useful, numbers help refer to specific points.  So I'm
-	 * turning unordered list into ordered list.  Sue me. */
+	line = trim(line);
+
+	/* NOTE(irek): Gemini supports only unordered list because
+	 * that syntax is simpler.  Ordered lists are more useful,
+	 * numbers help refer to specific points.  So I'm turning
+	 * unordered list into ordered list.  Sue me. */
 
 	/* NOTE(irek): It's possible that someone made ordered list by
 	 * hand prefixing each list item with a number.  In that case
@@ -129,11 +99,11 @@ Listitem(char *line, FILE *res, FILE *out)
 	i = isdigit(line[0]) ? 0 : 1;
 
 	while (1) {
-		if (i) {	/* Unordered list */
-			printwrap(line, "* ", out);
-		} else {	/* Ordered list */
+		if (i) {	/* Ordered list */
 			snprintf(prefix, sizeof prefix, "%u) ", i++);
 			printwrap(line, prefix, out);
+		} else {	/* Unordered list */
+			printwrap(line, "* ", out);
 		}
 
 		line = fgets(buf, sizeof buf, res);
@@ -149,39 +119,7 @@ Listitem(char *line, FILE *res, FILE *out)
 }
 
 void
-Blockquote(char *line, FILE *res, FILE *out)
-{
-	(void)res;
-	printwrap(line, "> ", out);
-}
-
-void
-Heading1(char *line, FILE *res, FILE *out)
-{
-	(void)res;
-	underline(line, '=', out);
-}
-
-void
-Heading2(char *line, FILE *res, FILE *out)
-{
-	(void)res;
-	underline(line, '-', out);
-}
-
-void
-Heading3(char *line, FILE *res, FILE *out)
-{
-	char buf[4096];
-
-	(void)res;
-
-	snprintf(buf, sizeof buf, "%s ###", line);
-	printwrap(buf, "### ", out);
-}
-
-void
-Preformat(char *line, FILE *res, FILE *out)
+emit_pre(char *line, FILE *res, FILE *out)
 {
 	char buf[4096];
 
@@ -195,21 +133,6 @@ Preformat(char *line, FILE *res, FILE *out)
 	}
 	
 	fprintf(out, "%-*s```\n", envmargin, "");
-}
-
-void
-Empty(char *line, FILE *res, FILE *out)
-{
-	(void)line;
-	(void)res;
-	fprintf(out, "\n");
-}
-
-void
-Text(char *line, FILE *res, FILE *out)
-{
-	(void)res;
-	printwrap(line, "", out);
 }
 
 char *
@@ -286,18 +209,21 @@ gmi_onheader(FILE *res, char **header, char **redirect)
 void
 gmi_print(FILE *res, FILE *out)
 {
-	char buf[4096], *line;
-	unsigned i;
+	char buf[4096];
 
-	while ((line = fgets(buf, sizeof buf, res))) {
-		/* NOTE(irek): -1 is used to skip check for last markup.
-		 * With that last element it the default which is Text. */
-		for (i=0; i<LENGTH(markup)-1; i++)
-			if (!strncmp(line, markup[i].prefix, markup[i].n))
-				break;
+	/* TODO(irek): Using fixed size buffer is not ideal as in gemtext
+	 * single line can be very long. */
 
-		line = trim(line + strlen(markup[i].prefix));
-		(*markup[i].printer)(line, res, out);
+	while (fgets(buf, sizeof buf, res)) {
+		/**/ if (starts(buf, "=>"))	emit_link(buf+2, out);
+		else if (starts(buf, "# "))	underline(buf+2, '=', out);
+		else if (starts(buf, "## "))	underline(buf+3, '-', out);
+		else if (starts(buf, "### "))	underline(buf+4, '.', out);
+		else if (starts(buf, ">"))	printwrap(buf+1, "> ", out);
+		else if (starts(buf, "* "))	emit_li(buf+2, res, out);
+		else if (starts(buf, "```"))	emit_pre(buf+3, res, out);
+		else if (starts(buf, "\n"))	fprintf(out, "\n");
+		else /* Paragraph */		printwrap(buf, "", out);
 	}
 	fprintf(out, "\n");
 }

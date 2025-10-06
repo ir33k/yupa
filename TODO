@@ -7,8 +7,6 @@ BUG	Non normalized URL when bookmarks are used
 	the actual link.  Only on second attempt to use link the proper
 	URI will be created.
 
-BUG	HTML Gopher links are not parsed
-
 TODO	Replace binds with build in commands
 
 	Binds are great, and the fact that I can implement many basic
@@ -71,3 +69,5 @@ TODO	Support multibyte characters
 
 	Mostly in Gemini, when multibyte characters are used then
 	all the line wrapping logic and underline drawing fails.
+
+TODO	Handle Gemini sensitive input in gmi_onheader case '1'

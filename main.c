@@ -1,5 +1,5 @@
 #define NAME	"yupa"
-#define VERSION	"v5.1"
+#define VERSION	"v5.2"
 #define AUTHOR	"irek@gabr.pl"
 
 #include <assert.h>
@@ -59,7 +59,6 @@ static char*	join		(char*, char*);
 static char*	resolvepath	(char*);
 static Err	fcp		(FILE *src, FILE *dst);
 static Err	cp		(char *src, char *dst);
-static int	startswith	(char*, char *prefix);
 static void	skip		(char *str, unsigned n);
 
 /* Fetch */
@@ -72,7 +71,7 @@ static void	bind_init	();
 static void	bind_set	(char bind, char *str);
 static char*	bind_get	(char bind);
 
-/* Cache some number of files for later reuse */
+/* Cache some number of files */
 static char*	cache_path	(int index);
 static Err	cache_add	(char *key, char *path);
 static char*	cache_get	(char *key);
@@ -92,7 +91,7 @@ static char*	uri_normalize	(char *link, char *base_uri);
 
 /* Browsing undo history */
 static void	undo_add	(char *uri, char *path);
-static char*	undo_go		(int offset);
+static char*	undo_goto		(int offset);
 
 /* Mime */
 static Mime	mime_path	(char *path);
@@ -305,7 +304,7 @@ loadpage(char *link)
 	cmd = 0;
 	switch (mime) {
 	default:
-	case MIME_NONE:
+	case 0:
 		why = "Unsupported mime file type";
 		break;
 	case MIME_BINARY:
@@ -419,10 +418,10 @@ oncmd(char *cmd)
 		break;
 	case 'b':
 		i = atoi(arg);
-		return undo_go(i ? -i : -1);
+		return undo_goto(i ? -i : -1);
 	case 'f':
 		i = atoi(arg);
-		return undo_go(i ? i : 1);
+		return undo_goto(i ? i : 1);
 	case 'i':
 		if (arg[0]) {
 			if (arg[0] >= 'A' && arg[0] <= 'Z')
@@ -691,11 +690,11 @@ fail:	if (fclose(fp0))
 }
 
 int
-startswith(char *str, char *prefix)
+starts(char *str, char *with)
 {
 	if (!str) str = "";
-	int n = strlen(prefix);
-	return n > (int)strlen(str) ? 0 : !strncasecmp(str, prefix, n);
+	int n = strlen(with);
+	return n > (int)strlen(str) ? 0 : !strncasecmp(str, with, n);
 }
 
 void
@@ -993,11 +992,11 @@ int
 uri_protocol(char *uri)
 {
 	assert(uri);
-	if (startswith(uri, "file://")) return LOCAL;
-	if (startswith(uri, "http://")) return HTTP;
-	if (startswith(uri, "https://")) return HTTPS;
-	if (startswith(uri, "gemini://")) return GEMINI;
-	if (startswith(uri, "gopher://")) return GOPHER;
+	if (starts(uri, "file://")) return LOCAL;
+	if (starts(uri, "http://")) return HTTP;
+	if (starts(uri, "https://")) return HTTPS;
+	if (starts(uri, "gemini://")) return GEMINI;
+	if (starts(uri, "gopher://")) return GOPHER;
 	return 0;
 }
 
@@ -1150,7 +1149,7 @@ undo_add(char *uri, char *path)
 	strcpy(undos[++undo_last % UNDOSN], uri);
 	undos[(undo_last+1) % UNDOSN][0] = 0;
 
-	if (startswith(uri_path(uri), envhome))
+	if (starts(uri_path(uri), envhome))
 		return;
 
 	if (!buf && !(buf = malloc(LIMIT)))
@@ -1183,7 +1182,7 @@ undo_add(char *uri, char *path)
 }
 
 char *
-undo_go(int n)
+undo_goto(int n)
 {
 	int i=n, d = n>0 ? -1 : +1;
 
@@ -1231,15 +1230,15 @@ mime_header(char *str)
 	if (!str || !str[0])
 		return 0;
 
-	if (startswith(str, "text/gemini"))              return MIME_GMI;
-	if (startswith(str, "text/html"))                return MIME_HTML;
-	if (startswith(str, "text/"))                    return MIME_TEXT;
-	if (startswith(str, "image/"))                   return MIME_IMAGE;
-	if (startswith(str, "video/"))                   return MIME_VIDEO;
-	if (startswith(str, "audio/"))                   return MIME_AUDIO;
-	if (startswith(str, "application/pdf"))          return MIME_PDF;
-	if (startswith(str, "application/octet-stream")) return MIME_BINARY;
-	if (startswith(str, "application/gopher-menu"))  return MIME_GPH;
+	if (starts(str, "text/gemini"))              return MIME_GMI;
+	if (starts(str, "text/html"))                return MIME_HTML;
+	if (starts(str, "text/"))                    return MIME_TEXT;
+	if (starts(str, "image/"))                   return MIME_IMAGE;
+	if (starts(str, "video/"))                   return MIME_VIDEO;
+	if (starts(str, "audio/"))                   return MIME_AUDIO;
+	if (starts(str, "application/pdf"))          return MIME_PDF;
+	if (starts(str, "application/octet-stream")) return MIME_BINARY;
+	if (starts(str, "application/gopher-menu"))  return MIME_GPH;
 
 	return 0;
 }
