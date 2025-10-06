@@ -29,12 +29,11 @@ echo "" > embed.c
 ./embed/embed embed_help_shell_gmi   < embed/help/shell.gmi   >> embed.c
 ./embed/embed embed_help_support_gmi < embed/help/support.gmi >> embed.c
 
-$CC $CFLAGS -c main.c  &
 $CC $CFLAGS -c embed.c &
 $CC $CFLAGS -c gmi.c   &
 $CC $CFLAGS -c gph.c   &
 wait
 
-$CC $CFLAGS -o yupa *.o -lssl -lcrypto
-
+$CC $CFLAGS -o yupa *.o main.c -lssl -lcrypto
+    
 rm *.o embed/embed embed.c
