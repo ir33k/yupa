@@ -29,7 +29,7 @@
 #define BINDSN		('Z'-'A'+1)	/* Inclusive range from A to Z */
 #define UNDOSN		32
 
-enum {					/* TCP/UDP ports https://w.wiki/Bkb */
+enum {					/* Default ports */
 	LOCAL	= 4,
 	HTTP	= 80,
 	HTTPS	= 443,
@@ -75,7 +75,7 @@ static char*	bind_get	(char bind);
 static char*	cache_path	(int index);
 static Err	cache_add	(char *key, char *path);
 static char*	cache_get	(char *key);
-static void	cache_cleanup	();
+static void	cache_clear	();
 
 /* Links storage */
 static void	link_clear	();
@@ -90,8 +90,8 @@ static char*	uri_path	(char *uri);
 static char*	uri_normalize	(char *link, char *base_uri);
 
 /* Browsing undo history */
-static void	undo_add	(char *uri, char *path);
-static char*	undo_goto		(int offset);
+static void	undo_add	(char *uri);
+static char*	undo_goto	(int offset);
 
 /* Mime */
 static Mime	mime_path	(char *path);
@@ -288,7 +288,7 @@ loadpage(char *link)
 
 	link_clear();
 	link_store(uri);
-	undo_add(uri, pathhistory);
+	undo_add(uri);
 
 	if (!(fp = fopen(pathuri, "w")))
 		err(1, "fopen(%s)", pathuri);
@@ -310,10 +310,6 @@ loadpage(char *link)
 	case MIME_BINARY:
 		why = "Binary mime file type is unsupported";
 		break;
-	case MIME_TEXT:
-		if (!(why = fcp(res, out)))
-			cmd = envpager;
-		break;
 	case MIME_GPH:
 		gph_print(res, out);
 		cmd = envpager;
@@ -322,26 +318,12 @@ loadpage(char *link)
 		gmi_print(res, out);
 		cmd = envpager;
 		break;
-	case MIME_HTML:
-		if (!(why = fcp(res, out)))
-			cmd = envhtml;
-		break;
-	case MIME_IMAGE:
-		if (!(why = fcp(res, out)))
-			cmd = envimage;
-		break;
-	case MIME_VIDEO:
-		if (!(why = fcp(res, out)))
-			cmd = envvideo;
-		break;
-	case MIME_AUDIO:
-		if (!(why = fcp(res, out)))
-			cmd = envaudio;
-		break;
-	case MIME_PDF:
-		if (!(why = fcp(res, out)))
-			cmd = envpdf;
-		break;
+	case MIME_TEXT:  if (!(why = fcp(res, out))) cmd = envpager; break;
+	case MIME_HTML:  if (!(why = fcp(res, out))) cmd = envhtml;  break;
+	case MIME_IMAGE: if (!(why = fcp(res, out))) cmd = envimage; break;
+	case MIME_VIDEO: if (!(why = fcp(res, out))) cmd = envvideo; break;
+	case MIME_AUDIO: if (!(why = fcp(res, out))) cmd = envaudio; break;
+	case MIME_PDF:   if (!(why = fcp(res, out))) cmd = envpdf;   break;
 	}
 
 	if (fclose(res))
@@ -455,7 +437,7 @@ oncmd(char *cmd)
 		system(buf);
 		break;
 	case 'c':
-		cache_cleanup();
+		cache_clear();
 		break;
 	case 's':
 		silent = !silent;
@@ -495,7 +477,7 @@ oncmd(char *cmd)
 void
 end(int code)
 {
-	cache_cleanup();
+	cache_clear();
 	unlink(pathlock);
 	exit(code);
 }
@@ -938,7 +920,7 @@ cache_get(char *key)
 }
 
 void
-cache_cleanup()
+cache_clear()
 {
 	int i;
 
@@ -959,7 +941,7 @@ link_clear()
 char *
 link_get(int i)
 {
-	return i >= linksn ? 0 : links[i];
+	return i >= linksn || i < 0 ? 0 : links[i];
 }
 
 int
@@ -992,11 +974,11 @@ int
 uri_protocol(char *uri)
 {
 	assert(uri);
-	if (starts(uri, "file://")) return LOCAL;
-	if (starts(uri, "http://")) return HTTP;
-	if (starts(uri, "https://")) return HTTPS;
-	if (starts(uri, "gemini://")) return GEMINI;
-	if (starts(uri, "gopher://")) return GOPHER;
+	if (starts(uri, "file://"))	return LOCAL;
+	if (starts(uri, "http://"))	return HTTP;
+	if (starts(uri, "https://"))	return HTTPS;
+	if (starts(uri, "gemini://"))	return GEMINI;
+	if (starts(uri, "gopher://"))	return GOPHER;
 	return 0;
 }
 
@@ -1132,7 +1114,7 @@ uri_normalize(char *link, char *base)
 }
 
 void
-undo_add(char *uri, char *path)
+undo_add(char *uri)
 {
 	static const int LIMIT = 10*1024;
 	static char date[32], *buf=0;
@@ -1155,12 +1137,12 @@ undo_add(char *uri, char *path)
 	if (!buf && !(buf = malloc(LIMIT)))
 		err(1, "undo save malloc");
 
-	mode = access(path, F_OK) ? "w+" : "r+";
-	if (!(fp = fopen(path, mode)))
-		err(1, "undo save fopen %s", path);
+	mode = access(pathhistory, F_OK) ? "w+" : "r+";
+	if (!(fp = fopen(pathhistory, mode)))
+		err(1, "undo save fopen %s", pathhistory);
 
 	if (fseek(fp, 0, SEEK_SET) == -1)
-		err(1, "undo save fseek %s", path);
+		err(1, "undo save fseek %s", pathhistory);
 
 	if ((timestamp = time(0)) == (time_t) -1)
 		err(1, "undo save time");
@@ -1173,12 +1155,12 @@ undo_add(char *uri, char *path)
 	n += fread(buf+n, 1, LIMIT-n, fp);
 
 	if (fseek(fp, 0, SEEK_SET) == -1)
-		err(1, "undo save fseek %s", path);
+		err(1, "undo save fseek %s", pathhistory);
 
 	fwrite(buf, 1, n, fp);
 
 	if (fclose(fp))
-		err(1, "undo save fclose %s", path);
+		err(1, "undo save fclose %s", pathhistory);
 }
 
 char *

@@ -1,4 +1,4 @@
-Yupa is a CLI browser for Gopher, Gemini and HTTP[S] (beta) protocols.
+Yupa is a CLI browser for Gopher and Gemini protocols.
 
 Documentation is accessible inside Yupa in help pages that are open
 with `h` command.  Pages describe topics like history, links, cache,

@@ -71,3 +71,5 @@ TODO	Support multibyte characters
 	all the line wrapping logic and underline drawing fails.
 
 TODO	Handle Gemini sensitive input in gmi_onheader case '1'
+
+TODO	Avoid duplicating entries in history
