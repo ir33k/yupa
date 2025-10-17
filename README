@@ -19,7 +19,7 @@ Usage:
 	# After page is loaded the YUPAPAGER (less by default) is used
 	# to display it.  When you are done reading the page and you
 	# want to insert another Yupa command you have to first quit
-	# the pages.  In case of less it's done by pressing 'q'.
+	# the pages.  In case of less it's done by inserting 'q'.
 
 	yupa> i81       # Inspect page link
 	yupa> 81        # Visit page link
@@ -30,12 +30,12 @@ Usage:
 ----------------------------------------------------------------------
 
 Yupa is a successor to gmi100 [1][2] which is a Gemini CLI browser
-written in 100 lines of C.  Even tho gmi100 was just made for fun I
+written in 100 lines of C.  Even tho gmi100 was only made for fun I
 found it approach to browsing text protocols very appealing.  I kept
 using gmi100 despite having "better" alternatives easily available.
 
 This is how Yupa was born.  It's essentially the same interface with
-same UX philosophy but with support for more protocols and features.
+more features.
 
 [1] http://irek.gabr.pl/gmi100.html
 [2] https://github.com/ir33k/gmi100

@@ -4,24 +4,22 @@
 #include "main.h"
 #include "gph.h"
 
-typedef struct nav	Nav;		/* Gopher navigation item */
+typedef struct nav	Nav;		/* Gopher navigation line type */
 
 struct nav {
-	char	item;
+	char	type;
 	char*	label;
 	Mime	mime;
 };
 
-static Nav*	navs_get(char item);
-static char*	navlabel(char);
-static char*	navlink(char *line);
+static Nav*	navs_get(char type);
 
 static Nav navs[] = {
 	/* Canonical */
 	'0',	"TXT",		MIME_TEXT,	/* Text file */
-	'1',	"",		MIME_GPH,	/* Gopher submenu */
+	'1',	0,		MIME_GPH,	/* Gopher submenu */
 	'2',	"CSO",		MIME_TEXT,	/* CSO protocol */
-	'3',	"ERROR",	0,		/* Server error message */
+	'3',	0,		0,		/* Server error message */
 	'4',	"BINHEX",	MIME_BINARY,	/* BinHex Macintosh file */
 	'5',	"DOS",		MIME_TEXT,	/* DOS file */
 	'6',	"UUENCODED",	MIME_TEXT,	/* uuencoded file */
@@ -45,82 +43,62 @@ static Nav navs[] = {
 	'P',	"PDF",		MIME_PDF,	/* PDF */
 	'X',	"XML",		MIME_TEXT,	/* XML */
 	'i',	0,		0,		/* Windly used info message */
+	/* Fallback */
+	0,	"UNKNOWN",	MIME_BINARY,	/* Assume binary for unknown */
 };
 
 Nav*
-navs_get(char item)
+navs_get(char type)
 {
 	int i;
 
-	for (i=0; i<LENGTH(navs); i++)
-		if (navs[i].item == item)
-			return navs + i;
+	/* NOTE(irek): Thanks to -1 the last type in navs is excluded
+	 * from search which makes it a default value in case nothing
+	 * was found. */
 
-	return 0;
-}
+	for (i=0; i<LENGTH(navs) -1; i++)
+		if (navs[i].type == type)
+			break;
 
-char *
-navlabel(char item)
-{
-	static char buf[16];
-	Nav *nav;
-
-	nav = navs_get(item);
-
-	if (!nav || !nav->mime)
-		return 0;
-
-	if (nav->label[0] == 0)
-		return "";
-
-	snprintf(buf, sizeof buf, "(%s) ", nav->label);
-	return buf;
-}
-
-char *
-navlink(char *line)
-{
-        static char buf[4096], path[4096];
-        char item, host[1024];
-        int port;
-
-        sscanf(line, "%c%*[^\t]\t%[^\t]\t%[^\t]\t%d", &item, path, host, &port);
-
-	if (item == 'h')		/* HTTP */
-		return path+4;
-
-	snprintf(buf, sizeof buf, "gopher://%s:%d/%c%s",
-		 host, port, item, path);
-
-        return buf;
+	return navs + i;
 }
 
 void
 gph_print(FILE *res, FILE *out)
 {
-	char buf[4096], nav[16], *label;
-	unsigned i, n;
+	char buf[4096], uri[4096], index[16], label[16];
+	char type, name[256], selector[256], host[256];
+        int i, port;
+	Nav *nav;
 
 	while (fgets(buf, sizeof buf, res)) {
-		n = strlen(buf);
-		if (n && buf[n-1] == '\n')
-			buf[--n] = 0;
-
-		if (!strcmp(buf, "."))	/* Gopher EOF mark, ed style */
+		if (!strcmp(buf, ".\r\n"))
 			break;
 
-		nav[0] = 0;
-		label = navlabel(buf[0]);
+		index[0] = 0;
+		label[0] = 0;
+		name[0] = 0;
 
-		if (label) {
-                        i = link_store(navlink(buf));
-			snprintf(nav, sizeof nav, "%u> ", i);
-                } else {
-			label = "";
+		sscanf(buf, "%c%[^\t] %s %s %d",
+		       &type, name, selector, host, &port);
+
+		if (type == 'h')
+			snprintf(uri, sizeof uri, "%s", selector + 4);
+		else
+			snprintf(uri, sizeof uri, "gopher://%s:%d/%c%s",
+				 host, port, type, selector);
+
+		nav = navs_get(type);
+
+		if (nav->mime) {
+                        i = link_store(uri);
+			snprintf(index, sizeof index, "%d> ", i);
 		}
 
-                n = strcspn(buf, "\t");
-		fprintf(out, "%-*s%s%.*s\n", envmargin, nav, label, n, buf+1);
+		if (nav->label)
+			snprintf(label, sizeof label, " <%s>", nav->label);
+
+		fprintf(out, "%-*s%s%s\n", envmargin, index, name, label);
 	}
 	fprintf(out, "\n");
 }
@@ -128,16 +106,15 @@ gph_print(FILE *res, FILE *out)
 char *
 gph_search(char *path)
 {
-	static char buf[4096];
+	static char buf[4096] = "\t";
 
 	if (path[1] != '7')
 		return 0;
 	
 	printf("search: ");
 
-	fgets(buf+1, (sizeof buf) -1, stdin);
-	trim(buf+1);
-	buf[0] = '\t';
+	fgets(buf +1, (sizeof buf) -1, stdin);
+	trimr(buf);
 
 	return buf;
 }
@@ -150,8 +127,7 @@ gph_mime(char *path)
 	if (!path || strlen(path) < 2 || path[0] != '/' || path[2] != '/')
 		return MIME_GPH;
 
-	if (!(nav = navs_get(path[1])))
-		return MIME_TEXT;
+	nav = navs_get(path[1]);
 
 	return nav->mime;
 }

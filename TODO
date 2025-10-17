@@ -1,12 +1,3 @@
-BUG	Non normalized URL when bookmarks are used
-
-	Navigate to gemini://geminiprotocol.net:1965 using bookmarks.
-	This probably works the same for any URI selected as link.
-	Then navigate to any other link on that page.  This will result
-	in navigation to gemini://geminiprotocol.net:1965/ instead of
-	the actual link.  Only on second attempt to use link the proper
-	URI will be created.
-
 TODO	Replace binds with build in commands
 
 	Binds are great, and the fact that I can implement many basic
@@ -71,5 +62,3 @@ TODO	Support multibyte characters
 	all the line wrapping logic and underline drawing fails.
 
 TODO	Handle Gemini sensitive input in gmi_onheader case '1'
-
-TODO	Avoid duplicating entries in history

@@ -1,5 +1,5 @@
 #define NAME	"yupa"
-#define VERSION	"v5.2"
+#define VERSION	"v5.3"
 #define AUTHOR	"irek@gabr.pl"
 
 #include <assert.h>
@@ -201,7 +201,6 @@ loadpage(char *link)
 	path = uri_path(uri);
 
 	if (!port) port = protocol;
-	if (!path) path = "/";
 
 	if ((cache = cache_get(uri))) {
 		if ((why = cp(cache, pathres)))
@@ -619,17 +618,24 @@ eachword(char **str)
 }
 
 char *
+triml(char *str)
+{
+	while (*str && *str <= ' ') str++;
+	return str;
+}
+
+void
+trimr(char *str)
+{
+	int u = strlen(str);
+	while (u && str[--u] <= ' ') str[u] = 0;
+}
+
+char *
 trim(char *str)
 {
-	int u;
-
-	/* Trim left */
-	while (*str && *str <= ' ') str++;
-
-	/* Trim right */
-	u = strlen(str);
-	while (u && str[--u] <= ' ') str[u] = 0;
-
+	str = triml(str);
+	trimr(str);
 	return str;
 }
 
@@ -1027,7 +1033,7 @@ uri_path(char *uri)
 	assert(uri);
 	beg = (beg = strstr(uri, "://")) ? beg+3 : uri;	/* Skip protocol */
 	beg = strchr(beg, '/');
-	return beg ? strcpy(buf, beg) : 0;
+	return beg ? strcpy(buf, beg) : "/";
 }
 
 char *
@@ -1054,11 +1060,14 @@ uri_normalize(char *link, char *base)
 		protocol = uri_protocol(base);
 		port = uri_port(base);
 		host = uri_host(base);
+		path = uri_path(base);
 
-		if ((pt = strrchr(base, '/')))
+		snprintf(buf, sizeof buf, "%s", path);
+
+		if ((pt = strrchr(buf, '/')))
 			*(pt+1) = 0;
 
-		snprintf(buf, sizeof buf, "%s%s", base, link);
+		strcat(buf, link);	/* TODO(irek): Possible overflow? */
 		path = uri_path(buf);
 	}
 
@@ -1082,32 +1091,27 @@ uri_normalize(char *link, char *base)
 	if (!port)
 		port = protocol;
 
-	if (!path)
-		path = "";
-
 	/* Resolve "//" "./" and "../" */
-	if (path[0]) {
-		while ((pt = strstr(path, "//")))
-			path = pt + 1;
+	while ((pt = strstr(path, "//")))
+		path = pt + 1;
 
-		while ((pt = strstr(path, "../"))) {
-			if (pt == path)
-				break;
+	while ((pt = strstr(path, "../"))) {
+		if (pt == path)
+			break;
 
-			tmp = pt-1;
-			if (*tmp == '/')
-				tmp--;
+		tmp = pt-1;
+		if (*tmp == '/')
+			tmp--;
 
-			while (tmp > path && *tmp != '/')
-				tmp--;
+		while (tmp > path && *tmp != '/')
+			tmp--;
 
-			skip(tmp, (pt-tmp) + 2);
-		}
-
-		pt = path;
-		while ((pt = strstr(pt, "./")))
-			skip(pt, 2);
+		skip(tmp, (pt-tmp) + 2);
 	}
+
+	pt = path;
+	while ((pt = strstr(pt, "./")))
+		skip(pt, 2);
 
 	snprintf(buf, sizeof buf, "%s://%s:%d%s", prefix, host, port, path);
 	return buf;
