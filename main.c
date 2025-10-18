@@ -620,7 +620,7 @@ eachword(char **str)
 char *
 triml(char *str)
 {
-	while (*str && *str <= ' ') str++;
+	while (*str && (unsigned)*str <= ' ') str++;
 	return str;
 }
 
@@ -628,7 +628,7 @@ void
 trimr(char *str)
 {
 	int u = strlen(str);
-	while (u && str[--u] <= ' ') str[u] = 0;
+	while (u && (unsigned)str[--u] <= ' ') str[u] = 0;
 }
 
 char *

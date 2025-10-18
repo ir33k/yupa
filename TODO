@@ -56,9 +56,4 @@ TODO	Add details to gemini links
 	But in many cases link content can be predicted by the protocol
 	or file extensions.
 
-TODO	Support multibyte characters
-
-	Mostly in Gemini, when multibyte characters are used then
-	all the line wrapping logic and underline drawing fails.
-
 TODO	Handle Gemini sensitive input in gmi_onheader case '1'

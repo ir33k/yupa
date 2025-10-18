@@ -7,11 +7,24 @@
 #include "main.h"
 #include "gmi.h"
 
-static void	printwrap	(char *str, char *prefix, FILE *out);
-static void	underline	(char *str, char mark, FILE *out);
+static int	utf_len		(char*);
+static void	printwrap	(char *line, char *prefix, FILE *out);
+static void	underline	(char *line, char mark, FILE *out);
 static void	emit_link	(char *line, FILE *out);
 static void	emit_li		(char *line, FILE *res, FILE *out);
 static void	emit_pre	(char *line, FILE *res, FILE *out);
+
+int
+utf_len(char *str)
+{
+	int i;
+
+	for (i=0; *str; str++)
+		if (((*str) & 0xC0) != 0x80)
+			i++;
+
+	return i;
+}
 
 void
 printwrap(char *str, char *prefix, FILE *out)
@@ -26,7 +39,7 @@ printwrap(char *str, char *prefix, FILE *out)
 	w = envmargin;
 
 	while ((word = eachword(&str))) {
-		n = strlen(word) +1;	/* +1 for space after word */
+		n = utf_len(word) +1;	/* +1 for space after word */
 		if (w + n > envwidth) {
 			fprintf(out, "\n");
 			fprintf(out, "%-*s", envmargin + indent, "");
@@ -44,7 +57,7 @@ underline(char *str, char mark, FILE *out)
 	int n, max;
 
 	str = trim(str);
-	n = strlen(str);
+	n = utf_len(str);
 	max = envwidth - envmargin;
 
 	if (n > max)
@@ -123,7 +136,7 @@ emit_pre(char *line, FILE *res, FILE *out)
 {
 	char buf[4096];
 
-	fprintf(out, "%-*s```%s\n", envmargin, "", line);
+	fprintf(out, "%-*s```%s", envmargin, "", line);
 
 	while ((line = fgets(buf, sizeof buf, res))) {
 		if (!strcmp(line, "```\n"))
@@ -222,7 +235,6 @@ gmi_print(FILE *res, FILE *out)
 		else if (starts(buf, ">"))	printwrap(buf+1, "> ", out);
 		else if (starts(buf, "* "))	emit_li(buf+2, res, out);
 		else if (starts(buf, "```"))	emit_pre(buf+3, res, out);
-		else if (starts(buf, "\n"))	fprintf(out, "\n");
 		else /* Paragraph */		printwrap(buf, "", out);
 	}
 	fprintf(out, "\n");
