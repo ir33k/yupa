@@ -1,0 +1,150 @@
+# Documentation
+
+Insert absolute URI to load a page.  Insert number to visit link from currently loaded page.  Insert nothing to see list of commands.  Use one of commands for special actions.
+
+## Links
+
+Each page link is prefixed with an index number.  To visit a link type that index to input prompt.  Use index as argument in info command `i` in order to see link before visiting it, e.g: `i6`, `i20`, `i 21`.
+
+Links can be relative or absolute.  With command `g` you can type path relative to current page instead of using link numbers.  For example `g ../` will go one directory up, `g /` will navigate to root of current page.
+
+By convention link with index of 0 is always an absolute URI to current page.  With that you can reload page by typing `0` or see current page URI with `i0`.  Thanks to cache, reloading will not cause another fetch.  Page will be loaded from local drive so `i0` is a good way to see page again using default pager.
+
+## History
+
+### Session undo
+
+Each session has simple undo history which remembers up to 31 entries.  To go back use `b` command, to go forward use `f` command.  Provide numeric argument value to jump further in time like `b10`.  Each time you navigate to new page the previously accessible forward history is lost (like in every modern web browser).
+
+In contrast to persistent history storage the undo mechanism remembers all pages even the local $YUPAHOME files like this documentation file.
+
+To visit oldest entries, or future entries that got lost because new page was loaded, you have to use persistent history.
+
+### Persistent history
+
+Browsing history is stored in $YUPAHOME/history.gmi file.  So it is persistent and shared between sessions.  Only successfully loaded pages are added.  Redirected pages, response with errors and local $YUPAHOME files are ignored.
+
+To access history use `h` command or open file://$YUPAHOME/history.gmi file.  Old entries are at the bottom, new at the top.  If you start Yupa without any arguments the history file will be open by default allowing to quickly navigate back to where you left off last time.
+
+History file size is limited to 10 KB.  If you want to remove it, simply remove the file, or alter it if you want to remove just part of it.  There is no bind for that but you could for example add:
+
+```
+yupa> X $ rm $YUPAHOME/history.gmi	# Remove browsing history
+```
+
+## Environment
+
+Yupa use number of environment variables for customization.  Things like pager program, left margin and width of printed pages.  Full list is accessible through `-h` flag, e.g `yupa -h`.
+
+The YUPASESSION environment variable is special because it is not defined by user before program runs but rather by program itself on startup.  It's defined as `$YUPAHOME/SESSION` where SESSION is the number of currently running Yupa session.
+
+## Session
+
+Each running Yupa process owns a session.  Session is a number unique to that process enabling to run multiple Yupa processes at the same time without conflicts.  Sessions live in $YUPAHOME directory, which is (~/.yupa by default).  If you run just one Yupa program then your session is 0 and all session relevant files
+will live in $YUPAHOME/0 directory.
+
+Session directory that is currently used by running process has `.lock` file which is removed after program terminates.  Other session files remains even after program is closed (except for cache files).  Old session directory is reused by new Yupa process.
+
+### Session files
+
+* .lock - Lock file, exists when session is running
+* res - Raw server response of currently loaded page
+* out - Formatted response body
+* cache/ - Directory with cache
+* cmd - Output of last meta shell command
+* info - Last output of info `i` command
+* uri - Absolute URI of currently loaded page
+
+### Environment
+
+Value of YUPASESSION environment variable is defined from YUPAHOME on program startup.  Therefore it can be accessed only by shell commands run from Yupa prompt.
+
+```
+yupa> $ echo $YUPAHOME
+/home/user/.yupa
+
+yupa> $ echo $YUPASESSION
+/home/user/.yupa/2
+
+yupa> $ cd $YUPASESSION
+yupa> $ find .
+./.lock
+./res
+./out
+./cache
+./cmd
+./info
+./uri
+```
+
+## Shell
+
+You can run shell commands directly from Yupa prompt with $, !, | and % commands.  This combined with binds and session files enables you to extend Yupa with custom features.
+
+Dollar only runs the command, exclamation mark runs command with currently loaded page as first program argument, pipe runs command with currently loaded page as standard input, percent runs command and then use that command standard output as prompt input.
+
+```
+Yupa prompt    Shell equivalent
+-----------    -------------------------
+yupa> $ cmd    $ cmd
+yupa> ! cmd    $ cmd $YUPASESSION/out
+yupa> | cmd    $ <$YUPASESSION/out cmd
+yupa> % cmd    $ cmd >$YUPASESSION/cmd	# Output used as prompt
+```
+
+Default binds provide good example of some practical usages.
+
+## Binds
+
+Binds are single letter, uppercase characters in range from A-Z.  Each of them can hold any predefined prompt input like URI or command.
+
+Insert single uppercase letter to use a bind.  Insert single uppercase letter followed by a command to define bind.
+
+Use info command 'i' to list all currently available binds.  They are always listed at the end of info command output after current page links.  Provide bind as argument to info command to see definition of that bind, e.g `i A`, `i B`, `i H`.
+
+```
+yupa> P gemini://tilde.pink             # Define bind as shortcut to page
+yupa> i P                               # Inspect bind
+yupa> P                                 # Use bind
+
+yupa> V $ $EDITOR $YUPASESSION/res      # Open raw response in editor
+yupa> i V                               # Inspect bind
+yupa> V                                 # Use bind
+yupa> V $ less $YUPASESSION/res         # Redefine bind as something else
+```
+
+Binds are stored in $YUPAHOME/binds file.  File is updated each time new bind is defined.  File is used on program startup to define binds for current session.
+
+## Cache
+
+Each page that is not loaded from local drive is cached using absolute URI of that page as unique key.  Visiting the same page again will cause load from local drive instaed of fetching from network.  Thanks to that reloading of current page with `0` or using undo with `b` or `f` works instantly.
+
+Cache can be cleared with `c` command.  This is useful if you want to actually fetch pages again from network.
+
+Cache hold up to 36 unique pages in single session.  After session storage is exhausted then oldest entry will be replaces with newest page.
+
+Cache files live in $YUPASESSION/cache and are removed when program terminates.
+
+## Support
+
+Yupa aims to have full support for Gopher and Gemini protocols, getting content of HTML document in some readable form is consider a success.  Local files can be loaded, file extension is used to determinate file content.
+
+### Protocols
+
+* gopher://
+* gemini://
+* file:// - for local files
+
+## MIME types
+
+It's not the protocol, but MIME type that determinates how response body will be printed.  Gopher, Gemini and HTML pages are formatted using YUPAMARGIN and YUPAWIDTH settings.  Other regular text files are just displayed as they are using YUPAPAGER.  Media files are open with corresponding YUPAIMG, YUPAVIDEO, YUAPAUDIO and YUPAPDF programs.  Binary files are not open but can be handled with  `!` or `|` shell commands.
+
+* text/gemini - .gmi
+* applicatoin/gopher-menu - .gph
+* text/html - .html
+* text/ - .txt
+* image/ - .jpg, .jpeg, .png, .bmp, .gif
+* video/ - .mp4, .mov, .avi, .mkv
+* audio/ - .wav, .mp3
+* application/pdf - .pdf
+* application/octet-stream - (binary)

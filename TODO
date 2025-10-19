@@ -1,20 +1,8 @@
-TODO	Replace binds with build in commands
+BUG	URI with tabs in history file
 
-	Binds are great, and the fact that I can implement many basic
-	features like bookmarks is fantastic but such approach takes
-	away many binds that could be used for quick URI navigation.
-	Even tho stuff like go up in URI path can be implemented with
-	bind, now I think it's better to have those fundamental stuff
-	build in as lowercase commands.
-
-TODO	Display commands help on empty prompt
-
-	At the moment empty prompt does nothing.  But I found that
-	when not using Yupa daily I don't rly remember even the basics
-	commands.  So it would be nice to have quicker access to them,
-	quicker than full Help menu as Help menu opens Less that you
-	have to quit from before inserting new prompt.  So I propose
-	to show very condensed help on empty prompt.
+	When URI contain tabs then history file is broken.  This can
+	easily happen with Gopher search links as with those the
+	search phrase is separated from URI using tab.
 
 TODO	Improve history.gmi file
 
@@ -33,13 +21,6 @@ TODO	Improve history.gmi file
 	2. Have second history only for given session that don't have
 	   dates, only links that are in order of last visited without
 	   duplication.
-
-TODO	Display current URI
-
-	Either on top of the rendered page or before prompt.  I print
-	current URI very often to see where am I, to apply navigation
-	command like ../ or to simply understand where I was redirected
-	when using link without checking it URI.
 
 TODO	Add details to gemini links
 

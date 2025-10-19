@@ -52,11 +52,7 @@ navs_get(char type)
 {
 	int i;
 
-	/* NOTE(irek): Thanks to -1 the last type in navs is excluded
-	 * from search which makes it a default value in case nothing
-	 * was found. */
-
-	for (i=0; i<LENGTH(navs) -1; i++)
+	for (i=0; i<LENGTH(navs) -1; i++)	/* -1 makes UNKNOWN default */
 		if (navs[i].type == type)
 			break;
 

@@ -2,38 +2,21 @@
 set -e			# Stop on first error
 
 CC="cc"
-CFLAGS="-std=c99"
+CFLAGS="-std=c89"
 
 CFLAGS="$CFLAGS -Wall -Wextra -Wshadow -pedantic"
 CFLAGS="$CFLAGS -Wmissing-declarations -Wswitch-enum"
-
-CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500"		# for strdup()
-CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# for setenv()
-
-# Disable selected warnings
 CFLAGS="$CFLAGS -Wno-missing-braces"
-CFLAGS="$CFLAGS -Wno-deprecated-declarations"
-CFLAGS="$CFLAGS -Wno-format-truncation"
 
-# Store static text files as C strings in embed.c
-$CC $CFLAGS -o embed/embed embed/main.c
-echo "" > embed.c
-./embed/embed embed_binds            < embed/binds            >> embed.c
-./embed/embed embed_help_binds_gmi   < embed/help/binds.gmi   >> embed.c
-./embed/embed embed_help_cache_gmi   < embed/help/cache.gmi   >> embed.c
-./embed/embed embed_help_envs_gmi    < embed/help/envs.gmi    >> embed.c
-./embed/embed embed_help_history_gmi < embed/help/history.gmi >> embed.c
-./embed/embed embed_help_index_gmi   < embed/help/index.gmi   >> embed.c
-./embed/embed embed_help_links_gmi   < embed/help/links.gmi   >> embed.c
-./embed/embed embed_help_session_gmi < embed/help/session.gmi >> embed.c
-./embed/embed embed_help_shell_gmi   < embed/help/shell.gmi   >> embed.c
-./embed/embed embed_help_support_gmi < embed/help/support.gmi >> embed.c
+CFLAGS="$CFLAGS -D_XOPEN_SOURCE=500"		# For strdup()
+CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# For setenv()
 
-$CC $CFLAGS -c embed.c &
+# CFLAGS="$CFLAGS -ggdb"
+
 $CC $CFLAGS -c gmi.c   &
 $CC $CFLAGS -c gph.c   &
 wait
 
 $CC $CFLAGS -o yupa *.o main.c -lssl -lcrypto
     
-rm *.o embed/embed embed.c
+rm *.o		# Cleanup

@@ -1,9 +1,0 @@
-# Environment
-
-Yupa use number of environment variables used for customization.  Things like pager program, left margin and width of printed pages.  Full list is accessible through `-h` flag, e.g `yupa -h`.
-
-The YUPASESSION environment variable is special because it is not defined by user before program runs but rather by program itself on startup.  It's defined as `$YUPAHOME/SESSION` where SESSION is the number of currently running Yupa session.
-
-## See also
-
-=> session.gmi	Session

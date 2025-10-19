@@ -168,7 +168,7 @@ gmi_search(char *header)
 	return buf;
 }
 
-Err
+Why
 gmi_onheader(FILE *res, char **header, char **redirect)
 {
 	static char buf[4096];

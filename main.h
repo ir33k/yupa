@@ -13,7 +13,7 @@ enum mime {
 	MIME_PDF
 };
 
-typedef char*		Err;
+typedef char*		Why;
 typedef enum mime	Mime;
 
 extern int	envmargin;

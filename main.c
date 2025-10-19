@@ -1,5 +1,5 @@
 #define NAME	"yupa"
-#define VERSION	"v5.3"
+#define VERSION	"v6.0"
 #define AUTHOR	"irek@gabr.pl"
 
 #include <assert.h>
@@ -16,11 +16,9 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "main.h"
-#include "embed.h"
 #include "gmi.h"
 #include "gph.h"
 
@@ -29,13 +27,24 @@
 #define BINDSN		('Z'-'A'+1)	/* Inclusive range from A to Z */
 #define UNDOSN		32
 
-enum {					/* Default ports */
-	LOCAL	= 4,
-	HTTP	= 80,
-	HTTPS	= 443,
-	GEMINI	= 1965,
-	GOPHER	= 70,
-};
+static char *help =
+	"q/e	Quit / Exit\n"
+	"g uri	Goto URI\n"
+	"b [n]	Move back in history by 1 or N\n"
+	"f [n]	Move forward in history by 1 or N\n"
+	"i [x]	List all page links and binds or single item X\n"
+	"a [uri]	Add current page or URI to bookmarks\n"
+	"r	View raw response\n"
+	"$ cmd	Run CMD\n"
+	"! cmd	Run CMD with page file path as argument\n"
+	"| cmd	Run CMD with page file content as stdin\n"
+	"%% cmd	Use CMD stdout as next prompt input\n"
+	"A-Z [x]	Binds, invoke or define with X\n"
+	"H	History\n"
+	"B	Bookmarks\n"
+	"V	Search Gopherspace with Veronika-2\n";
+
+enum { LOCAL=4, HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
 
 typedef char		Undo[4096];
 typedef struct cache	Cache;
@@ -48,40 +57,33 @@ struct cache {
 static void	usage		(char *argv0);
 static void	envstr		(char *name, char **env);
 static void	envint		(char *name, int *env);
-static Err	loadpage	(char *link);
+static Why	loadpage	(char *link);
 static void	onprompt	(char*);
-static char*	oncmd		(char*);
 static void	end		(int) __attribute__((noreturn));
 static void	onsignal	(int);
 static char*	startsession	();
-static void	save		(char *name, const char *str);
 static char*	join		(char*, char*);
 static char*	resolvepath	(char*);
-static Err	fcp		(FILE *src, FILE *dst);
-static Err	cp		(char *src, char *dst);
+static Why	fcp		(FILE *src, FILE *dst);
+static Why	cp		(char *src, char *dst);
 static void	skip		(char *str, unsigned n);
 
-/* Fetch */
-static Err	fetch_secure	(int sfd, char *host, char *msg, FILE *out);
-static Err	fetch_plain	(int sfd, char *msg, FILE *out);
-static Err	fetch		(char *host, int port, int ssl, char *msg, char *out);
+static Why	fetch_secure	(int sfd, char *host, char *msg, FILE *out);
+static Why	fetch_plain	(int sfd, char *msg, FILE *out);
+static Why	fetch		(char *host, int port, int ssl, char *msg, char *out);
 
-/* Binds are characters in range from A to Z that hold any string value */
-static void	bind_init	();
+static int	bind_init	();
 static void	bind_set	(char bind, char *str);
 static char*	bind_get	(char bind);
 
-/* Cache some number of files */
 static char*	cache_path	(int index);
-static Err	cache_add	(char *key, char *path);
+static Why	cache_add	(char *key, char *path);
 static char*	cache_get	(char *key);
 static void	cache_clear	();
 
-/* Links storage */
 static void	link_clear	();
 static char*	link_get	(int i);
 
-/* Extract parts of URI string */
 static char*	uri_protocolstr	(int protocol);
 static int	uri_protocol	(char *uri);
 static char*	uri_host	(char *uri);
@@ -89,15 +91,12 @@ static int	uri_port	(char *uri);
 static char*	uri_path	(char *uri);
 static char*	uri_normalize	(char *link, char *base_uri);
 
-/* Browsing undo history */
 static void	undo_add	(char *uri);
 static char*	undo_goto	(int offset);
 
-/* Mime */
 static Mime	mime_path	(char *path);
 static Mime	mime_header	(char *str);
 
-static int	silent		= 0;
 static char*	binds[BINDSN]	= {0};
 static Cache	caches[36]	= {0};
 static char**	links		= 0;
@@ -114,6 +113,8 @@ static char*	envvideo	= "xdg-open";
 static char*	envaudio	= "xdg-open";
 static char*	envpdf		= "xdg-open";
 static char*	envhtml		= "xdg-open";
+/* TODO(irek): $ lynx -dump -force_html url | less */
+
 int	envmargin	= 4;
 int	envwidth	= 76;
 
@@ -126,17 +127,21 @@ static char*	pathcmd;
 static char*	pathcache;
 static char*	pathbinds;
 static char*	pathhistory;
+static char*	pathbook;
 
 void
 usage(char *argv0)
 {
-	printf("usage: %s [options] [URI/input]\n"
-	       "\n"
-	       "options:\n"
+	printf("usage: %s [options] [URI/cmd/help]\n"
+	       "\n",
+	       argv0);
+
+	printf("options:\n"
 	       "	-v		Print program version\n"
 	       "	-h		Print this help message\n"
-	       "\n"
-	       "envs:\n"
+	       "\n");
+
+	printf("envs:\n"
 	       "	YUPAHOME	Absolute path to user data (%s)\n"
 	       "	YUPASESSION	Runtime path to session dir (%s)\n"
 	       "	YUPAPAGER	Overwrites $PAGER value (%s)\n"
@@ -147,10 +152,8 @@ usage(char *argv0)
 	       "	YUPAHTML	Command to open websites (%s)\n"
 	       "	YUPAMARGIN	Left margin (%d)\n"
 	       "	YUPAWIDTH	Max width (%d)\n",
-	       argv0,
-	       envhome, envsession,
-	       envpager, envimage, envvideo, envaudio, envpdf, envhtml,
-	       envmargin, envwidth);
+	       envhome, envsession, envpager, envimage, envvideo,
+	       envaudio, envpdf, envhtml, envmargin, envwidth);
 }
 
 void
@@ -178,13 +181,13 @@ envint(char *name, int *env)
 		err(1, "setenv(%s)", name);
 }
 
-Err
+Why
 loadpage(char *link)
 {
-	Err why;
+	Why why;
 	char uri[4096], buf[4096];
 	char *host, *path, *cache, *search, *pt, *cmd, *header;
-	int protocol, port, ssl=0;
+	int protocol, port, ssl;
 	Mime mime;
 	int n;
 	FILE *fp, *res, *out;
@@ -192,6 +195,7 @@ loadpage(char *link)
 	if (!link)
 		return "No link";
 
+	why = 0;
 	pt = uri_normalize(link, link_get(0));
 	snprintf(uri, sizeof uri, "%s", pt);
 
@@ -206,6 +210,7 @@ loadpage(char *link)
 		if ((why = cp(cache, pathres)))
 			return why;
 	} else {
+		ssl = 0;
 		buf[0] = 0;
 
 		switch (protocol) {
@@ -302,27 +307,16 @@ loadpage(char *link)
 
 	cmd = 0;
 	switch (mime) {
-	default:
-	case 0:
-		why = "Unsupported mime file type";
-		break;
-	case MIME_BINARY:
-		why = "Binary mime file type is unsupported";
-		break;
-	case MIME_GPH:
-		gph_print(res, out);
-		cmd = envpager;
-		break;
-	case MIME_GMI:
-		gmi_print(res, out);
-		cmd = envpager;
-		break;
-	case MIME_TEXT:  if (!(why = fcp(res, out))) cmd = envpager; break;
-	case MIME_HTML:  if (!(why = fcp(res, out))) cmd = envhtml;  break;
-	case MIME_IMAGE: if (!(why = fcp(res, out))) cmd = envimage; break;
-	case MIME_VIDEO: if (!(why = fcp(res, out))) cmd = envvideo; break;
-	case MIME_AUDIO: if (!(why = fcp(res, out))) cmd = envaudio; break;
-	case MIME_PDF:   if (!(why = fcp(res, out))) cmd = envpdf;   break;
+	default: case 0:  why = "Unsupported mime file type"; break;
+	case MIME_BINARY: why = "Binary mime file type is unsupported"; break;
+	case MIME_GPH:    gph_print(res, out); cmd = envpager; break;
+	case MIME_GMI:    gmi_print(res, out); cmd = envpager; break;
+	case MIME_TEXT:   why = fcp(res, out); cmd = envpager; break;
+	case MIME_HTML:   why = fcp(res, out); cmd = envhtml;  break;
+	case MIME_IMAGE:  why = fcp(res, out); cmd = envimage; break;
+	case MIME_VIDEO:  why = fcp(res, out); cmd = envvideo; break;
+	case MIME_AUDIO:  why = fcp(res, out); cmd = envaudio; break;
+	case MIME_PDF:    why = fcp(res, out); cmd = envpdf;   break;
 	}
 
 	if (fclose(res))
@@ -331,7 +325,7 @@ loadpage(char *link)
 	if (fclose(out))
 		err(1, "flose(%s)", pathout);
 
-	if (!silent && cmd) {
+	if (!why && cmd) {
 		snprintf(buf, sizeof buf, "%s %s", cmd, pathout);
 		system(buf);
 	}
@@ -340,78 +334,76 @@ loadpage(char *link)
 }
 
 void
-onprompt(char *str)
+onprompt(char *input)
 {
-	Err why;
-	char *link;
-
-	if (!str || !str[0])
-		return;
-
-	if (isdigit(str[0]))
-		link = link_get(atoi(str));
-	else
-		link = oncmd(str);
-
-	if (!link)
-		return;
-
-	if ((why = loadpage(link)))
-		printf(NAME": %s\n", why);
-}
-
-char *
-oncmd(char *cmd)
-{
-	static char buf[4096];
-	char *arg, *str=0;
+	Why why;
+	char cmd, *arg, *tmp, buf[4096];
 	int i;
 	FILE *fp;
 
-	if (!cmd[0])
-		return 0;
+	assert(input);
+	input = trim(input);
 
-	/* When second character is not a whitespace (including null
-	 * terminator) and it's not a digit then we can't tell if this
-	 * is an Link or invalid command.  It's better to return it
-	 * right away to try interpret it as a link. */
-	if (cmd[1] > ' ' && !isdigit(cmd[1]))
-		return cmd;
+	why = 0;
+	cmd = 0;
+	arg = 0;
 
-	arg = trim(cmd+1);
-
-	if (cmd[0] >= 'A' && cmd[0] <= 'Z') {
-		if (arg[0])
-			bind_set(cmd[0], arg);
-		else if ((str = bind_get(cmd[0])))
-			onprompt(str);
-
-		return 0;
+	if (!input[0]) {
+		return;
+	} else if (isdigit(input[0])) {
+		cmd = 'g';
+		arg = link_get(atoi(input));
+	} else if (uri_protocol(input)) {
+		cmd = 'g';
+		arg = input;
+	} else {
+		cmd = input[0];
+		arg = triml(input+1);
 	}
-	
-	switch (cmd[0]) {
-	case 'q':
-		end(0);
-	case 'h':
-		snprintf(buf, sizeof buf, "file://%s/%s",
-			 envhome, "help/index.gmi");
-		onprompt(buf);
-		break;
-	case 'b':
-		i = atoi(arg);
-		return undo_goto(i ? -i : -1);
-	case 'f':
-		i = atoi(arg);
-		return undo_goto(i ? i : 1);
-	case 'i':
-		if (arg[0]) {
-			if (arg[0] >= 'A' && arg[0] <= 'Z')
-				str = bind_get(arg[0]);
-			else
-				str = link_get(atoi(arg));
 
-			if (str)
-				printf("%s\n", str);
+	if (!arg[0])
+		arg = 0;
+
+	if (cmd >= 'A' && cmd <= 'Z') {		/* Binds */
+		if (arg)
+			bind_set(cmd, arg);
+		else if ((arg = bind_get(cmd)))
+			onprompt(arg);
+		return;
+	}
+
+	switch (cmd) {
+	case 'h':
+		printf(help);
+		break;
+	case 'q':	/* quit */
+	case 'e':	/* end */
+		end(0);
+	case 'g':	/* go */
+		if (!arg)
+			why = "Invalid link";
+		else
+			why = loadpage(arg);
+		break;
+	case 'b':	/* back */
+		arg = undo_goto(arg ? atoi(arg) * -1 : -1);
+		why = loadpage(arg);
+		break;
+	case 'f':	/* forward */
+		arg = undo_goto(arg ? atoi(arg) : 1);
+		why = loadpage(arg);
+		break;
+	case 'i':	/* info */
+		if (arg) {
+			if (isdigit(arg[0]))
+				arg = link_get(atoi(arg));
+			else
+				arg = bind_get(arg[0]);
+
+			if (arg)
+				printf("%s\n", arg);
+			else
+				why = "Invalid info argument";
 
 			break;
 		}
@@ -420,13 +412,13 @@ oncmd(char *cmd)
 		if (!fp)
 			err(1, "fopen(/info)");
 
-		for (i=0; (str = link_get(i)); i++)
-			fprintf(fp, "%u\t%s\n", i, str);
+		for (i=0; (tmp = link_get(i)); i++)
+			fprintf(fp, "%u\t%s\n", i, tmp);
 
 		for (i='A'; i<='Z'; i++) {
-			str = bind_get(i);
-			if (str)
-				fprintf(fp, "%c\t%s\n", i, str);
+			tmp = bind_get(i);
+			if (tmp)
+				fprintf(fp, "%c\t%s\n", i, tmp);
 		}
 
 		if (fclose(fp))
@@ -435,12 +427,35 @@ oncmd(char *cmd)
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathinfo);
 		system(buf);
 		break;
-	case 'c':
-		cache_clear();
+	case 'a':	/* add bookmark */
+		if (!arg)
+			arg = link_get(0);
+
+		if (!arg) {
+			why = "No active page";
+			break;
+		}
+
+		if (!uri_protocol(arg)) {
+			why = "Can't bookmark relative link";
+			break;
+		}
+
+		snprintf(buf, sizeof buf, "echo \"=> %s\n\" >> %s",
+			 arg, pathbook);
+		system(buf);
 		break;
-	case 's':
-		silent = !silent;
-		printf("Silent mode %s\n", silent ? "enabled" : "disabled");
+	case 'r':	/* raw */
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathres);
+		system(buf);
+		break;
+	case 'd':	/* download */
+		if (!arg || !arg[0]) {
+			why = "Missing path";
+			break;
+		}
+		snprintf(buf, sizeof buf, "cp %s %s", pathres, arg);
+		system(buf);
 		break;
 	case '$':
 		system(arg);
@@ -466,11 +481,14 @@ oncmd(char *cmd)
 		if (fclose(fp))
 			err(1, "flose(/out)");
 
-		onprompt(trim(buf));
+		onprompt(buf);
 		break;
+	default:
+		why = "Unknown command";
 	}
 
-	return 0;
+	if (why)
+		printf("%s\n", why);
 }
 
 void
@@ -540,26 +558,6 @@ startsession()
 	close(fd);
 
 	return strdup(buf);
-}
-
-void
-save(char *name, const char *str)
-{
-	FILE *fp;
-	char *path;
-
-	path = join(envhome, name);
-
-	if (!access(path, F_OK))
-		return;
-
-	if (!(fp = fopen(path, "w")))
-		err(1, "save fopen %s", path);
-
-	fwrite(str, 1, strlen(str), fp);
-
-	if (fclose(fp))
-		err(1, "save fclose %s", path);
 }
 
 char *
@@ -639,7 +637,7 @@ trim(char *str)
 	return str;
 }
 
-Err
+Why
 fcp(FILE *src, FILE *dst)
 {
 	char buf[BUFSIZ];
@@ -652,7 +650,7 @@ fcp(FILE *src, FILE *dst)
 	return 0;
 }
 
-Err
+Why
 cp(char *src, char *dst)
 {
 	char *why=0;
@@ -680,8 +678,8 @@ fail:	if (fclose(fp0))
 int
 starts(char *str, char *with)
 {
-	if (!str) str = "";
 	int n = strlen(with);
+	if (!str) str = "";
 	return n > (int)strlen(str) ? 0 : !strncasecmp(str, with, n);
 }
 
@@ -696,7 +694,7 @@ skip(char *str, unsigned n)
 	str[i] = 0;
 }
 
-Err
+Why
 fetch_secure(int sfd, char *host, char *msg, FILE *out)
 {
 	static SSL_CTX *ctx=0;
@@ -753,7 +751,7 @@ fetch_secure(int sfd, char *host, char *msg, FILE *out)
 	return 0;
 }
 
-Err
+Why
 fetch_plain(int sfd, char *msg, FILE *out)
 {
 	char buf[BUFSIZ];
@@ -772,10 +770,10 @@ fetch_plain(int sfd, char *msg, FILE *out)
 	return 0;
 }
 
-Err
+Why
 fetch(char *host, int port, int ssl, char *msg, char *out)
 {
-	Err why;
+	Why why;
 	static int sfd=-1;
 	int i;
 	struct hostent *he;
@@ -820,20 +818,23 @@ fetch(char *host, int port, int ssl, char *msg, char *out)
 	return why;
 }
 
-void
+int
 bind_init()
 {
 	char buf[4096];
 	FILE *fp;
+	int i;
 
 	if (!(fp = fopen(pathbinds, "r")))
-		return;		/* Ignore error, file might not exist */
+		return 0;		/* Ignore error, file might not exist */
 
-	while (fgets(buf, sizeof buf, fp))
+	for (i=0; fgets(buf, sizeof buf, fp); i++)
 		binds[buf[0]-'A'] = strdup(trim(buf+1));
 
 	if (fclose(fp))
 		err(1, "bind_init flose %s", pathbinds);
+
+	return i;
 }
 
 void
@@ -872,11 +873,11 @@ cache_path(int index)
 	return buf;
 }
 
-Err
+Why
 cache_add(char *key, char *src)
 {
 	static int age=0;
-	Err why;
+	Why why;
 	int i, min=-1, oldest=0;
 	char *dst;
 
@@ -1272,6 +1273,7 @@ main(int argc, char **argv)
 	pathcache   = strdup(join(envsession, "/cache"));
 	pathbinds   = strdup(join(envhome, "/binds"));
 	pathhistory = strdup(join(envhome, "/history.gmi"));
+	pathbook    = strdup(join(envhome, "/book.gmi"));
 
 	if (envmargin < 0)
 		errx(0, "YUPAMARGIN has to be >= 0");
@@ -1293,20 +1295,13 @@ main(int argc, char **argv)
 		}
 
 	mkdir(pathcache, 0755);
-	mkdir(join(envhome, "/help"), 0755);
 
-	save("/binds",            embed_binds);
-	save("/help/binds.gmi",   embed_help_binds_gmi);
-	save("/help/cache.gmi",   embed_help_cache_gmi);
-	save("/help/envs.gmi",    embed_help_envs_gmi);
-	save("/help/history.gmi", embed_help_history_gmi);
-	save("/help/index.gmi",   embed_help_index_gmi);
-	save("/help/links.gmi",   embed_help_links_gmi);
-	save("/help/session.gmi", embed_help_session_gmi);
-	save("/help/shell.gmi",   embed_help_shell_gmi);
-	save("/help/support.gmi", embed_help_support_gmi);
-
-	bind_init();
+	/* Define default binds when there are none */
+	if (bind_init() == 0) {
+		bind_set('H', join("file://", pathhistory));
+		bind_set('B', join("file://", pathbook));
+		bind_set('V', "gopher://gopher.floodgap.com/7/v2/vs");
+	}
 
 	if (argc - optind > 0)
 		prompt = argv[argc-optind];
@@ -1314,18 +1309,17 @@ main(int argc, char **argv)
 	if (prompt) {
 		onprompt(prompt);
 	} else if (!access(pathhistory, F_OK)) {
-		silent = 1;
+		env = envpager;
+		envpager = "head";
 		onprompt(join("file://", pathhistory));
-		onprompt("$ less -XI +Rq $YUPASESSION/out");
-		silent = 0;
+		envpager = env;
 	}
 
 	while (1) {
-		printf(NAME"> ");
 		if (!fgets(buf, sizeof buf, stdin))
 			break;
 
-		onprompt(trim(buf));
+		onprompt(buf);
 	}
 
 	end(0);
