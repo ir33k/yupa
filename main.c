@@ -1,4 +1,4 @@
-#define NAME	"yupa"
+#define NAME	"yupa"			/* Yet another village is dead */
 #define VERSION	"v6.0"
 #define AUTHOR	"irek@gabr.pl"
 
@@ -32,17 +32,14 @@ static char *help =
 	"g uri	Goto URI\n"
 	"b [n]	Move back in history by 1 or N\n"
 	"f [n]	Move forward in history by 1 or N\n"
-	"i [x]	List all page links and binds or single item X\n"
+	"i [x]	List all page links or single item X\n"
 	"a [uri]	Add current page or URI to bookmarks\n"
 	"r	View raw response\n"
 	"$ cmd	Run CMD\n"
 	"! cmd	Run CMD with page file path as argument\n"
 	"| cmd	Run CMD with page file content as stdin\n"
 	"%% cmd	Use CMD stdout as next prompt input\n"
-	"A-Z [x]	Binds, invoke or define with X\n"
-	"H	History\n"
-	"B	Bookmarks\n"
-	"V	Search Gopherspace with Veronika-2\n";
+	"A-Z [x]	Binds, invoke or define with X\n";
 
 enum { LOCAL=4, HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
 
@@ -375,6 +372,11 @@ onprompt(char *input)
 	switch (cmd) {
 	case 'h':
 		printf(help);
+		
+		for (i='A'; i<='Z'; i++)
+			if ((tmp = bind_get(i)))
+				printf("%c\t%s\n", i, tmp);
+
 		break;
 	case 'q':	/* quit */
 	case 'e':	/* end */
@@ -397,8 +399,6 @@ onprompt(char *input)
 		if (arg) {
 			if (isdigit(arg[0]))
 				arg = link_get(atoi(arg));
-			else
-				arg = bind_get(arg[0]);
 
 			if (arg)
 				printf("%s\n", arg);
@@ -414,12 +414,6 @@ onprompt(char *input)
 
 		for (i=0; (tmp = link_get(i)); i++)
 			fprintf(fp, "%u\t%s\n", i, tmp);
-
-		for (i='A'; i<='Z'; i++) {
-			tmp = bind_get(i);
-			if (tmp)
-				fprintf(fp, "%c\t%s\n", i, tmp);
-		}
 
 		if (fclose(fp))
 			err(1, "flose(/info)");
