@@ -1,41 +1,34 @@
 Yupa is a CLI browser for Gopher and Gemini protocols.
 
-Documentation is accessible inside Yupa in help pages that are open
-with `h` command.  Pages describe topics like history, links, cache,
-session, extensibility through custom binds, shell commands, env
-variables and more.
+It's a successor to gmi100 [1][2] which was only made for fun but I
+found it approach to browsing text protocols very appealing.  I kept
+using gmi100 despite having "better" alternatives easily available.
+This is how Yupa was born.  It's essentially the same interface but
+for Gopher and Gemini protocols with more features.
+
+[1] http://irek.gabr.pl/gmi100.html
+[2] https://github.com/ir33k/gmi100
 
 Build and run:
 
 	$ ./build       # Compile yupa binary
 	$ ./yupa -h     # Print usage instruction
 	$ ./yupa URI    # Run with optional URI
-	$ yupa> h       # Open help pages within Yupa
+	$ ./yupa h      # Run with help command
 
 Usage:
 
-	yupa> gemini://tilde.pink       # Load page
+	$ ./yupa		# Start Yupa
+	gemini://tilde.pink	# Load page with absolute URI
 
-	# After page is loaded the YUPAPAGER (less by default) is used
-	# to display it.  When you are done reading the page and you
-	# want to insert another Yupa command you have to first quit
-	# the pages.  In case of less it's done by inserting 'q'.
+	# After page is loaded the YUPAPAGER (`less` by default) is
+	# used to display it.  When you are done reading the page and
+	# you want to insert another Yupa command you have to first
+	# quit the pager.  In case of less it's done by inserting `q`.
 
-	yupa> i81       # Inspect page link
-	yupa> 81        # Visit page link
-	yupa> b         # Go back in undo history
-	yupa> f         # Go forward in undo history
-	yupa> q         # Quit
-
-----------------------------------------------------------------------
-
-Yupa is a successor to gmi100 [1][2] which is a Gemini CLI browser
-written in 100 lines of C.  Even tho gmi100 was only made for fun I
-found it approach to browsing text protocols very appealing.  I kept
-using gmi100 despite having "better" alternatives easily available.
-
-This is how Yupa was born.  It's essentially the same interface with
-more features.
-
-[1] http://irek.gabr.pl/gmi100.html
-[2] https://github.com/ir33k/gmi100
+	i81	# Inspect page link
+	81	# Visit page link
+	b	# Go back in browsing history
+	f	# Go forward in browsing history
+	h	# Print help message with list of commands
+	q	# Quit

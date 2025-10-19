@@ -4,6 +4,11 @@ BUG	URI with tabs in history file
 	easily happen with Gopher search links as with those the
 	search phrase is separated from URI using tab.
 
+TODO	Handle whitespaces in Gemini URI
+
+	From what I remember spaces and tabs should be replaces with
+	%20 or something like that.
+
 TODO	Improve history.gmi file
 
 	Browsing history is very often used because without tabs it
