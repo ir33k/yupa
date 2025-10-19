@@ -372,7 +372,7 @@ onprompt(char *input)
 	switch (cmd) {
 	case 'h':
 		printf(help);
-		
+
 		for (i='A'; i<='Z'; i++)
 			if ((tmp = bind_get(i)))
 				printf("%c\t%s\n", i, tmp);
@@ -489,6 +489,7 @@ void
 end(int code)
 {
 	cache_clear();
+	rmdir(pathcache);
 	unlink(pathlock);
 	exit(code);
 }
@@ -570,7 +571,7 @@ resolvepath(char *path)
 	struct passwd *pwd;
 
 	path = trim(path);
-	
+
 	if (!path[0])
 		return "/";
 
