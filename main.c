@@ -30,14 +30,13 @@
 static char *help =
 	"q/e	Quit / Exit\n"
 	"g uri	Goto URI\n"
-	"u [n]	Undo browsing history by -1 or N\n"
-	"i [x]	List all page links or single item X\n"
-	"a [uri]	Add current page or URI to bookmarks\n"
+	"u [n]	Undo by -1 or N\n"
+	"i [x]	List page links or link X\n"
+	"a [uri]	Bookmark page or URI\n"
+	"b	Bookmarks\n"
 	"r	View raw response\n"
 	"$ cmd	Run CMD\n"
-	"! cmd	Run CMD with page file path as argument\n"
-	"| cmd	Run CMD with page file content as stdin\n"
-	"%% cmd	Use CMD stdout as next prompt input\n"
+	"%% cmd	Use CMD stdout as input\n"
 	"A-Z [x]	Binds, invoke or define with X\n";
 
 enum { LOCAL=4, HTTP=80, HTTPS=443, GEMINI=1965, GOPHER=70 };
@@ -434,6 +433,9 @@ onprompt(char *input)
 			 arg, pathbook);
 		system(buf);
 		break;
+	case 'b':	/* bookmarks */
+		why = loadpage(join("file://", pathbook));
+		break;
 	case 'r':	/* raw */
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathres);
 		system(buf);
@@ -448,14 +450,6 @@ onprompt(char *input)
 		break;
 	case '$':
 		system(arg);
-		break;
-	case '!':
-		snprintf(buf, sizeof buf, "%s %s", arg, pathout);
-		system(buf);
-		break;
-	case '|':
-		snprintf(buf, sizeof buf, "<%s %s", pathout, arg);
-		system(buf);
 		break;
 	case '%':
 		snprintf(buf, sizeof buf, "%s >%s", arg, pathcmd);
@@ -1289,7 +1283,6 @@ main(int argc, char **argv)
 	/* Define default binds when there are none */
 	if (bind_init() == 0) {
 		bind_set('H', join("file://", pathhistory));
-		bind_set('B', join("file://", pathbook));
 		bind_set('V', "gopher://gopher.floodgap.com/7/v2/vs");
 	}
 
