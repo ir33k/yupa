@@ -30,8 +30,7 @@
 static char *help =
 	"q/e	Quit / Exit\n"
 	"g uri	Goto URI\n"
-	"b [n]	Move back in history by 1 or N\n"
-	"f [n]	Move forward in history by 1 or N\n"
+	"u [n]	Undo browsing history by -1 or N\n"
 	"i [x]	List all page links or single item X\n"
 	"a [uri]	Add current page or URI to bookmarks\n"
 	"r	View raw response\n"
@@ -387,12 +386,8 @@ onprompt(char *input)
 		else
 			why = loadpage(arg);
 		break;
-	case 'b':	/* back */
-		arg = undo_goto(arg ? atoi(arg) * -1 : -1);
-		why = loadpage(arg);
-		break;
-	case 'f':	/* forward */
-		arg = undo_goto(arg ? atoi(arg) : 1);
+	case 'u':	/* undo */
+		arg = undo_goto(arg ? atoi(arg) : -1);
 		why = loadpage(arg);
 		break;
 	case 'i':	/* info */
