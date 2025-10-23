@@ -77,7 +77,7 @@ void
 emit_link(char *line, FILE *out)
 {
 	char *label, prefix[16];
-	unsigned i, n;
+	int i, n;
 
 	line = trim(line);
 	n = strcspn(line, "\t ");
@@ -85,7 +85,7 @@ emit_link(char *line, FILE *out)
 	line[n] = 0;
 	i = link_store(line);
 
-	snprintf(prefix, sizeof prefix, "%u> ", i);
+	snprintf(prefix, sizeof prefix, "%u ", i);
 	fprintf(out, "%-*s%s\n", envmargin, prefix, label ? label : line);
 }
 

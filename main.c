@@ -30,12 +30,11 @@
 static char *help =
 	"q/e	Quit / Exit\n"
 	"g uri	Goto URI\n"
-	"u [n]	Undo by -1 or N\n"
+	"b [n]	Back in browsing history by -1 or N\n"
 	"i [x]	List page links or link X\n"
 	"a [uri]	Bookmark page or URI\n"
-	"b	Bookmarks\n"
 	"r	View raw response\n"
-	"$ cmd	Run CMD\n"
+	"! cmd	Run CMD\n"
 	"%% cmd	Use CMD stdout as input\n"
 	"A-Z [x]	Binds, invoke or define with X\n";
 
@@ -385,7 +384,7 @@ onprompt(char *input)
 		else
 			why = loadpage(arg);
 		break;
-	case 'u':	/* undo */
+	case 'b':	/* back */
 		arg = undo_goto(arg ? atoi(arg) : -1);
 		why = loadpage(arg);
 		break;
@@ -433,22 +432,11 @@ onprompt(char *input)
 			 arg, pathbook);
 		system(buf);
 		break;
-	case 'b':	/* bookmarks */
-		why = loadpage(join("file://", pathbook));
-		break;
 	case 'r':	/* raw */
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathres);
 		system(buf);
 		break;
-	case 'd':	/* download */
-		if (!arg || !arg[0]) {
-			why = "Missing path";
-			break;
-		}
-		snprintf(buf, sizeof buf, "cp %s %s", pathres, arg);
-		system(buf);
-		break;
-	case '$':
+	case '!':
 		system(arg);
 		break;
 	case '%':
@@ -1283,6 +1271,7 @@ main(int argc, char **argv)
 	/* Define default binds when there are none */
 	if (bind_init() == 0) {
 		bind_set('H', join("file://", pathhistory));
+		bind_set('B', join("file://", pathbook));
 		bind_set('V', "gopher://gopher.floodgap.com/7/v2/vs");
 	}
 

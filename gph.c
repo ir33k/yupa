@@ -88,11 +88,11 @@ gph_print(FILE *res, FILE *out)
 
 		if (nav->mime) {
                         i = link_store(uri);
-			snprintf(index, sizeof index, "%d> ", i);
+			snprintf(index, sizeof index, "%d ", i);
 		}
 
 		if (nav->label)
-			snprintf(label, sizeof label, " <%s>", nav->label);
+			snprintf(label, sizeof label, " (%s)", nav->label);
 
 		fprintf(out, "%-*s%s%s\n", envmargin, index, name, label);
 	}
