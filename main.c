@@ -31,7 +31,7 @@ static char *help =
 	"q/e	Quit / Exit\n"
 	"g uri	Goto URI\n"
 	"b [n]	Back in browsing history by -1 or N\n"
-	"i [x]	List page links or link X\n"
+	"l [x]	List page links or link X\n"
 	"a [uri]	Bookmark page or URI\n"
 	"r	View raw response\n"
 	"! cmd	Run CMD\n"
@@ -73,7 +73,6 @@ static char*	bind_get	(char bind);
 static char*	cache_path	(int index);
 static Why	cache_add	(char *key, char *path);
 static char*	cache_get	(char *key);
-static void	cache_clear	();
 
 static void	link_clear	();
 static char*	link_get	(int i);
@@ -116,7 +115,7 @@ static char*	pathlock;
 static char*	pathres;
 static char*	pathout;
 static char*	pathuri;
-static char*	pathinfo;
+static char*	pathlinks;
 static char*	pathcmd;
 static char*	pathcache;
 static char*	pathbinds;
@@ -355,7 +354,7 @@ onprompt(char *input)
 		arg = triml(input+1);
 	}
 
-	if (!arg[0])
+	if (arg && !arg[0])
 		arg = 0;
 
 	if (cmd >= 'A' && cmd <= 'Z') {		/* Binds */
@@ -388,7 +387,7 @@ onprompt(char *input)
 		arg = undo_goto(arg ? atoi(arg) : -1);
 		why = loadpage(arg);
 		break;
-	case 'i':	/* info */
+	case 'l':	/* links */
 		if (arg) {
 			if (isdigit(arg[0]))
 				arg = link_get(atoi(arg));
@@ -401,7 +400,7 @@ onprompt(char *input)
 			break;
 		}
 
-		fp = fopen(pathinfo, "w");
+		fp = fopen(pathlinks, "w");
 		if (!fp)
 			err(1, "fopen(/info)");
 
@@ -411,7 +410,7 @@ onprompt(char *input)
 		if (fclose(fp))
 			err(1, "flose(/info)");
 
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathinfo);
+		snprintf(buf, sizeof buf, "%s %s", envpager, pathlinks);
 		system(buf);
 		break;
 	case 'a':	/* add bookmark */
@@ -436,10 +435,10 @@ onprompt(char *input)
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathres);
 		system(buf);
 		break;
-	case '!':
+	case '!':	/* cmd */
 		system(arg);
 		break;
-	case '%':
+	case '%':	/* meta cmd */
 		snprintf(buf, sizeof buf, "%s >%s", arg, pathcmd);
 		system(buf);
 
@@ -465,9 +464,15 @@ onprompt(char *input)
 void
 end(int code)
 {
-	cache_clear();
+	int i;
+
+	for (i=0; i<LENGTH(caches); i++)
+		if (caches[i].key)
+			unlink(cache_path(i));
+
 	rmdir(pathcache);
 	unlink(pathlock);
+	unlink(pathlinks);
 	exit(code);
 }
 
@@ -487,23 +492,18 @@ startsession()
 	char buf[4096];
 	int i, fd;
 
-	/* NOTE(irek): The idea is that we want to create new session
-	 * directory only when necessary.  Session directory being the
-	 * envsession (YUPASESSION) path to dir with browser session files.
+	/* YUPASESSION is a path to directory inside YUPAHOME that
+	 * is unique for running process.  Session is a number being
+	 * directory name inside YUPAHOME.  Running / taken session
+	 * directories are locked with .lock file.
 	 *
-	 * If there is previous session directory that is no longer
-	 * used (is not locked) then we will locked it and use for
-	 * this session.  Create new if no session is free.
-	 *
-	 *	1. Session is just an integer
-	 *	2. Used for dir name in $YUPAHOME
-	 *	3. Locked session have .lock file
-	 *
-	 *	$YUPAHOME/0/.lock
+	 *	$YUPAHOME/0/.lock	Currently used session
 	 *	$YUPAHOME/1/.lock
-	 *	$YUPAHOME/2/
+	 *	$YUPAHOME/2/		Old session that can be reused
 	 *	$YUPAHOME/3/.lock
 	 *	$YUPAHOME/4/
+	 *
+	 * In this scenario returned value will be $YUPAHOME/2
 	 */
 
 	for (i=0; i<SESSIONSN; i++) {
@@ -513,11 +513,11 @@ startsession()
 			if (mkdir(buf, 0755))
 				err(1, "startsession mkdir(%s)", buf);
 
-			break;	/* New session */
+			break;	/* Create new session */
 		}
 
 		if (access(join(buf, "/.lock"), F_OK))
-			break;	/* Free session */
+			break;	/* Found free session */
 	}
 
 	if (i == SESSIONSN)
@@ -899,18 +899,6 @@ cache_get(char *key)
 }
 
 void
-cache_clear()
-{
-	int i;
-
-	for (i=0; i<LENGTH(caches); i++)
-		if (caches[i].key)
-			unlink(cache_path(i));
-
-	memset(caches, 0, sizeof caches);
-}
-
-void
 link_clear()
 {
 	while (linksn)
@@ -1157,13 +1145,9 @@ mime_path(char *path)
 {
 	char *extension;
 
-	if (!path || !path[0])
-		return 0;
-
 	extension = strrchr(path, '.');
 	if (!extension) return MIME_TEXT;
 	if (!strcasecmp(extension, ".txt"))  return MIME_TEXT;
-	if (!strcasecmp(extension, ".md"))   return MIME_TEXT;
 	if (!strcasecmp(extension, ".gph"))  return MIME_GPH;
 	if (!strcasecmp(extension, ".gmi"))  return MIME_GMI;
 	if (!strcasecmp(extension, ".html")) return MIME_HTML;
@@ -1179,16 +1163,14 @@ mime_path(char *path)
 	if (!strcasecmp(extension, ".wav"))  return MIME_AUDIO;
 	if (!strcasecmp(extension, ".mp3"))  return MIME_AUDIO;
 	if (!strcasecmp(extension, ".pdf"))  return MIME_PDF;
-
-	return MIME_BINARY;
+	if (!strcasecmp(extension, ".exe"))  return MIME_BINARY;
+	if (!strcasecmp(extension, ".bin"))  return MIME_BINARY;
+	return MIME_TEXT;
 }
 
 Mime
 mime_header(char *str)
 {
-	if (!str || !str[0])
-		return 0;
-
 	if (starts(str, "text/gemini"))              return MIME_GMI;
 	if (starts(str, "text/html"))                return MIME_HTML;
 	if (starts(str, "text/"))                    return MIME_TEXT;
@@ -1198,7 +1180,6 @@ mime_header(char *str)
 	if (starts(str, "application/pdf"))          return MIME_PDF;
 	if (starts(str, "application/octet-stream")) return MIME_BINARY;
 	if (starts(str, "application/gopher-menu"))  return MIME_GPH;
-
 	return 0;
 }
 
@@ -1240,7 +1221,7 @@ main(int argc, char **argv)
 	pathres     = strdup(join(envsession, "/res"));
 	pathout     = strdup(join(envsession, "/out"));
 	pathuri     = strdup(join(envsession, "/uri"));
-	pathinfo    = strdup(join(envsession, "/info"));
+	pathlinks   = strdup(join(envsession, "/links"));
 	pathcmd     = strdup(join(envsession, "/cmd"));
 	pathcache   = strdup(join(envsession, "/cache"));
 	pathbinds   = strdup(join(envhome, "/binds"));
@@ -1287,12 +1268,8 @@ main(int argc, char **argv)
 		envpager = env;
 	}
 
-	while (1) {
-		if (!fgets(buf, sizeof buf, stdin))
-			break;
-
+	while (fgets(buf, sizeof buf, stdin))
 		onprompt(buf);
-	}
 
 	end(0);
 }
