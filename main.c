@@ -1,5 +1,5 @@
 #define NAME	"yupa"			/* Yet another village is dead */
-#define VERSION	"v6.0"
+#define VERSION	"v6.1"
 #define AUTHOR	"irek@gabr.pl"
 
 #include <assert.h>
@@ -22,7 +22,7 @@
 #include "gmi.h"
 #include "gph.h"
 
-#define CRLF		"\r\n"		/* Terminates request messages */
+#define CRLF		"\r\n"
 #define SESSIONSN	16		/* Arbitrary limit to avoid insanity */
 #define BINDSN		('Z'-'A'+1)	/* Inclusive range from A to Z */
 #define UNDOSN		32
@@ -32,7 +32,6 @@ static char *help =
 	"g uri	Goto URI\n"
 	"b [n]	Back in browsing history by -1 or N\n"
 	"l [x]	List page links or link X\n"
-	"a [uri]	Bookmark page or URI\n"
 	"r	View raw response\n"
 	"! cmd	Run CMD\n"
 	"%% cmd	Use CMD stdout as input\n"
@@ -114,7 +113,6 @@ int	envwidth	= 76;
 static char*	pathlock;
 static char*	pathres;
 static char*	pathout;
-static char*	pathuri;
 static char*	pathlinks;
 static char*	pathcmd;
 static char*	pathcache;
@@ -137,6 +135,7 @@ usage(char *argv0)
 	printf("envs:\n"
 	       "	YUPAHOME	Absolute path to user data (%s)\n"
 	       "	YUPASESSION	Runtime path to session dir (%s)\n"
+	       "	YUPAURI		Runtime URI of current page\n"
 	       "	YUPAPAGER	Overwrites $PAGER value (%s)\n"
 	       "	YUPAIMAGE	Command to display images (%s)\n"
 	       "	YUPAVIDEO	Command to play videos (%s)\n"
@@ -183,7 +182,7 @@ loadpage(char *link)
 	int protocol, port, ssl;
 	Mime mime;
 	int n;
-	FILE *fp, *res, *out;
+	FILE *res, *out;
 
 	if (!link)
 		return "No link";
@@ -287,13 +286,8 @@ loadpage(char *link)
 	link_store(uri);
 	undo_add(uri);
 
-	if (!(fp = fopen(pathuri, "w")))
-		err(1, "fopen(%s)", pathuri);
-
-	fprintf(fp, "%s", uri);
-
-	if (fclose(fp))
-		err(1, "flose(%s)", pathuri);
+	if (setenv("YUPAURI", uri, 1))
+		err(1, "setenv(YUPAURI)");
 
 	if (!(out = fopen(pathout, "w")))
 		err(1, "fopen(%s)", pathout);
@@ -413,24 +407,6 @@ onprompt(char *input)
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathlinks);
 		system(buf);
 		break;
-	case 'a':	/* add bookmark */
-		if (!arg)
-			arg = link_get(0);
-
-		if (!arg) {
-			why = "No active page";
-			break;
-		}
-
-		if (!uri_protocol(arg)) {
-			why = "Can't bookmark relative link";
-			break;
-		}
-
-		snprintf(buf, sizeof buf, "echo \"=> %s\n\" >> %s",
-			 arg, pathbook);
-		system(buf);
-		break;
 	case 'r':	/* raw */
 		snprintf(buf, sizeof buf, "%s %s", envpager, pathres);
 		system(buf);
@@ -473,6 +449,7 @@ end(int code)
 	rmdir(pathcache);
 	unlink(pathlock);
 	unlink(pathlinks);
+	unlink(pathcmd);
 	exit(code);
 }
 
@@ -1220,7 +1197,6 @@ main(int argc, char **argv)
 	pathlock    = strdup(join(envsession, "/.lock"));
 	pathres     = strdup(join(envsession, "/res"));
 	pathout     = strdup(join(envsession, "/out"));
-	pathuri     = strdup(join(envsession, "/uri"));
 	pathlinks   = strdup(join(envsession, "/links"));
 	pathcmd     = strdup(join(envsession, "/cmd"));
 	pathcache   = strdup(join(envsession, "/cache"));
@@ -1251,8 +1227,9 @@ main(int argc, char **argv)
 
 	/* Define default binds when there are none */
 	if (bind_init() == 0) {
-		bind_set('H', join("file://", pathhistory));
-		bind_set('B', join("file://", pathbook));
+		bind_set('H', "% echo file://$YUPAHOME/history.gmi");
+		bind_set('B', "% echo file://$YUPAHOME/book.gmi");
+		bind_set('A', "! echo '=>' $YUPAURI >> $YUPAHOME/book.gmi");
 		bind_set('V', "gopher://gopher.floodgap.com/7/v2/vs");
 	}
 
