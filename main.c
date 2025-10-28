@@ -173,8 +173,8 @@ loadpage(char *link)
 	char *host, *path, *cache, *search, *pt, *header;
 	int protocol, port, ssl;
 	Mime mime;
-	int n;
-	FILE *res, *out;
+	int i, n;
+	FILE *fp, *res, *out;
 
 	if (!link)
 		return "No link";
@@ -298,6 +298,16 @@ loadpage(char *link)
 	if (fclose(out))
 		err(1, "flose(%s)", pathout);
 
+	fp = fopen(pathlinks, "w");
+	if (!fp)
+		err(1, "fopen(%s)", pathlinks);
+
+	for (i=0; (pt = link_get(i)); i++)
+		fprintf(fp, "%u\t%s\n", i, pt);
+
+	if (fclose(fp))
+		err(1, "flose(%s)", pathlinks);
+
 	if (!why) {
 		snprintf(buf, sizeof buf, "<%s %s", pathout, envpager);
 		system(buf);
@@ -383,16 +393,6 @@ onprompt(char *input)
 
 			break;
 		}
-
-		fp = fopen(pathlinks, "w");
-		if (!fp)
-			err(1, "fopen(/info)");
-
-		for (i=0; (tmp = link_get(i)); i++)
-			fprintf(fp, "%u\t%s\n", i, tmp);
-
-		if (fclose(fp))
-			err(1, "flose(/info)");
 
 		snprintf(buf, sizeof buf, "<%s %s", pathlinks, envpager);
 		system(buf);
