@@ -1,8 +1,8 @@
+/* Gopher protocol */
+
 #include <stdio.h>
 #include <string.h>
-
 #include "main.h"
-#include "gph.h"
 
 typedef struct nav	Nav;		/* Gopher navigation line type */
 

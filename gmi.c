@@ -1,11 +1,11 @@
+/* Gemini protocol */
+
 #include <err.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "main.h"
-#include "gmi.h"
 
 static int	utf_len		(char*);
 static void	printwrap	(char *line, char *prefix, FILE *out);
@@ -38,7 +38,7 @@ printwrap(char *str, char *prefix, FILE *out)
 	indent = strlen(prefix);
 	w = envmargin;
 
-	while ((word = eachword(&str))) {
+	while ((word = eachword(&str, " \t\n"))) {
 		n = utf_len(word) +1;	/* +1 for space after word */
 		if (w + n > envwidth) {
 			fprintf(out, "\n");

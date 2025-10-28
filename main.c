@@ -17,11 +17,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
 #include "main.h"
-#include "txt.h"
-#include "gmi.h"
-#include "gph.h"
 
 #define CRLF		"\r\n"
 #define SESSIONSN	16		/* Arbitrary limit to avoid insanity */
@@ -369,10 +365,8 @@ onprompt(char *input)
 	case 'e':	/* end */
 		end(0);
 	case 'g':	/* go */
-		if (!arg)
-			why = "Invalid link";
-		else
-			why = loadpage(arg);
+		if (!arg) arg = link_get(0);
+		why = loadpage(arg);
 		break;
 	case 'b':	/* back */
 		delta = -1;
@@ -535,7 +529,7 @@ resolvepath(char *path)
 }
 
 char *
-eachword(char **str)
+eachword(char **str, char *separators)
 {
 	char *word;
 
@@ -544,7 +538,7 @@ eachword(char **str)
 
 	word = *str;
 
-	while (**str && **str > ' ') (*str)++;
+	while (**str && !strchr(separators, **str)) (*str)++;
 
 	if (**str) {
 		**str = 0;
@@ -1200,6 +1194,7 @@ main(int argc, char **argv)
 		bind_set('B', "% echo file://$YUPAHOME/book.gmi");
 		bind_set('H', "% echo file://$YUPAHOME/history.gmi");
 		bind_set('V', "gopher://gopher.floodgap.com/7/v2/vs");
+		bind_set('O', "! xdg-open $YUPASESSION/res");
 	}
 
 	if (argc - optind > 0)
