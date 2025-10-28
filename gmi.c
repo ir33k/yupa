@@ -93,22 +93,25 @@ void
 emit_li(char *line, FILE *res, FILE *out)
 {
 	char buf[4096], prefix[16];
-	unsigned i;
+	int i;
 
 	line = trim(line);
 
-	/* NOTE(irek): Gemini supports only unordered list because
-	 * that syntax is simpler.  Ordered lists are more useful,
-	 * numbers help refer to specific points.  So I'm turning
-	 * unordered list into ordered list.  Sue me. */
+	/*
+	 * Gemtext hs only unordered list because that syntax is
+	 * simpler but ordered lists are more useful so I'm turning
+	 * unordered list into ordered list.  Sue me.
+	 */
 
-	/* NOTE(irek): It's possible that someone made ordered list by
-	 * hand prefixing each list item with a number.  In that case
-	 * it would look very ugly if we had numbers twice.  So if
-	 * list item line starts with a digit then I assume that going
-	 * with ordered list is a bad idea.  It would be perfect to
-	 * check all list items but for simplicity I'm looking only at
-	 * first line. */
+	/*
+	 * It's possible that someone made ordered list by hand
+	 * prefixing each list item with a number.  In that case it
+	 * would look very ugly if we had numbers twice.  So if list
+	 * item line starts with a digit then I assume that going with
+	 * ordered list is a bad idea.  It would be perfect to check
+	 * all list items but for simplicity I'm looking only at first
+	 * line.
+	 */
 	i = isdigit(line[0]) ? 0 : 1;
 
 	while (1) {
@@ -151,7 +154,7 @@ emit_pre(char *line, FILE *res, FILE *out)
 char *
 gmi_search(char *header)
 {
-	static char buf[4096];
+	static char buf[4096] = "?";
 
 	if (header[0] != '1')
 		return 0;
@@ -163,7 +166,6 @@ gmi_search(char *header)
 	printf("%s: ", header+3);
 	fgets(buf+1, (sizeof buf) -1, stdin);
 	trim(buf+1);
-	buf[0] = '?';
 
 	return buf;
 }

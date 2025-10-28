@@ -19,6 +19,7 @@
 #include <unistd.h>
 
 #include "main.h"
+#include "txt.h"
 #include "gmi.h"
 #include "gph.h"
 
@@ -30,7 +31,8 @@
 static char *help =
 	"q/e	Quit / Exit\n"
 	"g uri	Goto URI\n"
-	"b [n]	Back in browsing history by -1 or N\n"
+	"b [n]	Go back in browsing history by 1 or N\n"
+	"f [n]	Go forward in browsing history by 1 or N\n"
 	"l [x]	List page links or link X\n"
 	"r	View raw response\n"
 	"! cmd	Run CMD\n"
@@ -81,7 +83,7 @@ static int	uri_protocol	(char *uri);
 static char*	uri_host	(char *uri);
 static int	uri_port	(char *uri);
 static char*	uri_path	(char *uri);
-static char*	uri_normalize	(char *link, char *base_uri);
+static char*	uri_normalize	(char *link);
 
 static void	undo_add	(char *uri);
 static char*	undo_goto	(int offset);
@@ -100,12 +102,7 @@ static int	undo_last	= 0;
 static char*	envhome		= "~/.yupa";
 static char*	envsession	= "~/.yupa/0";
 static char*	envpager	= "less -XI +R";
-static char*	envimage	= "xdg-open";
-static char*	envvideo	= "xdg-open";
-static char*	envaudio	= "xdg-open";
-static char*	envpdf		= "xdg-open";
 static char*	envhtml		= "xdg-open";
-/* TODO(irek): $ lynx -dump -force_html url | less */
 
 int	envmargin	= 4;
 int	envwidth	= 76;
@@ -137,15 +134,10 @@ usage(char *argv0)
 	       "	YUPASESSION	Runtime path to session dir (%s)\n"
 	       "	YUPAURI		Runtime URI of current page\n"
 	       "	YUPAPAGER	Overwrites $PAGER value (%s)\n"
-	       "	YUPAIMAGE	Command to display images (%s)\n"
-	       "	YUPAVIDEO	Command to play videos (%s)\n"
-	       "	YUPAAUDIO	Command to play audio (%s)\n"
-	       "	YUPAPDF		Command to open PDFs (%s)\n"
 	       "	YUPAHTML	Command to open websites (%s)\n"
 	       "	YUPAMARGIN	Left margin (%d)\n"
 	       "	YUPAWIDTH	Max width (%d)\n",
-	       envhome, envsession, envpager, envimage, envvideo,
-	       envaudio, envpdf, envhtml, envmargin, envwidth);
+	       envhome, envsession, envpager, envhtml, envmargin, envwidth);
 }
 
 void
@@ -178,7 +170,7 @@ loadpage(char *link)
 {
 	Why why;
 	char uri[4096], buf[4096];
-	char *host, *path, *cache, *search, *pt, *cmd, *header;
+	char *host, *path, *cache, *search, *pt, *header;
 	int protocol, port, ssl;
 	Mime mime;
 	int n;
@@ -188,7 +180,7 @@ loadpage(char *link)
 		return "No link";
 
 	why = 0;
-	pt = uri_normalize(link, link_get(0));
+	pt = uri_normalize(link);
 	snprintf(uri, sizeof uri, "%s", pt);
 
 	protocol = uri_protocol(uri);
@@ -292,18 +284,12 @@ loadpage(char *link)
 	if (!(out = fopen(pathout, "w")))
 		err(1, "fopen(%s)", pathout);
 
-	cmd = 0;
 	switch (mime) {
 	default: case 0:  why = "Unsupported mime file type"; break;
 	case MIME_BINARY: why = "Binary mime file type is unsupported"; break;
-	case MIME_GPH:    gph_print(res, out); cmd = envpager; break;
-	case MIME_GMI:    gmi_print(res, out); cmd = envpager; break;
-	case MIME_TEXT:   why = fcp(res, out); cmd = envpager; break;
-	case MIME_HTML:   why = fcp(res, out); cmd = envhtml;  break;
-	case MIME_IMAGE:  why = fcp(res, out); cmd = envimage; break;
-	case MIME_VIDEO:  why = fcp(res, out); cmd = envvideo; break;
-	case MIME_AUDIO:  why = fcp(res, out); cmd = envaudio; break;
-	case MIME_PDF:    why = fcp(res, out); cmd = envpdf;   break;
+	case MIME_GPH:    gph_print(res, out); break;
+	case MIME_GMI:    gmi_print(res, out); break;
+	case MIME_TEXT:   txt_print(res, out); break;
 	}
 
 	if (fclose(res))
@@ -312,8 +298,8 @@ loadpage(char *link)
 	if (fclose(out))
 		err(1, "flose(%s)", pathout);
 
-	if (!why && cmd) {
-		snprintf(buf, sizeof buf, "%s %s", cmd, pathout);
+	if (!why) {
+		snprintf(buf, sizeof buf, "<%s %s", pathout, envpager);
 		system(buf);
 	}
 
@@ -325,7 +311,7 @@ onprompt(char *input)
 {
 	Why why;
 	char cmd, *arg, *tmp, buf[4096];
-	int i;
+	int i, delta;
 	FILE *fp;
 
 	assert(input);
@@ -334,6 +320,7 @@ onprompt(char *input)
 	why = 0;
 	cmd = 0;
 	arg = 0;
+	delta = 1;
 
 	if (!input[0]) {
 		return;
@@ -378,7 +365,10 @@ onprompt(char *input)
 			why = loadpage(arg);
 		break;
 	case 'b':	/* back */
-		arg = undo_goto(arg ? atoi(arg) : -1);
+		delta = -1;
+		/* fallthrough */
+	case 'f':	/* forward */
+		arg = undo_goto((arg ? atoi(arg) : 1) * delta);
 		why = loadpage(arg);
 		break;
 	case 'l':	/* links */
@@ -404,11 +394,11 @@ onprompt(char *input)
 		if (fclose(fp))
 			err(1, "flose(/info)");
 
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathlinks);
+		snprintf(buf, sizeof buf, "<%s %s", pathlinks, envpager);
 		system(buf);
 		break;
 	case 'r':	/* raw */
-		snprintf(buf, sizeof buf, "%s %s", envpager, pathres);
+		snprintf(buf, sizeof buf, "<%s %s", pathres, envpager);
 		system(buf);
 		break;
 	case '!':	/* cmd */
@@ -975,11 +965,13 @@ uri_path(char *uri)
 }
 
 char *
-uri_normalize(char *link, char *base)
+uri_normalize(char *link)
 {
 	static char buf[4096];
 	int protocol, port;
-	char *host, *path, *prefix, *pt, *tmp;
+	char *base, *host, *path, *prefix, *pt, *tmp;
+
+	base = link_get(0);
 
 	if (!base)
 		base = "";
@@ -1127,19 +1119,6 @@ mime_path(char *path)
 	if (!strcasecmp(extension, ".txt"))  return MIME_TEXT;
 	if (!strcasecmp(extension, ".gph"))  return MIME_GPH;
 	if (!strcasecmp(extension, ".gmi"))  return MIME_GMI;
-	if (!strcasecmp(extension, ".html")) return MIME_HTML;
-	if (!strcasecmp(extension, ".jpg"))  return MIME_IMAGE;
-	if (!strcasecmp(extension, ".jpeg")) return MIME_IMAGE;
-	if (!strcasecmp(extension, ".png"))  return MIME_IMAGE;
-	if (!strcasecmp(extension, ".bmp"))  return MIME_IMAGE;
-	if (!strcasecmp(extension, ".gif"))  return MIME_IMAGE;
-	if (!strcasecmp(extension, ".mp4"))  return MIME_VIDEO;
-	if (!strcasecmp(extension, ".mov"))  return MIME_VIDEO;
-	if (!strcasecmp(extension, ".avi"))  return MIME_VIDEO;
-	if (!strcasecmp(extension, ".mkv"))  return MIME_VIDEO;
-	if (!strcasecmp(extension, ".wav"))  return MIME_AUDIO;
-	if (!strcasecmp(extension, ".mp3"))  return MIME_AUDIO;
-	if (!strcasecmp(extension, ".pdf"))  return MIME_PDF;
 	if (!strcasecmp(extension, ".exe"))  return MIME_BINARY;
 	if (!strcasecmp(extension, ".bin"))  return MIME_BINARY;
 	return MIME_TEXT;
@@ -1148,16 +1127,10 @@ mime_path(char *path)
 Mime
 mime_header(char *str)
 {
-	if (starts(str, "text/gemini"))              return MIME_GMI;
-	if (starts(str, "text/html"))                return MIME_HTML;
-	if (starts(str, "text/"))                    return MIME_TEXT;
-	if (starts(str, "image/"))                   return MIME_IMAGE;
-	if (starts(str, "video/"))                   return MIME_VIDEO;
-	if (starts(str, "audio/"))                   return MIME_AUDIO;
-	if (starts(str, "application/pdf"))          return MIME_PDF;
-	if (starts(str, "application/octet-stream")) return MIME_BINARY;
-	if (starts(str, "application/gopher-menu"))  return MIME_GPH;
-	return 0;
+	if (starts(str, "text/gemini")) return MIME_GMI;
+	if (starts(str, "text/")) return MIME_TEXT;
+	if (starts(str, "application/gopher-menu")) return MIME_GPH;
+	return MIME_BINARY;
 }
 
 int
@@ -1173,10 +1146,6 @@ main(int argc, char **argv)
 
 	envstr("PAGER",      &envpager);
 	envstr("YUPAPAGER",  &envpager);
-	envstr("YUPAIMAGE",  &envimage);
-	envstr("YUPAVIDEO",  &envvideo);
-	envstr("YUPAAUDIO",  &envaudio);
-	envstr("YUPAPDF",    &envpdf);
 	envstr("YUPAHTML",   &envhtml);
 	envint("YUPAMARGIN", &envmargin);
 	envint("YUPAWIDTH",  &envwidth);
@@ -1227,9 +1196,9 @@ main(int argc, char **argv)
 
 	/* Define default binds when there are none */
 	if (bind_init() == 0) {
-		bind_set('H', "% echo file://$YUPAHOME/history.gmi");
-		bind_set('B', "% echo file://$YUPAHOME/book.gmi");
 		bind_set('A', "! echo '=>' $YUPAURI >> $YUPAHOME/book.gmi");
+		bind_set('B', "% echo file://$YUPAHOME/book.gmi");
+		bind_set('H', "% echo file://$YUPAHOME/history.gmi");
 		bind_set('V', "gopher://gopher.floodgap.com/7/v2/vs");
 	}
 

@@ -4,6 +4,10 @@ BUG	URI with tabs in history file
 	easily happen with Gopher search links as with those the
 	search phrase is separated from URI using tab.
 
+TODO	Support IPv6 following Beej's Guide to Network Programming
+
+TODO	Avoid having port in URI when default is used
+
 TODO	URL in Gopher h menu item might lead to Gemini not HTTP
 
 TODO	Handle whitespaces in Gemini URI

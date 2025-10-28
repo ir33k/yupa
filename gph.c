@@ -27,20 +27,20 @@ static Nav navs[] = {
 	'8',	"TELNET",	MIME_TEXT,	/* Telnet */
 	'9',	"BIN",		MIME_BINARY,	/* Binary file */
 	'+',	"MIRROR",	MIME_TEXT,	/* Mirror or alternate server */
-	'g',	"GIF",		MIME_IMAGE,	/* GIF file */
-	'I',	"IMG",		MIME_IMAGE,	/* Image file */
+	'g',	"GIF",		MIME_BINARY,	/* GIF file */
+	'I',	"IMG",		MIME_BINARY,	/* Image file */
 	'T',	"TELNET3270",	MIME_TEXT,	/* Telnet 3270 */
 	/* Gopher+ */
-	':',	"BMP",		MIME_IMAGE,	/* Bitmap image */
-	';',	"VIDEO",	MIME_VIDEO,	/* Movie/video file */
-	'<',	"AUDIO",	MIME_AUDIO,	/* Sound file */
+	':',	"BMP",		MIME_BINARY,	/* Bitmap image */
+	';',	"VIDEO",	MIME_BINARY,	/* Movie/video file */
+	'<',	"AUDIO",	MIME_BINARY,	/* Sound file */
 	/* Non-canonical */
-	'd',	"DOC",		MIME_PDF,	/* PDF's and DOC's */
-	'h',	"HTML",		MIME_HTML,	/* HTML file */
-	'p',	"PNG",		MIME_IMAGE,	/* Image file, mainly png */
+	'd',	"DOC",		MIME_BINARY,	/* PDF's and DOC's */
+	'h',	"HTML",		MIME_TEXT,	/* HTML file */
+	'p',	"PNG",		MIME_BINARY,	/* Image file, mainly png */
 	'r',	"RTF",		MIME_BINARY,	/* RTF (rich text format) */
-	's',	"WAV",		MIME_AUDIO,	/* Sound file, mainly WAV */
-	'P',	"PDF",		MIME_PDF,	/* PDF */
+	's',	"WAV",		MIME_BINARY,	/* Sound file, mainly WAV */
+	'P',	"PDF",		MIME_BINARY,	/* PDF */
 	'X',	"XML",		MIME_TEXT,	/* XML */
 	'i',	0,		0,		/* Windly used info message */
 	/* Fallback */

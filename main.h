@@ -1,17 +1,6 @@
 #define LENGTH(a)	(int)((sizeof(a)) / (sizeof(a)[0]))
 
-enum mime {
-	MIME_NONE,
-	MIME_BINARY,
-	MIME_TEXT,
-	MIME_GPH,
-	MIME_GMI,
-	MIME_HTML,
-	MIME_IMAGE,
-	MIME_VIDEO,
-	MIME_AUDIO,
-	MIME_PDF
-};
+enum mime { MIME_NONE, MIME_BINARY, MIME_TEXT, MIME_GPH, MIME_GMI };
 
 typedef char*		Why;
 typedef enum mime	Mime;

@@ -13,6 +13,7 @@ CFLAGS="$CFLAGS -D_POSIX_C_SOURCE=200112L"	# For setenv()
 
 # CFLAGS="$CFLAGS -ggdb"
 
+$CC $CFLAGS -c txt.c   &
 $CC $CFLAGS -c gmi.c   &
 $CC $CFLAGS -c gph.c   &
 wait
